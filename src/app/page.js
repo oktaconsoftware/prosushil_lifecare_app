@@ -186,8 +186,13 @@ export default function LoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ employeeId: username, password }),
       });
+// Inside handleLogin after successful fetch:
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Authentication failed');
+      
+      // 👉 ADD THIS LINE: Save the agent's ID so the dashboard knows who they are
+      localStorage.setItem('employeeId', username); 
+      
       if (data.role === 'ADMIN') router.push('/admin/dashboard');
       else router.push('/sales/dashboard');
     } catch (error) {

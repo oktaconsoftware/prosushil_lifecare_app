@@ -115,12 +115,32 @@ export default function SalesDashboard() {
     return () => { if (watchId) Geolocation.clearWatch({ id: watchId }); };
   }, []);
 
-  // Fetch Assigned Route
+// Fetch Assigned Route for THIS specific salesman
   useEffect(() => {
-    fetch('/api/sales/visits').then(res => res.json()).then(data => {
-      if(Array.isArray(data)) setTargets(data);
-      setIsLoadingRoute(false);
-    });
+    const fetchRoute = async () => {
+      try {
+        // Get the logged in agent's ID. 
+        // (Ensure you save this to localStorage in your login page!)
+        const agentId = localStorage.getItem('employeeId') || 'PL-1043'; 
+        
+        // Get today's date in YYYY-MM-DD format
+        const today = new Date().toISOString().split('T')[0];
+
+        // Pass the Agent ID and Date to the API
+        const res = await fetch(`/api/sales/visits?agentId=${agentId}&date=${today}`);
+        const data = await res.json();
+        
+        if (res.ok && Array.isArray(data)) {
+          setTargets(data);
+        }
+      } catch (err) {
+        console.error("Failed to load route:", err);
+      } finally {
+        setIsLoadingRoute(false);
+      }
+    };
+    
+    fetchRoute();
   }, []);
 
   // Calculate distance to the currently active target dynamically

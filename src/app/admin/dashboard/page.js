@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import CommissionTab from '../../components/admin/CommissionTab';
 import DailyReportTab from '../../components/admin/DailyReportTab';
 
+import RoutePlannerTab from '../../components/admin/RoutePlannerTab';
+
 function Field({ label, hint, children }) {
   return (
     <div>
@@ -172,6 +174,7 @@ export default function AdminDashboard() {
         <nav className="relative z-10 flex-1 overflow-y-auto px-4 py-6 space-y-1">
           {[
             { id: 'command', label: 'Command center',   icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z' },
+            { id: 'planner', label: 'Territory planner', icon: 'M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7' },
             { id: 'ledger',  label: 'Commission ledger', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
             { id: 'reports', label: 'Daily agent reports', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
           ].map((n) => (
@@ -202,12 +205,12 @@ export default function AdminDashboard() {
       <main className="flex-1 flex flex-col h-[100dvh] overflow-hidden relative w-full">
 
         <header className="hidden md:flex shrink-0 items-center justify-between px-8 lg:px-10 h-[72px] bg-white" style={{ borderBottom: '1px solid #e9edf2', boxShadow: '0 1px 0 #e9edf2' }}>
-          <div>
+      <div>
             <h2 className="text-lg font-semibold text-slate-800 tracking-tight">
-              {adminNav === 'command' ? 'Sales operations' : adminNav === 'ledger' ? 'Commission Treasury' : 'Daily Field Reports'}
+              {adminNav === 'command' ? 'Sales operations' : adminNav === 'ledger' ? 'Commission Treasury' : adminNav === 'planner' ? 'Route Dispatcher' : 'Daily Field Reports'}
             </h2>
             <p className="text-xs font-medium mt-0.5" style={{ color: '#8896aa' }}>
-              {adminNav === 'command' ? 'Real-time agent performance and territory tracking' : adminNav === 'ledger' ? 'Review and approve field force payouts' : 'Analyze daily salesman logs and outcomes'}
+              {adminNav === 'command' ? 'Real-time agent performance and territory tracking' : adminNav === 'ledger' ? 'Review and approve field force payouts' : adminNav === 'planner' ? 'Assign specific medical shops to agents' : 'Analyze daily salesman logs and outcomes'}
             </p>
           </div>
           <button
@@ -351,6 +354,8 @@ export default function AdminDashboard() {
         
         {/* NEW DAILY REPORT TAB */}
         {adminNav === 'reports' && <DailyReportTab team={team} />}
+
+        {adminNav === 'planner' && <RoutePlannerTab team={team} />}
 
         {/* BOTTOM NAV */}
         <nav className="md:hidden absolute bottom-0 left-0 right-0 z-40 bg-white" style={{ borderTop: '1px solid #e9edf2', paddingBottom: 'env(safe-area-inset-bottom)' }}>

@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, integer, decimal, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, timestamp, integer, decimal, boolean , varchar , date } from 'drizzle-orm/pg-core';
 
 // 1. Users Table (Stores both Admins and Sales Agents)
 export const users = pgTable('users', {
@@ -42,4 +42,12 @@ export const visits = pgTable('visits', {
   checkInTime: timestamp('check_in_time'),
   checkOutTime: timestamp('check_out_time'),
   createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Add this to your existing src/db/schema.js
+export const routeAssignments = pgTable('route_assignments', {
+  id: serial('id').primaryKey(),
+  agentId: varchar('agent_id').notNull(), // e.g., 'PL-1043'
+  targetId: integer('target_id').notNull(), // The ID of the Medical Shop
+  date: date('date').notNull(), // The assigned date: '2026-06-13'
 });
