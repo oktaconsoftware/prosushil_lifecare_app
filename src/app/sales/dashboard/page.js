@@ -4,22 +4,87 @@ import { useRouter } from 'next/navigation';
 import { Geolocation } from '@capacitor/geolocation';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 
+// ==========================================
+// NAVIGATION COMPONENTS
+// ==========================================
+function TopHeader({ mobileNav, handleLogout }) {
+  const titles = {
+    'route': { title: 'Active route', sub: 'Verify your assigned visits' },
+    'radar': { title: 'Area Radar', sub: 'Scan for nearby medical shops' },
+    'deals': { title: 'Commission Ledger', sub: 'Track your monthly earnings' }
+  };
+
+  return (
+    <>
+      <header className="hidden md:flex shrink-0 items-center justify-between px-8 lg:px-10 h-[72px] bg-white" style={{ borderBottom: '1px solid #e9edf2', boxShadow: '0 1px 0 #e9edf2' }}>
+        <div>
+          <h2 className="text-lg font-semibold text-slate-800 tracking-tight">{titles[mobileNav]?.title}</h2>
+          <p className="text-xs font-medium mt-0.5" style={{ color: '#8896aa' }}>{titles[mobileNav]?.sub}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] font-medium px-3 py-1.5 rounded-full" style={{ background: '#f1f5f9', color: '#64748b' }}>
+            {new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'short', day: 'numeric' })}
+          </span>
+        </div>
+      </header>
+
+      <header className="md:hidden flex shrink-0 items-center justify-between px-4 h-14 bg-white" style={{ borderBottom: '1px solid #e9edf2' }}>
+        <div className="flex items-center gap-2.5">
+          <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: mobileNav === 'radar' ? 'rgba(168,85,247,0.1)' : mobileNav === 'route' ? 'rgba(151,194,42,0.1)' : 'rgba(96,165,250,0.1)' }}>
+            {mobileNav === 'route' && <svg className="w-3.5 h-3.5" style={{ color: '#97c22a' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>}
+            {mobileNav === 'radar' && <svg className="w-3.5 h-3.5" style={{ color: '#a855f7' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>}
+            {mobileNav === 'deals' && <svg className="w-3.5 h-3.5" style={{ color: '#60a5fa' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>}
+          </div>
+          <p className="text-[13px] font-semibold text-slate-800">{titles[mobileNav]?.title}</p>
+        </div>
+        <button onClick={handleLogout} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+          <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+        </button>
+      </header>
+    </>
+  );
+}
+
+// Haversine Formula to calculate distance between two coordinates
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+  const R = 6371e3; // Earth radius in meters
+  const p1 = (lat1 * Math.PI) / 180;
+  const p2 = (lat2 * Math.PI) / 180;
+  const dp = ((lat2 - lat1) * Math.PI) / 180;
+  const dl = ((lon2 - lon1) * Math.PI) / 180;
+  const a = Math.sin(dp / 2) * Math.sin(dp / 2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+  return Math.round(R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))));
+}
+
+// ==========================================
+// MAIN DASHBOARD COMPONENT
+// ==========================================
 export default function SalesDashboard() {
   const router = useRouter();
   
-  // Real Data State
+  // App State
+  const [mobileNav, setMobileNav] = useState('route'); 
+  const [currentGps, setCurrentGps] = useState(null);
+  
+  // Route State
   const [targets, setTargets] = useState([]);
   const [isLoadingRoute, setIsLoadingRoute] = useState(true);
-  
-  // Tracking & Location State
-  const [distance, setDistance] = useState(45); // Mocked to 45m for testing
+  const [distanceToActiveTarget, setDistanceToActiveTarget] = useState(null);
   const [visitStatus, setVisitStatus] = useState('Idle'); 
-  const [mobileNav, setMobileNav] = useState('route'); // 'route' | 'deals'
-  const [error, setError] = useState('');
   const [photoUri, setPhotoUri] = useState(null);
+  const [error, setError] = useState('');
+
+  // Radar State
+  const [nearbyShops, setNearbyShops] = useState([]);
+  const [isScanning, setIsScanning] = useState(false);
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [newShopData, setNewShopData] = useState({ name: '', address: '' });
+  const [isRegistering, setIsRegistering] = useState(false);
 
   // Deal Logging State
   const [isDealModalOpen, setIsDealModalOpen] = useState(false);
+  const [activeTarget, setActiveTarget] = useState(null); 
   const [dealData, setDealData] = useState({ orderValue: '', samplesGiven: 0, productPitched: 'Adivasi Neelambari Oil', feedback: '' });
   const [isSubmittingDeal, setIsSubmittingDeal] = useState(false);
   const [dealError, setDealError] = useState('');
@@ -28,44 +93,126 @@ export default function SalesDashboard() {
   const totalCommission = targets.reduce((sum, t) => sum + (t.commission || 0), 0);
   const totalPipeline = targets.reduce((sum, t) => sum + (t.orderValue || 0), 0);
   const completedCount = targets.filter(t => t.status === 'COMPLETED').length;
-  const completedDeals = targets.filter(t => t.status === 'COMPLETED').reverse(); // Newest first
+  const completedDeals = targets.filter(t => t.status === 'COMPLETED').reverse();
   
-  // Fetch real database route on load
+  // Track GPS automatically
   useEffect(() => {
-    const fetchRoute = async () => {
+    let watchId;
+    const startTracking = async () => {
       try {
-        const res = await fetch('/api/sales/visits');
-        const data = await res.json();
-        if (res.ok) {
-          setTargets(data);
-        }
-      } catch (err) {
-        console.error("Failed to load route:", err);
-      } finally {
-        setIsLoadingRoute(false);
+        await Geolocation.requestPermissions();
+        watchId = await Geolocation.watchPosition({ enableHighAccuracy: true }, (pos) => {
+          if (pos) {
+            setCurrentGps({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          }
+        });
+      } catch (err) { 
+        console.error("GPS Error", err); 
+        setError("GPS hardware not available.");
       }
     };
-    fetchRoute();
+    startTracking();
+    return () => { if (watchId) Geolocation.clearWatch({ id: watchId }); };
   }, []);
+
+  // Fetch Assigned Route
+  useEffect(() => {
+    fetch('/api/sales/visits').then(res => res.json()).then(data => {
+      if(Array.isArray(data)) setTargets(data);
+      setIsLoadingRoute(false);
+    });
+  }, []);
+
+  // Calculate distance to the currently active target dynamically
+  useEffect(() => {
+    if (currentGps && targets.length > 0) {
+      const active = targets.find(t => t.status === 'PENDING');
+      if (active && active.latitude && active.longitude) {
+        const dist = calculateDistance(currentGps.lat, currentGps.lng, active.latitude, active.longitude);
+        setDistanceToActiveTarget(dist);
+      }
+    }
+  }, [currentGps, targets]);
+
+  // Run Radar Scan
+  const scanArea = async () => {
+    if (!currentGps) {
+      alert("Waiting for GPS lock. Ensure location services are enabled.");
+      return;
+    }
+    setIsScanning(true);
+    try {
+      const res = await fetch(`/api/sales/discovery?lat=${currentGps.lat}&lng=${currentGps.lng}`);
+      const data = await res.json();
+      if(Array.isArray(data)) setNearbyShops(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  // Auto-scan when opening Radar tab
+  useEffect(() => {
+    if (mobileNav === 'radar' && currentGps) { scanArea(); }
+  }, [mobileNav, currentGps]);
 
   const handleLogout = () => router.push('/');
 
+  // Action: Register New Shop (Photo + Name)
+  const handleRegisterShop = async (e) => {
+    e.preventDefault();
+    setIsRegistering(true);
+    try {
+      let capturedPhoto = null;
+      try {
+        const image = await Camera.getPhoto({ quality: 80, resultType: CameraResultType.Uri, source: CameraSource.Camera });
+        capturedPhoto = image.webPath;
+      } catch (e) {
+        capturedPhoto = 'no-photo';
+      }
+
+      const res = await fetch('/api/sales/discovery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newShopData.name,
+          address: newShopData.address,
+          latitude: currentGps.lat,
+          longitude: currentGps.lng,
+          photoUrl: capturedPhoto
+        })
+      });
+      const data = await res.json();
+
+      setActiveTarget({ id: data.target.id, name: data.target.name });
+      setIsRegisterModalOpen(false);
+      setNewShopData({ name: '', address: '' });
+      setIsDealModalOpen(true);
+
+    } catch (err) {
+      alert("Failed to register shop.");
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
+  const initiateDeal = (target) => {
+    setActiveTarget(target);
+    setIsDealModalOpen(true);
+  };
+
   const handleNativeCheckIn = async () => {
-    if (distance > 50) {
-      alert(`Geofence violation: You are ${distance}m away. Must be under 50m to verify.`);
+    if (distanceToActiveTarget !== null && distanceToActiveTarget > 50) {
+      alert(`Geofence violation: You are ${distanceToActiveTarget}m away. Must be under 50m to verify.`);
       return;
     }
     
     try {
-      const image = await Camera.getPhoto({
-        quality: 80,
-        allowEditing: false,
-        resultType: CameraResultType.Uri,
-        source: CameraSource.Camera, 
-      });
+      const image = await Camera.getPhoto({ quality: 80, allowEditing: false, resultType: CameraResultType.Uri, source: CameraSource.Camera });
       setPhotoUri(image.webPath);
     } catch (err) {
-      console.log("Camera bypassed or dismissed. Proceeding for web demo.");
+      console.log("Camera bypassed or dismissed.");
     }
     setVisitStatus('CheckedIn');
   };
@@ -76,35 +223,42 @@ export default function SalesDashboard() {
     setDealError('');
     
     try {
-      const activeTarget = targets.find(t => t.status === 'PENDING');
-      if (!activeTarget) throw new Error("No active target selected.");
+      const currentDealTarget = activeTarget || targets.find(t => t.status === 'PENDING');
+      if (!currentDealTarget) throw new Error("No active target selected.");
 
       const response = await fetch('/api/sales/visits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          targetId: activeTarget.id,
-          ...dealData
-        }),
+        body: JSON.stringify({ targetId: currentDealTarget.id, ...dealData }),
       });
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
 
-      // Update UI with real server-calculated commission & pipeline value
-      setTargets(prev => prev.map(t => 
-        t.id === activeTarget.id ? { 
-          ...t, 
-          status: 'COMPLETED', 
-          time: data.time,
-          commission: data.commission,
-          orderValue: Number(dealData.orderValue)
-        } : t
-      ));
+      // Dynamically update the target array so it shows as completed
+      setTargets(prev => {
+        // If the shop was from Radar and not in targets array, add it temporarily
+        if (!prev.find(t => t.id === currentDealTarget.id)) {
+           return [...prev, { ...currentDealTarget, status: 'COMPLETED', time: data.time, commission: data.commission, orderValue: Number(dealData.orderValue) }];
+        }
+        // Otherwise update existing assigned route
+        return prev.map(t => 
+          t.id === currentDealTarget.id ? { 
+            ...t, 
+            status: 'COMPLETED', 
+            time: data.time,
+            commission: data.commission,
+            orderValue: Number(dealData.orderValue)
+          } : t
+        );
+      });
 
       setIsDealModalOpen(false);
       setVisitStatus('Completed');
       setDealData({ orderValue: '', samplesGiven: 0, productPitched: 'Adivasi Neelambari Oil', feedback: '' });
+      setActiveTarget(null);
+      
+      if (mobileNav === 'radar') setMobileNav('route');
 
     } catch (err) {
       setDealError(err.message);
@@ -115,10 +269,8 @@ export default function SalesDashboard() {
 
   return (
     <div className="flex h-[100dvh] w-full overflow-hidden font-sans" style={{ background: '#f1f5f9' }}>
-
-      {/* ══════════════════════════════════════════════
-          DESKTOP SIDEBAR
-      ══════════════════════════════════════════════ */}
+      
+      {/* DESKTOP SIDEBAR */}
       <aside className="hidden md:flex flex-col w-64 lg:w-72 shrink-0 relative z-20" style={{ background: '#0a0f1a', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
         <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.02) 1px,transparent 1px)', backgroundSize: '40px 40px' }} />
         <div className="absolute pointer-events-none" style={{ top: '-60px', right: '-60px', width: '240px', height: '240px', background: 'radial-gradient(circle,rgba(151,194,42,0.1) 0%,transparent 70%)' }} />
@@ -142,6 +294,7 @@ export default function SalesDashboard() {
         <nav className="relative z-10 flex-1 overflow-y-auto px-4 py-6 space-y-1">
           {[
             { id: 'route', label: 'Active route', icon: 'M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z' },
+            { id: 'radar', label: 'Area radar', icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' },
             { id: 'deals', label: 'My deals', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
           ].map((n) => (
             <button key={n.id} onClick={() => setMobileNav(n.id)} className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-left" style={mobileNav === n.id ? { background: 'rgba(151,194,42,0.1)', border: '1px solid rgba(151,194,42,0.18)', color: '#97c22a' } : { color: '#8896aa', border: '1px solid transparent' }}>
@@ -159,40 +312,11 @@ export default function SalesDashboard() {
         </div>
       </aside>
 
-      {/* ══════════════════════════════════════════════
-          MAIN CONTENT
-      ══════════════════════════════════════════════ */}
+      {/* MAIN CONTENT */}
       <main className="flex-1 flex flex-col h-[100dvh] overflow-hidden relative w-full">
+        <TopHeader mobileNav={mobileNav} handleLogout={handleLogout} />
 
-        <header className="hidden md:flex shrink-0 items-center justify-between px-8 lg:px-10 h-[72px] bg-white" style={{ borderBottom: '1px solid #e9edf2', boxShadow: '0 1px 0 #e9edf2' }}>
-          <div>
-            <h2 className="text-lg font-semibold text-slate-800 tracking-tight">{mobileNav === 'route' ? 'Active route' : 'Commission Ledger'}</h2>
-            <p className="text-xs font-medium mt-0.5" style={{ color: '#8896aa' }}>{mobileNav === 'route' ? 'Verify your location and log field visits' : 'Track your monthly earnings and closed deals'}</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] font-medium px-3 py-1.5 rounded-full" style={{ background: '#f1f5f9', color: '#64748b' }}>
-              {new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'short', day: 'numeric' })}
-            </span>
-          </div>
-        </header>
-
-        <header className="md:hidden flex shrink-0 items-center justify-between px-4 h-14 bg-white" style={{ borderBottom: '1px solid #e9edf2' }}>
-          <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: mobileNav === 'route' ? 'rgba(151,194,42,0.1)' : 'rgba(96,165,250,0.1)' }}>
-              {mobileNav === 'route' ? (
-                <svg className="w-3.5 h-3.5" style={{ color: '#97c22a' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
-              ) : (
-                <svg className="w-3.5 h-3.5" style={{ color: '#60a5fa' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-              )}
-            </div>
-            <p className="text-[13px] font-semibold text-slate-800">{mobileNav === 'route' ? 'Active route' : 'My deals'}</p>
-          </div>
-          <button onClick={handleLogout} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-            <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-          </button>
-        </header>
-
-        {/* ── ROUTE TAB ────────────────────────── */}
+        {/* ── ROUTE TAB ── */}
         {mobileNav === 'route' && (
           <div className="flex-1 overflow-y-auto animate-in fade-in duration-200">
             <div className="p-4 md:p-8 lg:p-10 space-y-4 md:space-y-6 pb-24 md:pb-10 max-w-4xl mx-auto w-full">
@@ -211,8 +335,11 @@ export default function SalesDashboard() {
 
               {isLoadingRoute ? (
                 <div className="text-center py-10 text-sm font-medium text-slate-500">Loading database route...</div>
+              ) : targets.length === 0 ? (
+                <div className="text-center py-10 text-xs text-slate-500">No assigned routes today. Use the Area Radar to find shops.</div>
               ) : (
                 targets.map((target, index) => {
+                  // The active target is the FIRST one that is PENDING
                   const isActiveTarget = target.status === 'PENDING' && targets.findIndex(t => t.status === 'PENDING') === index;
 
                   return (
@@ -236,8 +363,8 @@ export default function SalesDashboard() {
                             <div className="space-y-2">
                               <div className="flex justify-between items-center">
                                 <span className="text-[11px] font-medium" style={{ color: '#8896aa' }}>Distance to target</span>
-                                <span className="text-[13px] font-semibold" style={{ color: distance !== null && distance <= 50 ? '#97c22a' : '#e73e43' }}>
-                                  {distance !== null ? `${distance}m away` : 'Scanning...'}
+                                <span className="text-[13px] font-semibold" style={{ color: distanceToActiveTarget !== null && distanceToActiveTarget <= 50 ? '#97c22a' : '#e73e43' }}>
+                                  {distanceToActiveTarget !== null ? `${distanceToActiveTarget}m away` : 'Calculating...'}
                                 </span>
                               </div>
                             </div>
@@ -259,7 +386,7 @@ export default function SalesDashboard() {
                                   <p className="text-[10px] mt-0.5" style={{ color: '#7aaa1f' }}>You are within 50m of the target.</p>
                                 </div>
                               </div>
-                              <button onClick={() => setIsDealModalOpen(true)} className="w-full py-3.5 rounded-xl text-[13px] font-semibold text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2" style={{ background: '#0a0f1a', boxShadow: '0 4px 14px rgba(10,15,26,0.15)' }}>
+                              <button onClick={() => { setActiveTarget(target); setIsDealModalOpen(true); }} className="w-full py-3.5 rounded-xl text-[13px] font-semibold text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2" style={{ background: '#0a0f1a', boxShadow: '0 4px 14px rgba(10,15,26,0.15)' }}>
                                 Log deal & Close visit
                               </button>
                             </div>
@@ -290,7 +417,63 @@ export default function SalesDashboard() {
           </div>
         )}
 
-        {/* ── DEALS / COMMISSION TAB ──────────────────── */}
+        {/* ── RADAR / DISCOVERY TAB ── */}
+        {mobileNav === 'radar' && (
+          <div className="flex-1 overflow-y-auto animate-in fade-in duration-200">
+            <div className="p-4 space-y-4 pb-24 max-w-4xl mx-auto relative">
+              
+              <div className="bg-slate-900 rounded-3xl p-6 relative overflow-hidden shadow-xl mb-6 text-center">
+                <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
+                  <div className="w-32 h-32 border border-purple-500 rounded-full animate-ping"></div>
+                  <div className="w-48 h-48 border border-purple-500 rounded-full absolute"></div>
+                </div>
+                <div className="relative z-10">
+                  <h3 className="text-lg font-semibold text-white tracking-tight">Geofence Radar</h3>
+                  <p className="text-[11px] text-slate-400 mt-1 mb-4">Scanning for recognized pharmacies within 200 meters...</p>
+                  <button onClick={scanArea} disabled={isScanning} className="px-6 py-2 rounded-full text-xs font-semibold text-white bg-purple-600 disabled:opacity-50 shadow-[0_0_15px_rgba(168,85,247,0.4)]">
+                    {isScanning ? 'Scanning...' : 'Rescan Area'}
+                  </button>
+                </div>
+              </div>
+
+              <h3 className="text-[13px] font-semibold text-slate-800 mb-2">Recognized Shops Nearby</h3>
+              
+              {nearbyShops.length === 0 && !isScanning ? (
+                <div className="text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <p className="text-xs font-medium text-slate-500">No known shops found in this area.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {nearbyShops.map(shop => (
+                    <div key={shop.id} className="bg-white rounded-2xl p-4 flex items-center justify-between border border-slate-200 shadow-sm hover:border-purple-300 transition-colors">
+                      <div>
+                        <h4 className="text-[13px] font-semibold text-slate-800">{shop.name}</h4>
+                        <p className="text-[10px] text-slate-500 mt-0.5">{shop.distance}m away</p>
+                      </div>
+                      <button onClick={() => initiateDeal(shop)} className="px-4 py-2 rounded-xl text-[11px] font-semibold text-white bg-purple-600 shadow-sm active:scale-95 transition-all">
+                        Check In
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-6 pt-6 border-t border-slate-200">
+                <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 text-center">
+                  <h4 className="text-[13px] font-semibold text-blue-900 mb-1">Standing at a new medical shop?</h4>
+                  <p className="text-[10px] text-blue-600 mb-4 leading-relaxed">Register it to the global database so you and your team never have to type it again.</p>
+                  <button onClick={() => setIsRegisterModalOpen(true)} className="w-full py-3 rounded-xl text-xs font-semibold text-white bg-blue-600 shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Register New Shop
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* ── DEALS TAB ── */}
         {mobileNav === 'deals' && (
           <div className="flex-1 overflow-y-auto animate-in fade-in duration-200">
             <div className="p-4 md:p-8 lg:p-10 space-y-4 md:space-y-6 pb-24 md:pb-10 max-w-4xl mx-auto w-full">
@@ -349,118 +532,100 @@ export default function SalesDashboard() {
                   )}
                 </div>
               </div>
-
             </div>
           </div>
         )}
 
-        {/* ── MOBILE BOTTOM NAV ─────────────────────── */}
+        {/* BOTTOM NAV */}
         <nav className="md:hidden absolute bottom-0 left-0 right-0 z-40 bg-white" style={{ borderTop: '1px solid #e9edf2', paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className="flex items-center justify-around px-2 h-14">
             {[
               { id: 'route', label: 'Route', icon: 'M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z' },
+              { id: 'radar', label: 'Nearby', icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' },
               { id: 'deals', label: 'Deals', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
             ].map((n) => (
               <button key={n.id} onClick={() => setMobileNav(n.id)} className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-all">
-                <svg className="w-4.5 h-4.5" style={{ color: mobileNav === n.id ? '#97c22a' : '#94a3b8' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={mobileNav === n.id ? '2' : '1.5'} d={n.icon} /></svg>
-                <span className="text-[9px] font-semibold" style={{ color: mobileNav === n.id ? '#97c22a' : '#94a3b8' }}>{n.label}</span>
+                <svg className="w-4.5 h-4.5" style={{ color: mobileNav === n.id ? (n.id === 'radar' ? '#a855f7' : '#97c22a') : '#94a3b8' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={mobileNav === n.id ? '2' : '1.5'} d={n.icon} />
+                </svg>
+                <span className="text-[9px] font-semibold" style={{ color: mobileNav === n.id ? (n.id === 'radar' ? '#a855f7' : '#97c22a') : '#94a3b8' }}>{n.label}</span>
               </button>
             ))}
           </div>
         </nav>
 
         {/* ══════════════════════════════════════════════
-            DEAL LOGGING MODAL
+            MODALS
         ══════════════════════════════════════════════ */}
-        {isDealModalOpen && (
-          <div className="absolute inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4" style={{ background: 'rgba(10,15,26,0.7)', backdropFilter: 'blur(6px)' }}>
-            <div className="w-full sm:max-w-md bg-white relative overflow-hidden" style={{ borderRadius: '20px 20px 0 0', boxShadow: '0 -8px 40px rgba(0,0,0,0.15)' }}>
-              
-              <div className="flex justify-center pt-3 pb-1 sm:hidden"><div className="w-8 h-1 rounded-full bg-slate-200" /></div>
-              
-              <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid #f1f5f9' }}>
+
+        {/* 1. Register New Shop Modal */}
+        {isRegisterModalOpen && (
+          <div className="absolute inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4" style={{ background: 'rgba(10,15,26,0.7)', backdropFilter: 'blur(6px)' }}>
+            <div className="w-full sm:max-w-md bg-white relative overflow-hidden rounded-t-2xl sm:rounded-2xl shadow-2xl">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                <div>
+                  <p className="text-[13px] font-semibold text-slate-800">Register New Medical</p>
+                  <p className="text-[11px] text-slate-500">Add to global database</p>
+                </div>
+                <button onClick={() => setIsRegisterModalOpen(false)} className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center"><svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+              </div>
+              <form onSubmit={handleRegisterShop} className="p-5 space-y-4">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Shop Name</label>
+                  <input type="text" required value={newShopData.name} onChange={e => setNewShopData({...newShopData, name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="e.g. Wellness Medicos" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Local Area / Address (Optional)</label>
+                  <input type="text" value={newShopData.address} onChange={e => setNewShopData({...newShopData, address: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="e.g. Rankala Bus Stand" />
+                </div>
+                
+                <div className="bg-blue-50 border border-blue-100 p-3 rounded-xl flex items-start gap-3 mt-4">
+                  <svg className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                  <p className="text-[10px] text-blue-800 leading-relaxed">
+                    Clicking continue will open your camera to take a photo of the shop front, locking its GPS coordinates to the database.
+                  </p>
+                </div>
+
+                <button type="submit" disabled={isRegistering} className="w-full py-3.5 mt-2 bg-blue-600 text-white font-semibold rounded-xl text-[13px] disabled:opacity-50">
+                  {isRegistering ? 'Processing...' : 'Capture Photo & Register'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* 2. Log Deal Modal */}
+        {isDealModalOpen && activeTarget && (
+          <div className="absolute inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4" style={{ background: 'rgba(10,15,26,0.7)', backdropFilter: 'blur(6px)' }}>
+            <div className="w-full sm:max-w-md bg-white relative overflow-hidden rounded-t-2xl sm:rounded-2xl shadow-2xl">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
                 <div>
                   <p className="text-[13px] font-semibold text-slate-800">Log Visit Outcome</p>
-                  <p className="text-[11px] mt-0.5" style={{ color: '#8896aa' }}>{targets.find(t=>t.status==='PENDING')?.name}</p>
+                  <p className="text-[11px] text-slate-500">{activeTarget.name}</p>
                 </div>
-                <button onClick={() => setIsDealModalOpen(false)} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-slate-100" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                  <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
+                <button onClick={() => setIsDealModalOpen(false)} className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center"><svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
               </div>
-
-              <form onSubmit={handleDealSubmit} className="px-5 py-5 space-y-4">
-                {dealError && (
-                  <div className="p-2.5 rounded-lg bg-[#e73e43]/10 border border-[#e73e43]/20 text-[#e73e43] text-xs font-medium flex items-start">
-                    <svg className="w-4 h-4 mr-2 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                    <span>{dealError}</span>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-500 tracking-wide mb-1.5">Product Pitched</label>
-                  <select 
-                    value={dealData.productPitched} 
-                    onChange={e => setDealData({...dealData, productPitched: e.target.value})}
-                    className="w-full px-3.5 py-3 rounded-xl text-sm font-medium text-slate-800 outline-none transition-all appearance-none"
-                    style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1.2em' }}
-                  >
-                    <option value="Adivasi Neelambari Oil">Adivasi Neelambari Hair Oil</option>
-                    <option value="Sushil Pain Relief">Sushil Pain Relief Gel</option>
-                    <option value="Herbal Supplements">General Herbal Supplements</option>
-                  </select>
-                </div>
-
+              
+              <form onSubmit={handleDealSubmit} className="p-5 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-500 tracking-wide mb-1.5">Order Value (₹)</label>
-                    <input 
-                      type="number" 
-                      min="0"
-                      required
-                      value={dealData.orderValue} 
-                      onChange={e => setDealData({...dealData, orderValue: e.target.value})}
-                      placeholder="e.g. 5000"
-                      className="w-full px-3.5 py-3 rounded-xl text-base font-medium text-slate-800 outline-none transition-all"
-                      style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0' }}
-                    />
+                    <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Order Value (₹)</label>
+                    <input type="number" required min="0" value={dealData.orderValue} onChange={e => setDealData({...dealData, orderValue: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-base font-semibold outline-none focus:border-[#97c22a]" placeholder="0" />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-500 tracking-wide mb-1.5">Samples Given</label>
-                    <input 
-                      type="number" 
-                      min="0"
-                      value={dealData.samplesGiven} 
-                      onChange={e => setDealData({...dealData, samplesGiven: e.target.value})}
-                      className="w-full px-3.5 py-3 rounded-xl text-base font-medium text-slate-800 outline-none transition-all"
-                      style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0' }}
-                    />
+                    <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Samples Given</label>
+                    <input type="number" min="0" value={dealData.samplesGiven} onChange={e => setDealData({...dealData, samplesGiven: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-base font-semibold outline-none focus:border-[#97c22a]" placeholder="0" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-500 tracking-wide mb-1.5">Doctor/Pharmacist Notes</label>
-                  <textarea 
-                    rows="2"
-                    value={dealData.feedback} 
-                    onChange={e => setDealData({...dealData, feedback: e.target.value})}
-                    placeholder="Any stock requirements or feedback?"
-                    className="w-full px-3.5 py-3 rounded-xl text-sm font-medium text-slate-800 outline-none transition-all resize-none"
-                    style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0' }}
-                  ></textarea>
+                  <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Doctor/Pharmacist Notes</label>
+                  <textarea rows="2" value={dealData.feedback} onChange={e => setDealData({...dealData, feedback: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm resize-none outline-none focus:border-[#97c22a]" placeholder="Any feedback?"></textarea>
                 </div>
 
-                <div className="pt-2">
-                  <button 
-                    type="submit" 
-                    disabled={isSubmittingDeal} 
-                    className="w-full py-3.5 rounded-xl text-[13px] font-semibold text-white transition-all disabled:opacity-60 flex items-center justify-center gap-2"
-                    style={{ background: '#0a0f1a' }}
-                  >
-                    {isSubmittingDeal ? (
-                      <><svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Saving to ledger...</>
-                    ) : 'Submit & Calculate Commission'}
-                  </button>
-                </div>
+                <button type="submit" disabled={isSubmittingDeal} className="w-full py-3.5 bg-slate-900 text-white font-semibold rounded-xl text-[13px] disabled:opacity-50">
+                  {isSubmittingDeal ? 'Saving to Ledger...' : 'Submit & Close Visit'}
+                </button>
               </form>
             </div>
           </div>
