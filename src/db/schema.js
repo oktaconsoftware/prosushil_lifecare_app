@@ -27,11 +27,12 @@ export const visits = pgTable('visits', {
   id: serial('id').primaryKey(),
   agentId: varchar('agent_id').notNull(),
   medicalShopId: integer('medical_shop_id').references(() => medicalShops.id).notNull(),
-  photoUrl: text('photo_url'), // Stores the captured image
+  photoUrl: text('photo_url'),
   orderAmount: numeric('order_amount').notNull().default('0'),
   collectionAmount: numeric('collection_amount').notNull().default('0'),
   remark: text('remark'),
   createdAt: timestamp('created_at').defaultNow(),
+  status: varchar('status').notNull().default('Pending Review'),
 });
 
 

@@ -1,59 +1,84 @@
+// NUCLEAR CACHE KILLERS: Ensure admin always sees live data
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
+
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { visits, users, targets } from '@/db/schema';
+import { visits, medicalShops } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
 
-// FETCH ALL DEALS FOR THE MASTER LEDGER
+// GET: Fetch all live deals from the field
 export async function GET() {
   try {
-    const allDeals = await db.select({
+    // Join the visits table with the medicalShops table to get the Pharmacy Name
+    const allVisits = await db.select({
       id: visits.id,
-      status: visits.status,
-      orderValue: visits.dealVolume,
-      date: visits.createdAt,
-      agentName: users.name,
-      pharmacy: targets.name
+      agentId: visits.agentId,
+      pharmacyName: medicalShops.name,
+      orderAmount: visits.orderAmount,
+      collectionAmount: visits.collectionAmount,
+      createdAt: visits.createdAt,
+      status: visits.status
     })
     .from(visits)
-    .innerJoin(users, eq(visits.agentId, users.id))
-    .innerJoin(targets, eq(visits.targetId, targets.id))
-    .orderBy(desc(visits.createdAt));
+    .leftJoin(medicalShops, eq(visits.medicalShopId, medicalShops.id))
+    .orderBy(desc(visits.createdAt)); // Sort by newest deals first!
 
-    // Format for the frontend UI
-    const formattedDeals = allDeals
-      .filter(deal => deal.orderValue > 0) // Only show actual deals
-      .map(deal => ({
-        id: `DL-100${deal.id}`,
-        dbId: deal.id,
-        agentName: deal.agentName,
-        pharmacy: deal.pharmacy,
-        orderValue: deal.orderValue,
-        commission: Math.round(deal.orderValue * 0.08),
-        date: new Date(deal.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-        status: deal.status === 'Verified' ? 'Pending Review' : deal.status // Map DB status to Admin UI Status
-      }));
+    // Format the data perfectly for your CommissionTab UI
+    const formattedDeals = allVisits.map((v) => {
+      const vDate = new Date(v.createdAt);
+      
+      // Get exact date and time in IST
+      const dateStr = vDate.toLocaleDateString('en-IN', { 
+        timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric', 
+        hour: '2-digit', minute: '2-digit' 
+      });
 
-    return NextResponse.json(formattedDeals);
+      // Calculate the actual 8% commission based on the collection amount
+      const commissionAmount = Math.round(Number(v.collectionAmount) * 0.08) || 0;
+
+      return {
+        id: v.id,
+        agentName: v.agentId, // Shows agent ID (e.g., PL-1043)
+        pharmacy: v.pharmacyName || 'Unknown Pharmacy',
+        date: dateStr,
+        orderValue: Number(v.orderAmount) || 0,
+        commission: commissionAmount,
+        status: v.status || 'Pending Review'
+      };
+    });
+
+    return NextResponse.json(formattedDeals, {
+      headers: {
+        'Cache-Control': 'no-store, max-age=0',
+      }
+    });
+
   } catch (error) {
-    console.error('Failed to load ledger:', error);
-    return NextResponse.json({ error: 'Failed to load ledger' }, { status: 500 });
+    console.error("Admin Deals API Error:", error);
+    return NextResponse.json({ error: 'Failed to load ledger data' }, { status: 500 });
   }
 }
 
-// APPROVE OR PAY A DEAL
+// PUT: Handle Admin clicking "Approve" or "Mark Paid"
 export async function PUT(request) {
   try {
     const { dealId, newStatus } = await request.json();
-    
-    // Extract the actual database ID from the UI's 'DL-100X' format
-    const dbId = parseInt(dealId.replace('DL-100', ''));
 
+    if (!dealId || !newStatus) {
+      return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
+    }
+
+    // Update the database permanently
     await db.update(visits)
       .set({ status: newStatus })
-      .where(eq(visits.id, dbId));
+      .where(eq(visits.id, dealId));
 
-    return NextResponse.json({ success: true, dealId, status: newStatus });
+    return NextResponse.json({ success: true, status: newStatus }, { status: 200 });
+
   } catch (error) {
-    return NextResponse.json({ error: 'Update failed' }, { status: 500 });
+    console.error("Admin Update Error:", error);
+    return NextResponse.json({ error: 'Failed to update deal status' }, { status: 500 });
   }
 }

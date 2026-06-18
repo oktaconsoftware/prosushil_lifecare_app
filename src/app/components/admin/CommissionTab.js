@@ -35,94 +35,173 @@ export default function CommissionTab() {
   };
 
   const pendingCount = deals.filter(d => d.status === 'Pending Review').length;
-  const totalPendingPayout = deals.filter(d => d.status !== 'Paid').reduce((sum, d) => sum + d.commission, 0);
+  const totalPendingPayout = deals.filter(d => d.status !== 'Paid').reduce((sum, d) => sum + (Number(d.commission) || 0), 0);
+
+  // Helper component for the Status Badge to keep code clean
+  const StatusBadge = ({ status }) => (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] md:text-[10px] font-bold uppercase tracking-wide" 
+      style={
+        status === 'Pending Review' ? { background: 'rgba(231,62,67,0.1)', color: '#e73e43' } :
+        status === 'Approved' ? { background: 'rgba(96,165,250,0.1)', color: '#3b82f6' } :
+        { background: 'rgba(151,194,42,0.1)', color: '#659c12' }
+      }>
+      {status}
+    </span>
+  );
 
   return (
-    <div className="flex-1 overflow-y-auto animate-in fade-in duration-200">
-      <div className="p-4 md:p-8 lg:p-10 space-y-5 md:space-y-7 pb-24 md:pb-10 max-w-7xl mx-auto w-full">
+    <div className="flex-1 overflow-y-auto animate-in fade-in duration-300 bg-slate-50">
+      <div className="p-4 md:p-8 lg:p-10 space-y-6 md:space-y-8 pb-24 md:pb-10 max-w-7xl mx-auto w-full">
         
-        {/* Financial Summary */}
-        <div className="bg-slate-900 rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-xl mb-8">
-          <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-[#a78bfa]/20 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
-          <div className="absolute bottom-0 left-0 w-[200px] h-[200px] bg-[#97c22a]/15 rounded-full blur-[60px] translate-y-1/3 -translate-x-1/4 pointer-events-none"></div>
+        {/* =========================================
+            FINANCIAL SUMMARY (App-like Header)
+        ========================================= */}
+        <div className="bg-[#0a0f1a] rounded-[24px] md:rounded-[32px] p-6 md:p-10 relative overflow-hidden shadow-2xl">
+          {/* Decorative Gradients */}
+          <div className="absolute top-0 right-0 w-[200px] md:w-[300px] h-[200px] md:h-[300px] bg-blue-500/20 rounded-full blur-[60px] md:blur-[80px] -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
+          <div className="absolute bottom-0 left-0 w-[150px] md:w-[200px] h-[150px] md:h-[200px] bg-[#97c22a]/20 rounded-full blur-[50px] md:blur-[60px] translate-y-1/3 -translate-x-1/4 pointer-events-none"></div>
           
-          <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <p className="text-[11px] md:text-xs font-semibold tracking-wide text-slate-400 mb-1">Total Outstanding Liability</p>
-              <h3 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">₹{totalPendingPayout.toLocaleString('en-IN')}</h3>
+          <div className="relative z-10 grid grid-cols-2 md:grid-cols-3 gap-6 md:gap-8 items-center">
+            <div className="col-span-2 md:col-span-1">
+              <p className="text-[10px] md:text-xs font-semibold tracking-widest text-slate-400 uppercase mb-1.5">Total Liability</p>
+              <h3 className="text-3xl md:text-5xl font-bold text-white tracking-tight">₹{totalPendingPayout.toLocaleString('en-IN')}</h3>
             </div>
-            <div className="border-l border-white/10 pl-6">
-              <p className="text-[11px] md:text-xs font-semibold tracking-wide text-slate-400 mb-1">Deals Awaiting Review</p>
-              <h3 className="text-3xl md:text-4xl font-semibold text-[#e73e43] tracking-tight">{pendingCount}</h3>
+            
+            <div className="border-t md:border-t-0 md:border-l border-white/10 pt-5 md:pt-0 md:pl-8 col-span-1">
+              <p className="text-[10px] md:text-xs font-semibold tracking-widest text-slate-400 uppercase mb-1.5">Awaiting Review</p>
+              <h3 className="text-2xl md:text-4xl font-bold text-[#e73e43] tracking-tight">{pendingCount}</h3>
             </div>
-            <div className="border-l border-white/10 pl-6 hidden md:block">
-              <p className="text-[11px] md:text-xs font-semibold tracking-wide text-slate-400 mb-1">Treasury Status</p>
-              <div className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 rounded-full" style={{ background: 'rgba(151,194,42,0.1)', border: '1px solid rgba(151,194,42,0.2)' }}>
-                <span className="w-2 h-2 rounded-full animate-pulse bg-[#97c22a]" />
-                <span className="text-xs font-medium text-[#97c22a]">Funds Liquid</span>
+            
+            <div className="border-t md:border-t-0 md:border-l border-white/10 pt-5 md:pt-0 md:pl-8 col-span-1 text-right md:text-left">
+              <p className="text-[10px] md:text-xs font-semibold tracking-widest text-slate-400 uppercase mb-1.5">Treasury</p>
+              <div className="inline-flex items-center gap-2 mt-1 px-3 py-1.5 rounded-full bg-[#97c22a]/10 border border-[#97c22a]/20">
+                <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full animate-pulse bg-[#97c22a]" />
+                <span className="text-[10px] md:text-xs font-bold text-[#97c22a]">Funds Liquid</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Ledger Table */}
-        <h3 className="text-[13px] md:text-base font-semibold text-slate-800 mb-4">Master Ledger Feed</h3>
-        <div className="rounded-2xl overflow-hidden bg-white" style={{ border: '1px solid #e9edf2', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-          {isLoading ? (
-            <div className="py-16 text-center text-sm text-slate-400">Loading ledger...</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[800px]">
-                <thead>
-                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e9edf2' }}>
-                    {['Deal ID', 'Agent', 'Target', 'Order Vol.', 'Commission', 'Status', 'Actions'].map((h) => (
-                      <th key={h} className="px-5 py-3.5 text-[11px] font-semibold tracking-wide text-slate-500">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {deals.map((deal, i) => (
-                    <tr key={deal.id} style={{ borderTop: i > 0 ? '1px solid #f1f5f9' : 'none' }} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-5 py-4 font-mono text-[12px] text-slate-400">{deal.id}</td>
-                      <td className="px-5 py-4 text-[13px] font-semibold text-slate-700">{deal.agentName}</td>
-                      <td className="px-5 py-4">
-                        <p className="text-[13px] font-medium text-slate-700">{deal.pharmacy}</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">{deal.date}</p>
-                      </td>
-                      <td className="px-5 py-4 text-[13px] font-semibold text-slate-700">₹{deal.orderValue.toLocaleString('en-IN')}</td>
-                      <td className="px-5 py-4 text-[13px] font-semibold" style={{ color: '#97c22a' }}>₹{deal.commission.toLocaleString('en-IN')}</td>
-                      <td className="px-5 py-4">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold" 
-                          style={
-                            deal.status === 'Pending Review' ? { background: 'rgba(231,62,67,0.08)', color: '#c0373b' } :
-                            deal.status === 'Approved' ? { background: 'rgba(96,165,250,0.1)', color: '#3b82f6' } :
-                            { background: 'rgba(151,194,42,0.08)', color: '#5a8a10' }
-                          }>
-                          {deal.status}
+        <h3 className="text-[14px] md:text-lg font-bold text-slate-800 tracking-tight ml-1">Master Ledger Feed</h3>
+        
+        {isLoading ? (
+          <div className="py-20 flex flex-col items-center justify-center">
+             <div className="w-8 h-8 border-4 border-slate-200 border-t-[#97c22a] rounded-full animate-spin mb-3"></div>
+             <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Syncing Ledger...</p>
+          </div>
+        ) : (
+          <>
+            {/* =========================================
+                MOBILE VIEW (Card List)
+            ========================================= */}
+            <div className="md:hidden space-y-4">
+              {deals.map((deal) => (
+                <div key={deal.id} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] relative overflow-hidden">
+                  
+                  {/* Card Header */}
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="pr-2">
+                      <h4 className="text-[13px] font-bold text-slate-800 leading-tight">{deal.pharmacy}</h4>
+                      <p className="text-[10px] font-medium text-slate-400 mt-0.5">{deal.date}</p>
+                    </div>
+                    <StatusBadge status={deal.status} />
+                  </div>
+
+                  {/* Financial Grid */}
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-100">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Order Vol</p>
+                      <p className="text-[12px] font-bold text-slate-700">₹{deal.orderValue?.toLocaleString('en-IN') || 0}</p>
+                    </div>
+                    <div className="bg-[#97c22a]/5 rounded-xl p-2.5 border border-[#97c22a]/10">
+                      <p className="text-[9px] font-bold text-[#659c12] uppercase tracking-wider mb-0.5">Commission</p>
+                      <p className="text-[12px] font-bold text-[#659c12]">₹{deal.commission?.toLocaleString('en-IN') || 0}</p>
+                    </div>
+                  </div>
+
+                  {/* Card Footer / Actions */}
+                  <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+                    <p className="text-[10px] font-semibold text-slate-500">Agent: <span className="text-slate-800">{deal.agentName}</span></p>
+                    
+                    <div>
+                      {deal.status === 'Pending Review' && (
+                        <button onClick={() => handleAction(deal.id, 'approve')} disabled={isProcessing} className="px-4 py-1.5 rounded-lg text-[10px] font-bold text-white bg-blue-500 hover:bg-blue-600 active:scale-95 transition-all shadow-md shadow-blue-500/20 disabled:opacity-50">
+                          Approve
+                        </button>
+                      )}
+                      {deal.status === 'Approved' && (
+                        <button onClick={() => handleAction(deal.id, 'pay')} disabled={isProcessing} className="px-4 py-1.5 rounded-lg text-[10px] font-bold text-white bg-[#0a0f1a] hover:bg-slate-800 active:scale-95 transition-all shadow-md shadow-slate-900/20 disabled:opacity-50">
+                          Mark Paid
+                        </button>
+                      )}
+                      {deal.status === 'Paid' && (
+                        <span className="text-[10px] font-bold text-slate-300 flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                          Settled
                         </span>
-                      </td>
-                      <td className="px-5 py-4">
-                        {deal.status === 'Pending Review' && (
-                          <button onClick={() => handleAction(deal.id, 'approve')} disabled={isProcessing} className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-100 transition-all">
-                            Approve
-                          </button>
-                        )}
-                        {deal.status === 'Approved' && (
-                          <button onClick={() => handleAction(deal.id, 'pay')} disabled={isProcessing} className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white transition-all" style={{ background: '#0a0f1a' }}>
-                            Mark Paid
-                          </button>
-                        )}
-                        {deal.status === 'Paid' && (
-                          <span className="text-[11px] font-medium text-slate-400 pl-2">Settled</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+              ))}
             </div>
-          )}
-        </div>
+
+            {/* =========================================
+                DESKTOP VIEW (Clean Table)
+            ========================================= */}
+            <div className="hidden md:block rounded-2xl overflow-hidden bg-white shadow-[0_2px_15px_rgba(0,0,0,0.03)] border border-slate-100">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100">
+                      {['Deal ID', 'Agent', 'Target Pharmacy', 'Order Vol.', 'Commission', 'Status', 'Actions'].map((h) => (
+                        <th key={h} className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-400">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deals.map((deal, i) => (
+                      <tr key={deal.id} className="hover:bg-blue-50/30 transition-colors border-b border-slate-50 last:border-0">
+                        <td className="px-6 py-4">
+                          <span className="font-mono text-[11px] font-medium bg-slate-100 text-slate-500 px-2 py-1 rounded-md">{deal.id}</span>
+                        </td>
+                        <td className="px-6 py-4 text-[13px] font-bold text-slate-700">{deal.agentName}</td>
+                        <td className="px-6 py-4">
+                          <p className="text-[13px] font-bold text-slate-800">{deal.pharmacy}</p>
+                          <p className="text-[11px] font-medium text-slate-400 mt-0.5">{deal.date}</p>
+                        </td>
+                        <td className="px-6 py-4 text-[13px] font-bold text-slate-600">₹{deal.orderValue?.toLocaleString('en-IN') || 0}</td>
+                        <td className="px-6 py-4 text-[14px] font-extrabold text-[#659c12]">₹{deal.commission?.toLocaleString('en-IN') || 0}</td>
+                        <td className="px-6 py-4">
+                          <StatusBadge status={deal.status} />
+                        </td>
+                        <td className="px-6 py-4">
+                          {deal.status === 'Pending Review' && (
+                            <button onClick={() => handleAction(deal.id, 'approve')} disabled={isProcessing} className="px-4 py-2 rounded-xl text-[11px] font-bold text-white bg-blue-500 hover:bg-blue-600 active:scale-95 transition-all shadow-lg shadow-blue-500/20 disabled:opacity-50">
+                              Approve
+                            </button>
+                          )}
+                          {deal.status === 'Approved' && (
+                            <button onClick={() => handleAction(deal.id, 'pay')} disabled={isProcessing} className="px-4 py-2 rounded-xl text-[11px] font-bold text-white bg-[#0a0f1a] hover:bg-slate-800 active:scale-95 transition-all shadow-lg shadow-slate-900/20 disabled:opacity-50">
+                              Mark Paid
+                            </button>
+                          )}
+                          {deal.status === 'Paid' && (
+                            <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1.5 pl-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"></path></svg>
+                              Settled
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

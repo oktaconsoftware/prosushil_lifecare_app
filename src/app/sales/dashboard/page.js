@@ -704,7 +704,7 @@ export default function SalesDashboard() {
 
         // Fetch Agent's Specific Route
         const agentId = localStorage.getItem('employeeId') || 'PL-1043'; 
-        const routeRes = await fetch(`/api/sales/visits?agentId=${agentId}`);
+     const routeRes = await fetch(`/api/sales/visits?agentId=${agentId}`, { cache: 'no-store' });
         const routeData = await routeRes.json();
         
         if (routeRes.ok && Array.isArray(routeData)) {
@@ -794,8 +794,7 @@ export default function SalesDashboard() {
     setIsDealModalOpen(true); 
   };
 
-  // 5. Final Form Submit for the Visit/Deal
-  const handleDealSubmit = async (e) => {
+const handleDealSubmit = async (e) => {
     e.preventDefault();
     setIsSubmittingDeal(true);
     try {
@@ -819,27 +818,23 @@ export default function SalesDashboard() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to save visit.");
 
-      // Optimistically update the targets array so the UI reflects the completed status
+      // Optimistically update the UI to instantly show "Visited"
       setTargets(prev => {
-        const existingTarget = prev.find(t => t.id === activeTarget.id);
+        const matchId = String(activeTarget.id);
         
-        if (!existingTarget) {
-           return [...prev, { 
-             ...activeTarget, 
-             status: 'COMPLETED', 
-             time: data.time, 
-             commission: data.commission, 
-             orderAmount: Number(dealData.orderAmount) 
-           }];
-        }
-        
-        return prev.map(t => t.id === activeTarget.id ? { 
-          ...t, 
-          status: 'COMPLETED', 
-          time: data.time, 
-          commission: data.commission, 
-          orderAmount: Number(dealData.orderAmount) 
-        } : t);
+        return prev.map(t => {
+          if (String(t.id) === matchId) {
+            return { 
+              ...t, 
+              status: 'COMPLETED', 
+              time: data.time, 
+              lastVisited: `Visited just now at ${data.time}`, // Forces text update
+              commission: data.commission, 
+              orderAmount: Number(dealData.orderAmount) 
+            };
+          }
+          return t;
+        });
       });
 
       // Cleanup & Reset
@@ -848,11 +843,11 @@ export default function SalesDashboard() {
       setPhotoUri(null);
       setActiveTarget(null);
       
-      // Send user back to territory view if they were in the radar view
       if (mobileNav === 'radar') setMobileNav('route'); 
 
     } catch (err) { 
-      alert(err.message); 
+      console.error("Deal Submit Error:", err);
+      alert(`Error: ${err.message}`); 
     } finally { 
       setIsSubmittingDeal(false); 
     }

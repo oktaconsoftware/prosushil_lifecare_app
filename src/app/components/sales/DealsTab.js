@@ -47,12 +47,14 @@ export default function DealsTab({ totalPipeline, totalCommission, completedCoun
                     </div>
                     <div>
                       <h4 className="text-[13px] font-semibold text-slate-800 leading-tight">{deal.name}</h4>
-                      <p className="text-[10px] font-medium text-slate-500 mt-0.5">Order: ₹{deal.orderValue?.toLocaleString('en-IN') || 0}</p>
+                      {/* FIX: Changed deal.orderValue to deal.orderAmount */}
+                      <p className="text-[10px] font-medium text-slate-500 mt-0.5">Order: ₹{deal.orderAmount?.toLocaleString('en-IN') || 0}</p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="text-[13px] font-semibold" style={{ color: '#97c22a' }}>+ ₹{deal.commission?.toLocaleString('en-IN') || 0}</p>
-                    <p className="text-[9px] font-medium text-slate-400 mt-1">{deal.time}</p>
+                    {/* FIX: Ensure time extracts correctly from lastVisited if deal.time is missing */}
+                    <p className="text-[9px] font-medium text-slate-400 mt-1">{deal.time || deal.lastVisited?.split('at ')[1] || 'Today'}</p>
                   </div>
                 </div>
               ))
