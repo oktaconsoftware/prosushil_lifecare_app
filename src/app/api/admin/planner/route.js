@@ -1,78 +1,78 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { targets, routeAssignments } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { medicalShops, routeAssignments } from '@/db/schema';
+import { eq, and, inArray } from 'drizzle-orm';
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const agentId = searchParams.get('agentId');
-  const date = searchParams.get('date');
-  const fetchAll = searchParams.get('fetchAll');
 
   try {
-    // 1. Fetch Master List of all Medical Shops
-    if (fetchAll) {
-      const allTargets = await db.select().from(targets);
-      return NextResponse.json(allTargets);
-    }
-
-    // 2. Fetch Assigned Shops for a Specific Agent on a Specific Date
-    if (agentId && date) {
+    if (agentId) {
+      // Fetch PERMANENT assigned shops for this Agent
       const assigned = await db.select({
-        id: targets.id,
-        name: targets.name,
-        address: targets.address,
-        latitude: targets.latitude,
-        longitude: targets.longitude
+        id: medicalShops.id,
+        name: medicalShops.name,
+        address: medicalShops.address,
+        latitude: medicalShops.latitude,
+        longitude: medicalShops.longitude
       })
       .from(routeAssignments)
-      .innerJoin(targets, eq(routeAssignments.targetId, targets.id))
-      .where(
-        and(
-          eq(routeAssignments.agentId, agentId),
-          eq(routeAssignments.date, date)
-        )
-      );
+      .innerJoin(medicalShops, eq(routeAssignments.targetId, medicalShops.id))
+      .where(eq(routeAssignments.agentId, agentId));
 
       return NextResponse.json(assigned);
     }
-
-    return NextResponse.json({ error: 'Invalid parameters' }, { status: 400 });
+    return NextResponse.json({ error: 'Agent ID required' }, { status: 400 });
   } catch (error) {
     return NextResponse.json({ error: 'Database fetch failed' }, { status: 500 });
   }
 }
 
-// Assign a Medical Shop to an Agent
+// Bulk Assign Medical Shops
 export async function POST(request) {
   try {
-    const { agentId, date, targetId } = await request.json();
+    const { agentId, targetIds } = await request.json(); // Now accepts an array of targetIds
     
-    // Check if it already exists to prevent duplicates
-    const existing = await db.select().from(routeAssignments).where(
-      and(eq(routeAssignments.agentId, agentId), eq(routeAssignments.date, date), eq(routeAssignments.targetId, targetId))
-    );
+    // Find already assigned shops to prevent duplicates
+    const existing = await db.select().from(routeAssignments).where(eq(routeAssignments.agentId, agentId));
+    const existingIds = existing.map(e => e.targetId);
 
-    if (existing.length === 0) {
-      await db.insert(routeAssignments).values({ agentId, targetId, date });
+    const newAssignments = targetIds
+      .filter(id => !existingIds.includes(id))
+      .map(id => ({ agentId, targetId: id }));
+
+    if (newAssignments.length > 0) {
+      await db.insert(routeAssignments).values(newAssignments);
     }
 
-    return NextResponse.json({ success: true, message: 'Target assigned' });
+    return NextResponse.json({ success: true, message: 'Targets assigned permanently' });
   } catch (err) {
     return NextResponse.json({ error: 'Assignment failed' }, { status: 500 });
   }
 }
+// Replace the DELETE function in src/app/api/admin/planner/route.js with this:
 
-// Remove a Medical Shop from an Agent's Route
 export async function DELETE(request) {
   try {
-    const { agentId, date, targetId } = await request.json();
+    const { agentId, targetId, targetIds } = await request.json();
     
-    await db.delete(routeAssignments).where(
-      and(eq(routeAssignments.agentId, agentId), eq(routeAssignments.date, date), eq(routeAssignments.targetId, targetId))
-    );
+    // If we receive an array of IDs (Bulk Remove)
+    if (targetIds && Array.isArray(targetIds)) {
+      if (targetIds.length > 0) {
+        await db.delete(routeAssignments).where(
+          and(eq(routeAssignments.agentId, agentId), inArray(routeAssignments.targetId, targetIds))
+        );
+      }
+    } 
+    // If we receive a single ID (Single Remove)
+    else if (targetId) {
+      await db.delete(routeAssignments).where(
+        and(eq(routeAssignments.agentId, agentId), eq(routeAssignments.targetId, targetId))
+      );
+    }
 
-    return NextResponse.json({ success: true, message: 'Target removed' });
+    return NextResponse.json({ success: true, message: 'Targets removed' });
   } catch (err) {
     return NextResponse.json({ error: 'Removal failed' }, { status: 500 });
   }

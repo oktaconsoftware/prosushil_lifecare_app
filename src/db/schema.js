@@ -1,4 +1,6 @@
-import { pgTable, serial, text, timestamp, integer, decimal, boolean , varchar , date } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, timestamp, integer, decimal, boolean , varchar , date
+  , numeric
+ } from 'drizzle-orm/pg-core';
 
 // 1. Users Table (Stores both Admins and Sales Agents)
 export const users = pgTable('users', {
@@ -21,33 +23,42 @@ export const targets = pgTable('targets', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
-// 3. Visits Table (The core tracking log)
 export const visits = pgTable('visits', {
   id: serial('id').primaryKey(),
-  agentId: integer('agent_id').references(() => users.id).notNull(),
-  targetId: integer('target_id').references(() => targets.id).notNull(),
-  
-  // Geofencing & Proof Data
-  checkInLat: decimal('check_in_lat', { precision: 10, scale: 7 }),
-  checkInLng: decimal('check_in_lng', { precision: 10, scale: 7 }),
-  deviationMeters: integer('deviation_meters'),
-  photoUrl: text('photo_url'), // S3 Bucket link
-  
-  // Performance Data
-  status: text('status').default('Flagged'), // 'Verified' or 'Flagged'
-  dealsClosed: integer('deals_closed').default(0),
-  dealVolume: integer('deal_volume').default(0),
-  
-  // Timestamps
-  checkInTime: timestamp('check_in_time'),
-  checkOutTime: timestamp('check_out_time'),
+  agentId: varchar('agent_id').notNull(),
+  medicalShopId: integer('medical_shop_id').references(() => medicalShops.id).notNull(),
+  photoUrl: text('photo_url'), // Stores the captured image
+  orderAmount: numeric('order_amount').notNull().default('0'),
+  collectionAmount: numeric('collection_amount').notNull().default('0'),
+  remark: text('remark'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Add this to your existing src/db/schema.js
+
 export const routeAssignments = pgTable('route_assignments', {
   id: serial('id').primaryKey(),
-  agentId: varchar('agent_id').notNull(), // e.g., 'PL-1043'
-  targetId: integer('target_id').notNull(), // The ID of the Medical Shop
-  date: date('date').notNull(), // The assigned date: '2026-06-13'
+  agentId: varchar('agent_id').notNull(),
+  targetId: integer('target_id').notNull(), 
+});
+
+// ==== Phase 2 Chagges--
+
+export const areas = pgTable('areas', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+});
+
+export const places = pgTable('places', {
+  id: serial('id').primaryKey(),
+  areaId: integer('area_id').references(() => areas.id).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+});
+
+export const medicalShops = pgTable('medical_shops', {
+  id: serial('id').primaryKey(),
+  placeId: integer('place_id').references(() => places.id), // Links the medical shop to the place
+  name: varchar('name', { length: 255 }).notNull(),
+  address: text('address'),
+  latitude: numeric('latitude'),
+  longitude: numeric('longitude'),
 });

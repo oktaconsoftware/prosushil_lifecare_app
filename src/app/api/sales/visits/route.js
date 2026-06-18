@@ -1,41 +1,40 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { targets, routeAssignments } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { medicalShops, routeAssignments, places, areas } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
-// FETCH ASSIGNED ROUTE FOR LOGGED IN SALESMAN
+// FETCH PERMANENT ROUTE FOR LOGGED IN SALESMAN
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const agentId = searchParams.get('agentId'); // Who is logged in?
-    const date = searchParams.get('date'); // What day is it?
+    const agentId = searchParams.get('agentId'); 
 
-    if (!agentId || !date) {
-      return NextResponse.json({ error: 'Missing agent ID or date' }, { status: 400 });
+    if (!agentId) {
+      return NextResponse.json({ error: 'Missing agent ID' }, { status: 400 });
     }
 
-    // Join the targets table with the route_assignments table
+    // Fetch permanent territory WITH Area and Place names
     const assignedTargets = await db.select({
-      id: targets.id,
-      name: targets.name,
-      address: targets.address,
-      latitude: targets.latitude,
-      longitude: targets.longitude
+      id: medicalShops.id,
+      name: medicalShops.name,
+      address: medicalShops.address,
+      latitude: medicalShops.latitude,
+      longitude: medicalShops.longitude,
+      placeName: places.name,
+      areaName: areas.name
     })
     .from(routeAssignments)
-    .innerJoin(targets, eq(routeAssignments.targetId, targets.id))
-    .where(
-      and(
-        eq(routeAssignments.agentId, agentId),
-        eq(routeAssignments.date, date)
-      )
-    );
+    .innerJoin(medicalShops, eq(routeAssignments.targetId, medicalShops.id))
+    .leftJoin(places, eq(medicalShops.placeId, places.id))
+    .leftJoin(areas, eq(places.areaId, areas.id))
+    .where(eq(routeAssignments.agentId, agentId));
 
-    // Format for the mobile app UI
     const formattedTargets = assignedTargets.map((t) => ({
       ...t,
       latitude: Number(t.latitude),
       longitude: Number(t.longitude),
+      areaName: t.areaName || 'Unassigned Area',
+      placeName: t.placeName || 'Unassigned Place',
       status: 'PENDING', 
       commission: 0,
       deals: 0
@@ -43,29 +42,42 @@ export async function GET(request) {
 
     return NextResponse.json(formattedTargets);
   } catch (error) {
-    console.error('Failed to fetch assigned targets:', error);
+    console.error('API Error:', error);
     return NextResponse.json({ error: 'Failed to load route plan.' }, { status: 500 });
   }
 }
-
-
-// LOG A DEAL & CLOSE VISIT
+// POST: LOG A VISIT & DEAL TO THE DATABASE
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { orderValue } = body;
+    const { agentId, targetId, photoUrl, orderAmount, collectionAmount, remark } = body;
 
-    // Calculate the 8% commission dynamically on the server
-    const calculatedCommission = Math.round(Number(orderValue) * 0.08) || 0;
+    if (!agentId || !targetId) {
+      return NextResponse.json({ error: 'Agent ID and Target ID are required' }, { status: 400 });
+    }
+
+    // Insert into the new visits table
+    const newVisit = await db.insert(visits).values({
+      agentId,
+      medicalShopId: targetId,
+      photoUrl: photoUrl || 'no-photo',
+      orderAmount: orderAmount || 0,
+      collectionAmount: collectionAmount || 0,
+      remark: remark || ''
+    }).returning();
+
+    // Calculate a sample commission (e.g., 8% of the collection amount)
+    const calculatedCommission = Math.round(Number(collectionAmount) * 0.08) || 0;
 
     return NextResponse.json({ 
       success: true, 
+      visitId: newVisit[0].id,
       commission: calculatedCommission,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
     }, { status: 200 });
 
   } catch (error) {
     console.error('Failed to log deal:', error);
-    return NextResponse.json({ error: 'Failed to save deal to the ledger.' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to save visit to the database.' }, { status: 500 });
   }
 }

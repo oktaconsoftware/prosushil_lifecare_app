@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { targets } from '@/db/schema';
+import { medicalShops, places, areas } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 // Haversine distance calculator for the server
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -13,52 +14,60 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return Math.round(R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))));
 }
 
-// GET: Find all medical shops within 200 meters of the Agent's GPS
+// GET: Find recognized medical shops within 200m
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const agentLat = parseFloat(searchParams.get('lat'));
     const agentLng = parseFloat(searchParams.get('lng'));
 
-    if (!agentLat || !agentLng) {
-      return NextResponse.json({ error: 'GPS coordinates required' }, { status: 400 });
-    }
+    if (!agentLat || !agentLng) return NextResponse.json({ error: 'GPS coordinates required' }, { status: 400 });
 
-    // Fetch all targets (In a massive app with 100,000s of targets, you would use PostGIS. 
-    // For now, filtering in memory is perfectly fast enough).
-    const allTargets = await db.select().from(targets);
+    // Fetch all medical shops with their Area and Place names
+    const allShops = await db.select({
+      id: medicalShops.id,
+      name: medicalShops.name,
+      address: medicalShops.address,
+      latitude: medicalShops.latitude,
+      longitude: medicalShops.longitude,
+      placeName: places.name,
+      areaName: areas.name
+    })
+    .from(medicalShops)
+    .leftJoin(places, eq(medicalShops.placeId, places.id))
+    .leftJoin(areas, eq(places.areaId, areas.id));
 
-    const nearbyShops = allTargets.map(shop => {
+    // Filter by GPS distance
+    const nearbyShops = allShops.map(shop => {
       const dist = calculateDistance(agentLat, agentLng, Number(shop.latitude), Number(shop.longitude));
       return { ...shop, distance: dist };
     })
-    .filter(shop => shop.distance <= 200) // Only return shops within a 200m radius
-    .sort((a, b) => a.distance - b.distance); // Closest first
+    .filter(shop => shop.distance <= 200) // Within 200 meters
+    .sort((a, b) => a.distance - b.distance); 
 
     return NextResponse.json(nearbyShops);
   } catch (error) {
-    console.error('Discovery Error:', error);
     return NextResponse.json({ error: 'Failed to scan nearby area.' }, { status: 500 });
   }
 }
 
-// POST: Register a brand new medical shop into the database
+// POST: Register a brand new medical shop permanently into the DB
 export async function POST(request) {
   try {
-    const { name, address, latitude, longitude, photoUrl } = await request.json();
+    const { name, address, placeId, latitude, longitude } = await request.json();
 
-    if (!name || !latitude || !longitude) {
+    if (!name || !placeId || !latitude || !longitude) {
       return NextResponse.json({ error: 'Missing required shop data.' }, { status: 400 });
     }
 
-    // Insert the newly discovered shop into the global database
-    const newShop = await db.insert(targets).values({
+    // Insert into the master medical_shops table
+    const newShop = await db.insert(medicalShops).values({
       name,
-      address: address || 'Discovered via GPS',
+      address: address || 'Discovered via GPS Field Scan',
+      placeId: placeId,
       latitude: latitude,
       longitude: longitude,
-      // Note: Add a photoUrl column to your targets schema if you want to store the shop image!
-    }).returning({ id: targets.id, name: targets.name });
+    }).returning();
 
     return NextResponse.json({ success: true, target: newShop[0] }, { status: 201 });
   } catch (error) {
