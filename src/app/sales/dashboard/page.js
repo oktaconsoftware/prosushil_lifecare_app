@@ -619,54 +619,33 @@
 //   );
 // }
 
-
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Geolocation } from '@capacitor/geolocation';
-import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 
 // Import Components
 import { TopHeader, Sidebar, BottomNav } from '../../components/sales/Navigation';
 import TerritoryTab from '../../components/sales/TerritoryTab';
-import RadarTab from '../../components/sales/RadarTab';
+import AddShopTab  from '../../components/sales/AddShop'; // Your new dedicated page
 import DealsTab from '../../components/sales/DealsTab';
-import { SalesModals } from '../../components/sales/SalesModals';
+import { SalesModals } from '../../components/sales/SalesModals'; // Kept strictly for the Deal Modal
 
-// Utility
-function calculateDistance(lat1, lon1, lat2, lon2) {
-  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
-  const R = 6371e3; 
-  const p1 = (lat1 * Math.PI) / 180;
-  const p2 = (lat2 * Math.PI) / 180;
-  const dp = ((lat2 - lat1) * Math.PI) / 180;
-  const dl = ((lon2 - lon1) * Math.PI) / 180;
-  const a = Math.sin(dp / 2) * Math.sin(dp / 2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
-  return Math.round(R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))));
-}
 export default function SalesDashboard() {
   const router = useRouter();
   
   // App Navigation State
   const [mobileNav, setMobileNav] = useState('route'); 
   const [currentGps, setCurrentGps] = useState(null);
-  const [masterTerritories, setMasterTerritories] = useState([]); 
   
   // Route State
   const [targets, setTargets] = useState([]);
   const [isLoadingRoute, setIsLoadingRoute] = useState(true);
 
-  // Radar State
-  const [nearbyShops, setNearbyShops] = useState([]);
-  const [isScanning, setIsScanning] = useState(false);
-  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
-  const [newShopData, setNewShopData] = useState({ areaId: '', placeId: '', name: '', address: '' }); 
-  const [isRegistering, setIsRegistering] = useState(false);
-
-  // Visit State
+  // Visit & Deal State
   const [isDealModalOpen, setIsDealModalOpen] = useState(false);
   const [activeTarget, setActiveTarget] = useState(null); 
-  const [photoUri, setPhotoUri] = useState(null); 
+  const [photoUri, setPhotoUri] = useState(null); // Captured from TerritoryTab
   const [dealData, setDealData] = useState({ orderAmount: '', collectionAmount: '', remark: '' }); 
   const [isSubmittingDeal, setIsSubmittingDeal] = useState(false);
 
@@ -676,7 +655,7 @@ export default function SalesDashboard() {
   const completedCount = targets.filter(t => t.status === 'COMPLETED').length;
   const completedDeals = targets.filter(t => t.status === 'COMPLETED').reverse();
   
-  // 1. Start GPS Tracking
+  // 1. Start Background GPS Tracking
   useEffect(() => {
     let watchId;
     const startTracking = async () => {
@@ -686,7 +665,7 @@ export default function SalesDashboard() {
           if (pos) setCurrentGps({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         });
       } catch (err) { 
-        console.error("GPS hardware not available or permission denied."); 
+        console.warn("GPS tracking not available on desktop or permission denied."); 
       }
     };
     startTracking();
@@ -694,98 +673,30 @@ export default function SalesDashboard() {
   }, []);
 
   // 2. Fetch Territories & Agent's Route
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        // Fetch Master Territories for the Registration Dropdowns
-        const terrRes = await fetch('/api/admin/territories');
-        const terrData = await terrRes.json();
-        setMasterTerritories(terrData);
-
-        // Fetch Agent's Specific Route
-        const agentId = localStorage.getItem('employeeId') || 'PL-1043'; 
-     const routeRes = await fetch(`/api/sales/visits?agentId=${agentId}`, { cache: 'no-store' });
-        const routeData = await routeRes.json();
-        
-        if (routeRes.ok && Array.isArray(routeData)) {
-          setTargets(routeData);
-        }
-      } catch (err) { 
-        console.error("Failed to load initial dashboard data:", err); 
-      } finally { 
-        setIsLoadingRoute(false); 
+  const fetchInitialData = useCallback(async () => {
+    setIsLoadingRoute(true);
+    try {
+      const agentId = localStorage.getItem('employeeId') || 'PL-1043'; 
+      const routeRes = await fetch(`/api/sales/visits?agentId=${agentId}&_t=${Date.now()}`, { cache: 'no-store' });
+      const routeData = await routeRes.json();
+      
+      if (routeRes.ok && Array.isArray(routeData)) {
+        setTargets(routeData);
       }
-    };
-    fetchInitialData();
+    } catch (err) { 
+      console.error("Failed to load initial dashboard data:", err); 
+    } finally { 
+      setIsLoadingRoute(false); 
+    }
   }, []);
 
-  // 3. Radar Scan for nearby shops
-  const scanArea = async () => {
-    if (!currentGps) return alert("Waiting for GPS lock. Ensure location services are enabled.");
-    setIsScanning(true);
-    try {
-      const res = await fetch(`/api/sales/discovery?lat=${currentGps.lat}&lng=${currentGps.lng}`);
-      const data = await res.json();
-      if(Array.isArray(data)) setNearbyShops(data);
-    } catch (err) { 
-      console.error("Radar scan failed:", err); 
-    } finally { 
-      setIsScanning(false); 
-    }
-  };
-
-  // Auto-scan when opening the radar tab if GPS is ready
-  useEffect(() => { 
-    if (mobileNav === 'radar' && currentGps) scanArea(); 
-  }, [mobileNav, currentGps]);
+  useEffect(() => {
+    fetchInitialData();
+  }, [fetchInitialData]);
 
   const handleLogout = () => {
     localStorage.removeItem('employeeId');
     router.push('/');
-  };
-
-  // 4. Handle Submitting a New Shop
-  const handleRegisterShop = async (e) => {
-    e.preventDefault();
-    setIsRegistering(true);
-    try {
-      if (!currentGps) throw new Error("GPS location required to register shop.");
-      if (!newShopData.placeId) throw new Error("Please select an Area and Place.");
-
-      const res = await fetch('/api/sales/discovery', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          placeId: parseInt(newShopData.placeId, 10), // Parse to Int for the database
-          name: newShopData.name, 
-          address: newShopData.address, 
-          latitude: currentGps.lat, 
-          longitude: currentGps.lng 
-        })
-      });
-      
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to register shop.");
-
-      // Find the Area Name safely for UI Display
-      const selectedArea = masterTerritories.find(a => String(a.id) === String(newShopData.areaId));
-
-      setActiveTarget({ 
-        id: data.target.id, 
-        name: data.target.name, 
-        address: data.target.address, 
-        areaName: selectedArea?.name || 'Local' 
-      });
-      
-      setIsRegisterModalOpen(false);
-      setNewShopData({ areaId: '', placeId: '', name: '', address: '' });
-      setIsDealModalOpen(true); // Open Deal modal instantly
-      
-    } catch (err) { 
-      alert(err.message); 
-    } finally { 
-      setIsRegistering(false); 
-    }
   };
 
   // Prepares the target and opens the deal form
@@ -794,7 +705,8 @@ export default function SalesDashboard() {
     setIsDealModalOpen(true); 
   };
 
-const handleDealSubmit = async (e) => {
+  // 3. Handle Submitting a Deal
+  const handleDealSubmit = async (e) => {
     e.preventDefault();
     setIsSubmittingDeal(true);
     try {
@@ -808,6 +720,8 @@ const handleDealSubmit = async (e) => {
         body: JSON.stringify({ 
           agentId, 
           targetId: activeTarget.id, 
+          latitude: currentGps?.lat, 
+          longitude: currentGps?.lng,
           photoUrl: photoUri, 
           orderAmount: parseFloat(dealData.orderAmount) || 0,
           collectionAmount: parseFloat(dealData.collectionAmount) || 0,
@@ -821,14 +735,13 @@ const handleDealSubmit = async (e) => {
       // Optimistically update the UI to instantly show "Visited"
       setTargets(prev => {
         const matchId = String(activeTarget.id);
-        
         return prev.map(t => {
           if (String(t.id) === matchId) {
             return { 
               ...t, 
               status: 'COMPLETED', 
               time: data.time, 
-              lastVisited: `Visited just now at ${data.time}`, // Forces text update
+              lastVisited: `Visited just now at ${data.time}`,
               commission: data.commission, 
               orderAmount: Number(dealData.orderAmount) 
             };
@@ -840,10 +753,10 @@ const handleDealSubmit = async (e) => {
       // Cleanup & Reset
       setIsDealModalOpen(false);
       setDealData({ orderAmount: '', collectionAmount: '', remark: '' });
-      setPhotoUri(null);
+      setPhotoUri(null); // Clear the radar photo
       setActiveTarget(null);
       
-      if (mobileNav === 'radar') setMobileNav('route'); 
+      fetchInitialData(); // Silently syncs with database
 
     } catch (err) { 
       console.error("Deal Submit Error:", err);
@@ -862,29 +775,27 @@ const handleDealSubmit = async (e) => {
         
         <TopHeader mobileNav={mobileNav} handleLogout={handleLogout} />
 
+        {/* ── 1. ROUTE / TERRITORY TAB (Now handles Radar + Route) ── */}
         {mobileNav === 'route' && (
           <TerritoryTab 
             targets={targets} 
             isLoadingRoute={isLoadingRoute} 
-            activeTarget={activeTarget} 
             initiateCheckIn={initiateCheckIn} 
             setIsDealModalOpen={setIsDealModalOpen} 
             totalCommission={totalCommission} 
-            setIsRegisterModalOpen={setIsRegisterModalOpen}
+            setPhotoUri={setPhotoUri}
           />
         )}
 
-        {mobileNav === 'radar' && (
-          <RadarTab 
-            nearbyShops={nearbyShops} 
-            isScanning={isScanning} 
-            scanArea={scanArea} 
-            initiateCheckIn={initiateCheckIn} 
-            setIsDealModalOpen={setIsDealModalOpen} 
-            setIsRegisterModalOpen={setIsRegisterModalOpen} 
+        {/* ── 2. NEW: ADD SHOP TAB ── */}
+        {mobileNav === 'add-shop' && (
+          <AddShopTab 
+            onSuccess={fetchInitialData} // Auto-refreshes territory when a shop is added!
+            setMobileNav={setMobileNav}  // Sends user back to main route after success
           />
         )}
 
+        {/* ── 3. DEALS / LEDGER TAB ── */}
         {mobileNav === 'deals' && (
           <DealsTab 
             totalPipeline={totalPipeline} 
@@ -896,13 +807,15 @@ const handleDealSubmit = async (e) => {
 
         <BottomNav mobileNav={mobileNav} setMobileNav={setMobileNav} />
 
+        {/* ── LEGACY MODALS (Now only handles Deal Submission) ── */}
         <SalesModals 
-          isRegisterModalOpen={isRegisterModalOpen} 
-          setIsRegisterModalOpen={setIsRegisterModalOpen} 
-          newShopData={newShopData} 
-          setNewShopData={setNewShopData} 
-          handleRegisterShop={handleRegisterShop} 
-          isRegistering={isRegistering} 
+          isRegisterModalOpen={false} 
+          setIsRegisterModalOpen={() => {}} 
+          newShopData={{}} 
+          setNewShopData={() => {}} 
+          handleRegisterShop={() => {}} 
+          isRegistering={false} 
+          
           isDealModalOpen={isDealModalOpen} 
           setIsDealModalOpen={setIsDealModalOpen} 
           activeTarget={activeTarget} 
@@ -910,9 +823,6 @@ const handleDealSubmit = async (e) => {
           setDealData={setDealData} 
           handleDealSubmit={handleDealSubmit} 
           isSubmittingDeal={isSubmittingDeal}
-          photoUri={photoUri} 
-          setPhotoUri={setPhotoUri}
-          masterTerritories={masterTerritories} // Populates the dropdowns
         />
 
       </main>
