@@ -2,6 +2,7 @@ import { pgTable, serial, text, timestamp, integer, decimal, boolean , varchar ,
   , numeric
  } from 'drizzle-orm/pg-core';
 
+
 // 1. Users Table (Stores both Admins and Sales Agents)
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
@@ -42,17 +43,21 @@ export const routeAssignments = pgTable('route_assignments', {
   targetId: integer('target_id').notNull(), 
 });
 
-// ==== Phase 2 Chagges--
+// New Changes
 
 export const areas = pgTable('areas', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
+  latitude: numeric('latitude'),  // The central GPS point of the city/region
+  longitude: numeric('longitude'), 
 });
 
 export const places = pgTable('places', {
   id: serial('id').primaryKey(),
   areaId: integer('area_id').references(() => areas.id).notNull(),
   name: varchar('name', { length: 255 }).notNull(),
+  latitude: numeric('latitude'),  // The central GPS point of the specific zone
+  longitude: numeric('longitude'), 
 });
 
 export const medicalShops = pgTable('medical_shops', {
@@ -60,6 +65,6 @@ export const medicalShops = pgTable('medical_shops', {
   placeId: integer('place_id').references(() => places.id), // Links the medical shop to the place
   name: varchar('name', { length: 255 }).notNull(),
   address: text('address'),
-  latitude: numeric('latitude'),
-  longitude: numeric('longitude'),
+  latitude: numeric('latitude'),  // The exact door of the pharmacy
+  longitude: numeric('longitude'), // The exact door of the pharmacy
 });

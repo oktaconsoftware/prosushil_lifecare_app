@@ -1,22 +1,57 @@
 'use client';
+import { useState } from 'react';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 
 export function SalesModals({ 
   isRegisterModalOpen, setIsRegisterModalOpen, newShopData, setNewShopData, handleRegisterShop, isRegistering,
   isDealModalOpen, setIsDealModalOpen, activeTarget, dealData, setDealData, handleDealSubmit, isSubmittingDeal,
-  photoUri, setPhotoUri, masterTerritories // <-- ADDED THIS PROP
+  photoUri, setPhotoUri, masterTerritories 
 }) {
 
-  const captureVisitPhoto = async () => {
+  const [isLocatingVisit, setIsLocatingVisit] = useState(false);
+
+  // ── CAPTURE PHOTO & GPS SIMULTANEOUSLY ──
+  const captureVisitPhotoAndLocation = async () => {
     try {
-      const image = await Camera.getPhoto({ quality: 80, allowEditing: false, resultType: CameraResultType.DataUrl, source: CameraSource.Camera });
+      // 1. Take the Photo
+      const image = await Camera.getPhoto({ 
+        quality: 80, 
+        allowEditing: false, 
+        resultType: CameraResultType.DataUrl, 
+        source: CameraSource.Camera 
+      });
       setPhotoUri(image.dataUrl);
+
+      // 2. Lock the GPS Coordinates
+      setIsLocatingVisit(true);
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            // Save latitude and longitude directly into dealData so it gets submitted!
+            setDealData(prev => ({
+              ...prev,
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude
+            }));
+            setIsLocatingVisit(false);
+          },
+          (error) => {
+            alert("Photo captured, but GPS lock failed. Please enable location services.");
+            setIsLocatingVisit(false);
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      } else {
+        alert("Geolocation is not supported by your device.");
+        setIsLocatingVisit(false);
+      }
     } catch (err) {
-      setPhotoUri('https://placehold.co/600x400/97c22a/ffffff?text=Mock+Photo+For+Testing');
+      console.warn("Camera cancelled or failed:", err);
+      setIsLocatingVisit(false);
     }
   };
 
-  // Logic to find places based on the selected area
+  // Logic to find places based on the selected area for Register Modal
   const selectedAreaObj = masterTerritories?.find(a => a.id == newShopData.areaId);
   const availablePlaces = selectedAreaObj ? selectedAreaObj.places : [];
 
@@ -31,16 +66,15 @@ export function SalesModals({
                 <p className="text-[13px] font-semibold text-slate-800">Register New Medical</p>
                 <p className="text-[11px] text-slate-500">Add to master database</p>
               </div>
-              <button onClick={() => setIsRegisterModalOpen(false)} className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center"><svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+              <button onClick={() => setIsRegisterModalOpen(false)} className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center active:scale-95 transition-transform"><svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
             
             <form onSubmit={handleRegisterShop} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
               
-              {/* Dynamic Territory Dropdowns */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Select Area</label>
-                  <select required value={newShopData.areaId} onChange={e => setNewShopData({...newShopData, areaId: e.target.value, placeId: ''})} className="w-full px-3 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500">
+                  <select required value={newShopData.areaId} onChange={e => setNewShopData({...newShopData, areaId: e.target.value, placeId: ''})} className="w-full px-3 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#97C22A]">
                     <option value="">-- Choose --</option>
                     {masterTerritories?.map(area => (
                       <option key={area.id} value={area.id}>{area.name}</option>
@@ -49,7 +83,7 @@ export function SalesModals({
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Select Place</label>
-                  <select required disabled={!newShopData.areaId} value={newShopData.placeId} onChange={e => setNewShopData({...newShopData, placeId: e.target.value})} className="w-full px-3 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500 disabled:opacity-50">
+                  <select required disabled={!newShopData.areaId} value={newShopData.placeId} onChange={e => setNewShopData({...newShopData, placeId: e.target.value})} className="w-full px-3 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#97C22A] disabled:opacity-50">
                     <option value="">-- Choose --</option>
                     {availablePlaces.map(place => (
                       <option key={place.id} value={place.id}>{place.name}</option>
@@ -60,22 +94,22 @@ export function SalesModals({
 
               <div>
                 <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Shop Name</label>
-                <input type="text" required value={newShopData.name} onChange={e => setNewShopData({...newShopData, name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="e.g. Wellness Medicos" />
+                <input type="text" required value={newShopData.name} onChange={e => setNewShopData({...newShopData, name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#97C22A]" placeholder="e.g. Wellness Medicos" />
               </div>
               
               <div>
                 <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Full Address</label>
-                <textarea rows="2" value={newShopData.address} onChange={e => setNewShopData({...newShopData, address: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500 resize-none" placeholder="Street, Landmark..."></textarea>
+                <textarea rows="2" value={newShopData.address} onChange={e => setNewShopData({...newShopData, address: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#97C22A] resize-none" placeholder="Street, Landmark..."></textarea>
               </div>
               
-              <div className="bg-blue-50 border border-blue-100 p-3 rounded-xl flex items-start gap-3 mt-4">
-                <svg className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
-                <p className="text-[10px] text-blue-800 leading-relaxed">
+              <div className="bg-[#97C22A]/10 border border-[#97C22A]/20 p-3 rounded-xl flex items-start gap-3 mt-4">
+                <svg className="w-5 h-5 text-[#97C22A] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
+                <p className="text-[10px] text-slate-700 leading-relaxed font-medium">
                   Clicking continue will capture your live GPS location and lock this medical shop to the master database permanently.
                 </p>
               </div>
 
-              <button type="submit" disabled={isRegistering || !newShopData.placeId} className="w-full py-3.5 mt-2 bg-blue-600 text-white font-semibold rounded-xl text-[13px] disabled:opacity-50">
+              <button type="submit" disabled={isRegistering || !newShopData.placeId} className="w-full py-3.5 mt-2 bg-[#0A0F1A] text-white hover:bg-[#97C22A] hover:text-[#0A0F1A] font-bold tracking-wide rounded-xl text-[13px] active:scale-95 transition-all disabled:opacity-50">
                 {isRegistering ? 'Processing...' : 'Save & Proceed to Visit'}
               </button>
             </form>
@@ -83,67 +117,123 @@ export function SalesModals({
         </div>
       )}
 
-      {/* 2. LOG VISIT / DEAL MODAL (Keep your existing one here) */}
+      {/* 2. LOG VISIT / DEAL MODAL */}
       {isDealModalOpen && activeTarget && (
          <div className="absolute inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4" style={{ background: 'rgba(10,15,26,0.7)', backdropFilter: 'blur(6px)' }}>
           <div className="w-full sm:max-w-md bg-white relative overflow-hidden rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[90dvh]">
             
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
               <div>
-                <p className="text-[13px] font-semibold text-slate-800">Log Visit Report</p>
-                <p className="text-[11px] text-[#97c22a] font-medium">Verify visit and collect order</p>
+                <p className="text-[13px] font-bold text-[#1E293B]">Log Visit Report</p>
+                <p className="text-[11px] text-[#97C22a] font-bold tracking-wide">VERIFY VISIT AND COLLECT ORDER</p>
               </div>
-              <button onClick={() => setIsDealModalOpen(false)} className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center hover:bg-slate-100"><svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+              <button 
+                onClick={() => {
+                  setIsDealModalOpen(false);
+                  setPhotoUri(null); 
+                  setDealData({ orderAmount: '', collectionAmount: '', remark: '' }); 
+                }} 
+                className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center hover:bg-slate-100 active:scale-95 transition-transform"
+              >
+                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
             </div>
             
             <form onSubmit={handleDealSubmit} className="p-5 space-y-5 overflow-y-auto flex-1">
               
               <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-100">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Target Location</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Target Location</p>
                 <h4 className="text-[14px] font-bold text-slate-800 leading-tight">{activeTarget.name}</h4>
                 <p className="text-[11px] font-medium text-slate-500 mt-1">{activeTarget.address}</p>
-                <div className="mt-2 inline-flex items-center gap-1.5 text-[10px] font-semibold bg-[#97c22a]/10 text-[#97c22a] px-2 py-0.5 rounded-md border border-[#97c22a]/20">
+                <div className="mt-2.5 inline-flex items-center gap-1.5 text-[10px] font-bold bg-[#97c22a]/10 text-[#97c22a] px-2.5 py-1 rounded-md border border-[#97c22a]/20">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
                   Area: {activeTarget.areaName || 'Newly Discovered'}
                 </div>
               </div>
 
+              {/* ── PHOTO & GPS VERIFICATION WIDGET ── */}
               <div>
-                <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Shop Photo (Required)</label>
+                <label className="block text-[10px] font-bold tracking-widest text-[#94A3B8] uppercase mb-1.5">Proof of Visit (Required)</label>
                 {photoUri ? (
-                  <div className="relative w-full h-36 rounded-xl overflow-hidden border-2 border-[#97c22a] shadow-sm">
+                  <div className="relative w-full h-36 rounded-xl overflow-hidden border-2 border-[#97C22A] shadow-sm">
                     <img src={photoUri} alt="Shop Proof" className="w-full h-full object-cover" />
-                    <button type="button" onClick={() => setPhotoUri(null)} className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-lg shadow-lg hover:bg-red-600 transition-colors">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    
+                    {/* GPS Status Overlay inside the photo */}
+                    <div className="absolute bottom-2 left-2 right-2 bg-black/60 backdrop-blur-sm rounded-lg p-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {isLocatingVisit ? (
+                          <>
+                            <div className="w-3 h-3 border-2 border-[#97C22A] border-t-transparent rounded-full animate-spin"></div>
+                            <span className="text-[10px] font-bold text-white tracking-wide">Locking GPS...</span>
+                          </>
+                        ) : dealData.latitude ? (
+                          <>
+                            <div className="w-2 h-2 rounded-full bg-[#97C22A] animate-pulse"></div>
+                            <span className="text-[10px] font-bold text-white tracking-wide">Location Verified</span>
+                          </>
+                        ) : (
+                          <span className="text-[10px] font-bold text-red-400 tracking-wide">GPS Failed</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setPhotoUri(null);
+                        setDealData(prev => ({...prev, latitude: null, longitude: null}));
+                      }} 
+                      className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-lg shadow-lg hover:bg-red-600 active:scale-95 transition-all"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
                   </div>
                 ) : (
-                  <button type="button" onClick={captureVisitPhoto} className="w-full h-24 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center text-slate-500 hover:bg-[#97c22a]/5 hover:border-[#97c22a] hover:text-[#97c22a] transition-colors">
-                    <svg className="w-6 h-6 mb-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                    <span className="text-[11px] font-semibold">Tap to Open Camera</span>
+                  <button 
+                    type="button" 
+                    onClick={captureVisitPhotoAndLocation} 
+                    className="w-full h-28 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center text-slate-500 hover:bg-[#97C22A]/5 hover:border-[#97C22A] hover:text-[#97C22A] transition-colors active:scale-[0.98]"
+                  >
+                    <svg className="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    <span className="text-[12px] font-bold tracking-wide">Tap to Capture Image & GPS</span>
                   </button>
                 )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Order Amount (₹)</label>
-                  <input type="number" required min="0" value={dealData.orderAmount} onChange={e => setDealData({...dealData, orderAmount: e.target.value})} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-semibold outline-none focus:border-[#97c22a]" placeholder="Min. 0" />
+                  <label className="block text-[10px] font-bold tracking-widest text-[#94A3B8] uppercase mb-1.5">Order Amount (₹)</label>
+                  <input type="number" required min="0" value={dealData.orderAmount} onChange={e => setDealData({...dealData, orderAmount: e.target.value})} className="w-full px-4 py-3 bg-[#F0F2F5] border border-[#E2E8F0] rounded-xl text-[13px] font-bold text-[#1E293B] outline-none focus:ring-2 focus:ring-[#97C22A]/30 focus:border-[#97C22A] transition-all" placeholder="Min. 0" />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Collection Amount (₹)</label>
-                  <input type="number" required min="0" value={dealData.collectionAmount} onChange={e => setDealData({...dealData, collectionAmount: e.target.value})} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-semibold outline-none focus:border-[#97c22a]" placeholder="Min. 0" />
+                  <label className="block text-[10px] font-bold tracking-widest text-[#94A3B8] uppercase mb-1.5">Collection (₹)</label>
+                  <input type="number" required min="0" value={dealData.collectionAmount} onChange={e => setDealData({...dealData, collectionAmount: e.target.value})} className="w-full px-4 py-3 bg-[#F0F2F5] border border-[#E2E8F0] rounded-xl text-[13px] font-bold text-[#1E293B] outline-none focus:ring-2 focus:ring-[#97C22A]/30 focus:border-[#97C22A] transition-all" placeholder="Min. 0" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Remark / Notes (Optional)</label>
-                <textarea rows="2" value={dealData.remark} onChange={e => setDealData({...dealData, remark: e.target.value})} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm resize-none outline-none focus:border-[#97c22a]" placeholder="Doctor unavailable, feedback, etc."></textarea>
+                <label className="block text-[10px] font-bold tracking-widest text-[#94A3B8] uppercase mb-1.5">Remark / Notes</label>
+                <textarea rows="2" value={dealData.remark} onChange={e => setDealData({...dealData, remark: e.target.value})} className="w-full px-4 py-3 bg-[#F0F2F5] border border-[#E2E8F0] rounded-xl text-[13px] font-semibold text-[#1E293B] resize-none outline-none focus:ring-2 focus:ring-[#97C22A]/30 focus:border-[#97C22A] transition-all" placeholder="Doctor unavailable, feedback, etc."></textarea>
               </div>
 
-              <button type="submit" disabled={isSubmittingDeal || !photoUri} className="w-full py-4 mt-2 bg-[#0a0f1a] text-white font-semibold rounded-xl text-[13px] active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2 shadow-lg">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                {isSubmittingDeal ? 'Saving Data...' : 'Submit & Close Visit'}
+              <button 
+                type="submit" 
+                disabled={isSubmittingDeal || !photoUri || isLocatingVisit || !dealData.latitude} 
+                className="w-full py-4 mt-2 bg-[#0A0F1A] text-white hover:bg-[#97C22A] hover:text-[#0A0F1A] font-bold tracking-wider rounded-xl text-[13px] uppercase active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 shadow-lg"
+              >
+                {isLocatingVisit ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Locking GPS...
+                  </>
+                ) : isSubmittingDeal ? (
+                  'Saving Data...'
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Submit & Close Visit
+                  </>
+                )}
               </button>
             </form>
           </div>

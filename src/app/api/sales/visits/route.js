@@ -4,9 +4,8 @@ export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 
 import { NextResponse } from 'next/server';
-import { db } from '@/db';
-import { medicalShops, routeAssignments, places, areas, visits } from '@/db/schema';
-// CRITICAL: We added inArray to the imports so we can fetch newly discovered shops!
+import { db } from '../../../../db/index';
+import { medicalShops, routeAssignments, places, areas, visits } from '../../../../db/schema';
 import { eq, desc, inArray } from 'drizzle-orm';
 
 // FETCH ROUTE & VISITED SHOPS
@@ -144,7 +143,9 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { agentId, targetId, photoUrl, orderAmount, collectionAmount, remark } = body;
+    
+    // Extract the new latitude and longitude from the request body!
+    const { agentId, targetId, photoUrl, orderAmount, collectionAmount, remark, latitude, longitude } = body;
 
     if (!agentId || !targetId) {
       return NextResponse.json({ error: 'Agent ID and Target ID are required' }, { status: 400 });
@@ -154,6 +155,7 @@ export async function POST(request) {
     const cleanOrderAmt = parseFloat(orderAmount) || 0;
     const cleanCollectionAmt = parseFloat(collectionAmount) || 0;
 
+    // 1. Log the actual Visit
     const newVisit = await db.insert(visits).values({
       agentId: agentId,
       medicalShopId: cleanTargetId,
@@ -162,6 +164,16 @@ export async function POST(request) {
       collectionAmount: cleanCollectionAmt,
       remark: remark || ''
     }).returning();
+
+    // 2. SELF-HEALING DATABASE: Automatically save/update the GPS coordinates for this medical shop!
+    if (latitude && longitude) {
+      await db.update(medicalShops)
+        .set({
+          latitude: String(latitude),
+          longitude: String(longitude)
+        })
+        .where(eq(medicalShops.id, cleanTargetId));
+    }
 
     const calculatedCommission = Math.round(cleanCollectionAmt * 0.08) || 0;
 
