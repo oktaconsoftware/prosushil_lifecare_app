@@ -799,10 +799,575 @@
 // }
 
 
+// 'use client';
+// import { useState, useRef, useMemo, useEffect } from 'react';
+
+// // Haversine Distance Calculator (Returns distance in meters)
+// function getDistance(lat1, lon1, lat2, lon2) {
+//   if (!lat1 || !lon1 || !lat2 || !lon2) return 999999;
+//   const R = 6371e3;
+//   const p1 = (lat1 * Math.PI) / 180;
+//   const p2 = (lat2 * Math.PI) / 180;
+//   const dp = ((lat2 - lat1) * Math.PI) / 180;
+//   const dl = ((lon2 - lon1) * Math.PI) / 180;
+//   const a =
+//     Math.sin(dp / 2) * Math.sin(dp / 2) +
+//     Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+//   return Math.round(R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))));
+// }
+
+// export default function TerritoryTab({
+//   targets,
+//   isLoadingRoute,
+//   initiateCheckIn,
+//   totalCommission,
+//   setIsDealModalOpen,
+//   setPhotoUri,
+// }) {
+//   const [step, setStep] = useState('camera'); // 'area' | 'camera' | 'feed'
+//   const [selectedAreas, setSelectedAreas] = useState([]); 
+//   const [localPhoto, setLocalPhoto] = useState(null);
+//   const [location, setLocation] = useState(null);
+//   const [isLocating, setIsLocating] = useState(false);
+//   const [searchQuery, setSearchQuery] = useState('');
+//   const [isMounted, setIsMounted] = useState(false);
+  
+//   const fileInputRef = useRef(null);
+  
+//   // 🚨 STRICT GEOFENCE LIMIT: Maximum 5km (5000 meters)
+//   const GEOFENCE_RADIUS_METERS = 5000;
+
+//   // Extract unique areas dynamically from the target database objects
+//   const uniqueAreas = useMemo(() => {
+//     return [...new Set(targets?.map(t => t.areaName).filter(Boolean))].sort();
+//   }, [targets]);
+
+//   // ── 1. LOAD PERMANENT AREAS ON STARTUP ──
+//   useEffect(() => {
+//     setIsMounted(true);
+//     const savedAreas = localStorage.getItem('assignedSalesAreas');
+//     if (savedAreas) {
+//       try {
+//         const parsed = JSON.parse(savedAreas);
+//         if (Array.isArray(parsed) && parsed.length > 0) {
+//           setSelectedAreas(parsed);
+//           return;
+//         }
+//       } catch (e) { console.error("Error parsing saved areas"); }
+//     }
+//     setStep('area');
+//   }, []);
+
+//   const activeTargets = useMemo(() => {
+//     if (selectedAreas.length === 0) return [];
+//     return targets?.filter(t => selectedAreas.includes(t.areaName)) || [];
+//   }, [targets, selectedAreas]);
+
+//   const visitedCount = activeTargets.filter((t) => t.status === 'COMPLETED').length || 0;
+//   const totalCount = activeTargets.length || 0;
+//   const safeCommission = totalCommission || 0;
+//   const progress = totalCount > 0 ? Math.round((visitedCount / totalCount) * 100) : 0;
+
+//   const toggleArea = (area) => {
+//     setSelectedAreas(prev => 
+//       prev.includes(area) ? prev.filter(a => a !== area) : [...prev, area]
+//     );
+//   };
+
+//   const confirmAreaSelection = () => {
+//     localStorage.setItem('assignedSalesAreas', JSON.stringify(selectedAreas));
+//     setStep('camera');
+//   };
+
+//   // ── CAMERA & ULTRA-SMART GEOFENCE LOGIC ──
+//   const handleCapture = (e) => {
+//     const file = e.target.files[0];
+//     if (file) {
+//       const reader = new FileReader();
+//       reader.onloadend = () => {
+//         setLocalPhoto(reader.result);
+//         if (setPhotoUri) setPhotoUri(reader.result);
+//         findLocationAndVerifyGeofence();
+//       };
+//       reader.readAsDataURL(file);
+//     }
+//   };
+
+//   const findLocationAndVerifyGeofence = () => {
+//     setIsLocating(true);
+    
+//     if (navigator.geolocation) {
+//       navigator.geolocation.getCurrentPosition(
+//         (pos) => {
+//           const lat = pos.coords.latitude;
+//           const lng = pos.coords.longitude;
+          
+//           // Look at ALL shops in the database that have valid GPS
+//           const allValidTargets = targets?.filter(shop => shop.latitude && shop.longitude) || [];
+
+//           if (allValidTargets.length > 0) {
+//             let closestShop = null;
+//             let minDistance = Infinity;
+
+//             // Find the absolute closest shop to the salesman's current GPS
+//             allValidTargets.forEach(shop => {
+//               const dist = getDistance(lat, lng, Number(shop.latitude), Number(shop.longitude));
+//               if (dist < minDistance) {
+//                 minDistance = dist;
+//                 closestShop = shop;
+//               }
+//             });
+
+//             // CHECK 1: Are they within 5km of ANY shop?
+//             if (minDistance > GEOFENCE_RADIUS_METERS) {
+//               const distKm = (minDistance / 1000).toFixed(1);
+//               const maxKm = (GEOFENCE_RADIUS_METERS / 1000).toFixed(1);
+              
+//               alert(`🚨 GEOFENCE BLOCKED 🚨\n\nYou are ${distKm}km away from the nearest registered shop in the database.\n\nYou must be within ${maxKm}km of your territory to unlock.`);
+//               setIsLocating(false);
+//               setLocalPhoto(null); 
+//               if (setPhotoUri) setPhotoUri(null);
+//               setStep('camera'); 
+//               return;
+//             }
+
+//             // CHECK 2: Is the closest shop actually inside their SELECTED AREA?
+//             if (closestShop && !selectedAreas.includes(closestShop.areaName)) {
+//               alert(`🚨 AREA MISMATCH 🚨\n\nYour GPS matches ${closestShop.areaName} (near ${closestShop.name}), but you selected ${selectedAreas.join(', ')}.\n\nPlease edit your Working Territories in the sidebar.`);
+//               setIsLocating(false);
+//               setLocalPhoto(null); 
+//               if (setPhotoUri) setPhotoUri(null);
+//               setStep('camera'); 
+//               return;
+//             }
+//           }
+
+//           // If passed both checks (or if no shops exist in DB yet to compare against), allow access!
+//           setLocation({ lat, lng });
+//           setIsLocating(false);
+//           setStep('feed');
+//         },
+//         (err) => {
+//           console.warn('GPS Error:', err);
+//           alert('Could not get strict GPS location. Please ensure Location Services are enabled to verify your area.');
+//           setIsLocating(false);
+//           setLocalPhoto(null);
+//           setStep('camera');
+//         },
+//         { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+//       );
+//     } else {
+//       setIsLocating(false);
+//       alert('Geolocation is not supported by your browser.');
+//     }
+//   };
+
+//   const sortedAndFilteredShops = useMemo(() => {
+//     let result = [...activeTargets]; 
+    
+//     if (searchQuery.trim().length > 0) {
+//       const q = searchQuery.toLowerCase();
+//       result = result.filter(
+//         (s) =>
+//           s.name?.toLowerCase().includes(q) ||
+//           s.address?.toLowerCase().includes(q)
+//       );
+//     } else if (location) {
+//       result = result
+//         .map((s) => ({
+//           ...s,
+//           distance: getDistance(location.lat, location.lng, Number(s.latitude), Number(s.longitude)),
+//         }))
+//         .sort((a, b) => a.distance - b.distance);
+//     }
+//     return result;
+//   }, [activeTargets, searchQuery, location]);
+
+//   if (!isMounted) return null; 
+
+//   return (
+//     <div className="flex-1 overflow-y-auto bg-[#F0F2F5]" style={{ WebkitOverflowScrolling: 'touch' }}>
+
+//       <input
+//         type="file"
+//         accept="image/*"
+//         capture="environment"
+//         ref={fileInputRef}
+//         onChange={handleCapture}
+//         className="hidden"
+//       />
+
+//       {/* ── STICKY HEADER ── */}
+//       <div className="sticky top-0 z-30 bg-[#0A0F1A] px-4 lg:px-6 py-3 flex items-center justify-between shadow-md">
+//         <div>
+//           <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500">Operating Territory</p>
+//           <p className="text-[15px] font-bold text-white mt-0.5 truncate max-w-[200px]">
+//             {step === 'area' ? 'Assignment Required' : selectedAreas.length > 0 ? selectedAreas.join(', ') : 'No Area'}
+//           </p>
+//         </div>
+//         <div className="flex items-center gap-2">
+//           {step === 'feed' && localPhoto && (
+//             <div className="w-7 h-7 rounded-full overflow-hidden border-2 border-[#97C22A]/40">
+//               <img src={localPhoto} alt="Verified" className="w-full h-full object-cover" />
+//             </div>
+//           )}
+//           <div
+//             className="flex items-center gap-1.5 rounded-full px-3 py-1.5"
+//             style={{ background: 'rgba(151,194,42,0.10)', border: '1px solid rgba(151,194,42,0.2)' }}
+//           >
+//             <div
+//               className={`w-1.5 h-1.5 rounded-full ${step === 'feed' ? 'animate-pulse' : ''}`}
+//               style={{ background: step === 'feed' ? '#97C22A' : '#475569' }}
+//             />
+//             <span
+//               className="text-[9px] font-bold tracking-widest uppercase"
+//               style={{ color: step === 'feed' ? '#97C22A' : '#64748b' }}
+//             >
+//               {step === 'area' ? 'Setup' : step === 'camera' ? 'Locked' : 'Verified'}
+//             </span>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* ── PAGE BODY ── */}
+//       <div className="max-w-6xl mx-auto w-full pb-28 lg:pb-12 px-4 lg:px-6 pt-5">
+//         <div className="flex flex-col lg:flex-row lg:gap-6 items-start">
+
+//           {/* =========================================
+//               LEFT SIDEBAR — Selected Areas & Stats
+//           ========================================= */}
+//           <div className="w-full lg:w-[300px] xl:w-[320px] shrink-0 lg:sticky lg:top-[60px] space-y-3">
+
+//             <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#E2E8F0]">
+//               <div className="flex items-center justify-between mb-3">
+//                 <label className="block text-[9px] font-bold tracking-widest uppercase text-slate-500">Working Territories</label>
+//                 <button 
+//                   onClick={() => {
+//                     setStep('area');
+//                     setLocalPhoto(null);
+//                     setLocation(null);
+//                     if (setPhotoUri) setPhotoUri(null);
+//                   }} 
+//                   className="w-6 h-6 bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 rounded-full flex items-center justify-center transition-colors active:scale-95"
+//                   title="Change Areas"
+//                 >
+//                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+//                 </button>
+//               </div>
+//               <div className="flex flex-wrap gap-1.5">
+//                 {selectedAreas.length > 0 ? selectedAreas.map(a => (
+//                   <span key={a} className="bg-[#F0F2F5] border border-[#E2E8F0] text-[#1E293B] text-[10px] font-bold px-2.5 py-1.5 rounded-md">
+//                     {a}
+//                   </span>
+//                 )) : <span className="text-[11px] text-slate-400 font-medium">None selected</span>}
+//               </div>
+//             </div>
+
+//             <div className="bg-[#0A0F1A] rounded-2xl p-5 relative overflow-hidden" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.18)' }}>
+//               <div
+//                 className="absolute -top-8 -right-8 w-36 h-36 rounded-full pointer-events-none"
+//                 style={{ background: 'radial-gradient(circle, rgba(151,194,42,0.15) 0%, transparent 70%)' }}
+//               />
+
+//               <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-4 relative z-10">Combined Target</p>
+
+//               <div className="relative z-10 mb-4">
+//                 <div className="flex items-center justify-between mb-1.5">
+//                   <span className="text-[10px] font-bold tracking-widest uppercase text-slate-500">Completion</span>
+//                   <span className="text-[10px] font-bold" style={{ color: '#97C22A' }}>{progress}%</span>
+//                 </div>
+//                 <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+//                   <div className="h-full rounded-full transition-all duration-700" style={{ width: `${progress}%`, background: 'linear-gradient(90deg,#6fa81a,#97C22A)' }} />
+//                 </div>
+//               </div>
+
+//               <div className="grid grid-cols-3 gap-2 relative z-10">
+//                 <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+//                   <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Target</p>
+//                   <p className="text-2xl font-bold text-white leading-none">{totalCount}</p>
+//                 </div>
+//                 <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(151,194,42,0.10)', border: '1px solid rgba(151,194,42,0.2)' }}>
+//                   <p className="text-[9px] font-bold tracking-widest uppercase mb-1" style={{ color: 'rgba(151,194,42,0.7)' }}>Done</p>
+//                   <p className="text-2xl font-bold leading-none" style={{ color: '#97C22A' }}>{visitedCount}</p>
+//                 </div>
+//                 <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+//                   <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Left</p>
+//                   <p className="text-2xl font-bold text-slate-300 leading-none">{totalCount - visitedCount}</p>
+//                 </div>
+//               </div>
+//             </div>
+
+//             <div className="bg-white rounded-2xl p-4 flex items-center justify-between" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.08)', border: '1px solid #E2E8F0' }}>
+//               <div>
+//                 <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Earned Today</p>
+//                 <p className="text-2xl font-bold leading-none" style={{ color: '#1E293B' }}>
+//                   ₹{safeCommission >= 1000 ? (safeCommission / 1000).toFixed(1) + 'k' : safeCommission.toLocaleString('en-IN')}
+//                 </p>
+//               </div>
+//               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(151,194,42,0.10)', border: '1px solid rgba(151,194,42,0.2)' }}>
+//                 <svg className="w-4 h-4" style={{ color: '#97C22A' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+//                 </svg>
+//               </div>
+//             </div>
+
+//           </div>
+
+//           {/* =========================================
+//               RIGHT — Main Workflow Container
+//           ========================================= */}
+//           <div className="flex-1 min-w-0 w-full mt-3 lg:mt-0">
+
+//             {isLoadingRoute ? (
+//               <div className="bg-white rounded-2xl flex flex-col items-center justify-center py-24 gap-3 border border-[#E2E8F0] shadow-sm">
+//                 <div className="w-6 h-6 rounded-full border-2 border-[#97C22A] border-t-transparent animate-spin" />
+//                 <p className="text-[11px] font-medium text-slate-400">Loading territory…</p>
+//               </div>
+
+//             ) : step === 'area' ? (
+
+//               <AreaSelector 
+//                 areas={uniqueAreas} 
+//                 selectedAreas={selectedAreas}
+//                 onToggleArea={toggleArea} 
+//                 onConfirm={confirmAreaSelection}
+//               />
+
+//             ) : step === 'camera' ? (
+
+//               <div className="bg-white rounded-2xl p-10 md:p-16 flex flex-col items-center text-center animate-in zoom-in-95 duration-300 border border-[#E2E8F0] shadow-sm">
+//                 <div className="relative mb-6">
+//                   <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(151,194,42,0.10)', border: '1px solid rgba(151,194,42,0.2)' }}>
+//                     <svg className="w-7 h-7" style={{ color: '#97C22A' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+//                       <circle cx="12" cy="13" r="3" strokeWidth="1.8" />
+//                     </svg>
+//                   </div>
+//                 </div>
+
+//                 <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-2">Security Verification</p>
+//                 <h2 className="text-[15px] font-bold mb-2 text-[#1E293B]">Field Geofence Check</h2>
+//                 <p className="text-[11px] font-medium text-slate-400 max-w-[280px] leading-relaxed mb-8">
+//                   Take a live photo to verify your GPS location matches your selected territories and unlock your shops.
+//                 </p>
+
+//                 <button
+//                   onClick={() => fileInputRef.current?.click()}
+//                   disabled={isLocating || selectedAreas.length === 0}
+//                   className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-[12px] font-bold text-white active:scale-95 transition-all shadow-md disabled:opacity-50"
+//                   style={{ background: '#0A0F1A' }}
+//                 >
+//                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+//                   </svg>
+//                   {isLocating ? 'Verifying Coordinates...' : 'Open Camera to Unlock'}
+//                 </button>
+//                 <p className="text-[9px] font-bold tracking-widest uppercase text-slate-400 mt-4">Strict Geofencing Active</p>
+//               </div>
+
+//             ) : (
+
+//               <div className="space-y-3 animate-in fade-in slide-in-from-bottom-3 duration-300">
+
+//                 <div className="bg-[#0A0F1A] rounded-2xl p-4 shadow-sm">
+//                   <div className="flex items-center justify-between mb-3">
+//                     <div className="flex items-center gap-2">
+//                       <div className="w-1.5 h-1.5 rounded-full animate-pulse bg-[#97C22A]" />
+//                       <p className="text-[13px] font-bold text-white">Geofence Verified</p>
+//                     </div>
+//                     {location && !isLocating && (
+//                       <span className="text-[9px] font-bold tracking-widest uppercase px-2 py-1 rounded-full text-[#97C22A] border border-[#97C22A]/20 bg-[#97C22A]/10">
+//                         Proximity sorted
+//                       </span>
+//                     )}
+//                   </div>
+
+//                   <div className="relative">
+//                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+//                       <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+//                       </svg>
+//                     </div>
+//                     <input
+//                       type="text"
+//                       placeholder="Search within selected areas…"
+//                       value={searchQuery}
+//                       onChange={(e) => setSearchQuery(e.target.value)}
+//                       className="w-full rounded-xl pl-9 pr-9 py-2.5 text-[12px] font-bold text-white placeholder-slate-600 focus:outline-none transition-colors"
+//                       style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
+//                     />
+//                     {searchQuery && (
+//                       <button onClick={() => setSearchQuery('')} className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300 transition-colors">
+//                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+//                       </button>
+//                     )}
+//                   </div>
+//                 </div>
+
+//                 <div className="bg-white rounded-2xl overflow-hidden border border-[#E2E8F0] shadow-sm">
+//                   <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+//                     <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500">
+//                       {searchQuery ? 'Search Results' : 'Territory Shops'}
+//                     </p>
+//                     <p className="text-[9px] font-bold tracking-widest uppercase text-slate-400">
+//                       {sortedAndFilteredShops.length} shops
+//                     </p>
+//                   </div>
+
+//                   {sortedAndFilteredShops.length === 0 ? (
+//                     <div className="py-14 text-center px-6">
+//                       <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style={{ background: '#F0F2F5', border: '1px solid #E2E8F0' }}>
+//                         <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+//                       </div>
+//                       <p className="text-[13px] font-bold text-[#1E293B]">No shops found</p>
+//                       <p className="text-[11px] font-medium text-slate-400 mt-1">Try a different search term or edit areas.</p>
+//                     </div>
+//                   ) : (
+//                     <div className="divide-y divide-slate-100">
+//                       {sortedAndFilteredShops.map((shop, idx) => (
+//                         <ShopRow
+//                           key={shop.id}
+//                           shop={shop}
+//                           idx={idx}
+//                           onLogVisit={() => {
+//                             initiateCheckIn(shop);
+//                             setIsDealModalOpen(true);
+//                           }}
+//                         />
+//                       ))}
+//                     </div>
+//                   )}
+//                 </div>
+
+//               </div>
+//             )}
+//           </div>
+
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
+
+// function AreaSelector({ areas, selectedAreas, onToggleArea, onConfirm }) {
+//   if (areas.length === 0) {
+//     return (
+//       <div className="bg-white rounded-2xl p-10 text-center border border-[#E2E8F0] shadow-sm animate-in zoom-in-95">
+//         <h2 className="text-[15px] font-bold text-[#1E293B] mb-2">No Territories Assigned</h2>
+//         <p className="text-[12px] text-slate-500">You do not have any shops assigned to your route yet.</p>
+//       </div>
+//     );
+//   }
+
+//   return (
+//     <div className="bg-white rounded-2xl p-6 md:p-10 border border-[#E2E8F0] shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-300 text-center">
+//       <h2 className="text-[16px] font-bold text-[#1E293B] mb-2">Select Your Territories</h2>
+//       <p className="text-[11px] font-medium text-[#94A3B8] max-w-[300px] mx-auto mb-8 leading-relaxed">
+//         Choose one or more areas you are working in today. You must physically be inside your selected territory to unlock the feed.
+//       </p>
+
+//       <div className="flex flex-wrap justify-center gap-3 mb-10">
+//         {areas.map((area) => {
+//           const isSelected = selectedAreas.includes(area);
+//           return (
+//             <button
+//               key={area}
+//               onClick={() => onToggleArea(area)}
+//               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-bold transition-all active:scale-95 border ${
+//                 isSelected 
+//                   ? 'bg-[#97C22A]/10 border-[#97C22A]/30 text-[#97C22A]' 
+//                   : 'bg-[#F0F2F5] border-transparent text-[#1E293B] hover:bg-[#E2E8F0]'
+//               }`}
+//             >
+//               {isSelected && <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>}
+//               {area}
+//             </button>
+//           )
+//         })}
+//       </div>
+
+//       <button
+//         onClick={onConfirm}
+//         disabled={selectedAreas.length === 0}
+//         className="w-full max-w-[260px] mx-auto bg-[#0A0F1A] text-white hover:bg-[#97C22A] hover:text-[#0A0F1A] disabled:opacity-50 disabled:pointer-events-none rounded-xl py-3.5 font-bold text-[13px] uppercase tracking-wider transition-all shadow-sm"
+//       >
+//         Confirm & Continue
+//       </button>
+//     </div>
+//   );
+// }
+
+// function ShopRow({ shop, idx, onLogVisit }) {
+//   const isCompleted = shop.status === 'COMPLETED';
+
+//   return (
+//     <div
+//       className="px-4 py-3.5 flex items-center gap-3 transition-colors"
+//       style={{ background: 'transparent' }}
+//       onMouseEnter={e => { if (!isCompleted) e.currentTarget.style.background = '#F8FAFC'; }}
+//       onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+//     >
+//       <div
+//         className="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center text-[10px] font-bold"
+//         style={
+//           isCompleted
+//             ? { background: 'rgba(151,194,42,0.10)', color: '#97C22A', border: '1px solid rgba(151,194,42,0.2)' }
+//             : { background: '#F0F2F5', color: '#94A3B8', border: '1px solid #E2E8F0' }
+//         }
+//       >
+//         {isCompleted ? <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg> : idx + 1}
+//       </div>
+
+//       <div className="flex-1 min-w-0">
+//         <div className="flex items-center gap-2 flex-wrap">
+//           <p className="text-[13px] font-bold truncate" style={{ color: isCompleted ? '#94A3B8' : '#1E293B' }}>{shop.name}</p>
+//           {shop.distance !== undefined && shop.distance < 999999 && (
+//             <span
+//               className="text-[9px] font-bold tracking-widest uppercase shrink-0 px-1.5 py-0.5 rounded-full"
+//               style={{ color: '#3b82f6', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}
+//             >
+//               {shop.distance < 1000 ? `${shop.distance}m` : `${(shop.distance / 1000).toFixed(1)}km`}
+//             </span>
+//           )}
+//         </div>
+//         <p className="text-[11px] font-medium truncate mt-0.5" style={{ color: '#94A3B8' }}>{shop.address}</p>
+//         {shop.lastVisited && (
+//           <p className="text-[9px] font-bold tracking-widest uppercase mt-1" style={{ color: isCompleted ? '#97C22A' : '#94A3B8' }}>
+//             {isCompleted ? '✓ ' : ''}{shop.lastVisited}
+//           </p>
+//         )}
+//       </div>
+
+//       <div className="shrink-0">
+//         {isCompleted ? (
+//           <span
+//             className="inline-flex items-center gap-1 text-[9px] font-bold tracking-widest uppercase px-2.5 py-1.5 rounded-full"
+//             style={{ color: '#97C22A', background: 'rgba(151,194,42,0.10)', border: '1px solid rgba(151,194,42,0.2)' }}
+//           >
+//             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
+//             Visited
+//           </span>
+//         ) : (
+//           <button
+//             onClick={onLogVisit}
+//             className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold text-white active:scale-95 transition-all shadow-sm"
+//             style={{ background: '#0A0F1A' }}
+//             onMouseEnter={e => { e.currentTarget.style.background = '#97C22A'; e.currentTarget.style.color = '#0A0F1A'; }}
+//             onMouseLeave={e => { e.currentTarget.style.background = '#0A0F1A'; e.currentTarget.style.color = 'white'; }}
+//           >
+//             Log Visit
+//             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg>
+//           </button>
+//         )}
+//       </div>
+//     </div>
+//   );
+// }
+
+
 'use client';
 import { useState, useRef, useMemo, useEffect } from 'react';
 
-// Haversine Distance Calculator (Returns distance in meters)
 function getDistance(lat1, lon1, lat2, lon2) {
   if (!lat1 || !lon1 || !lat2 || !lon2) return 999999;
   const R = 6371e3;
@@ -816,6 +1381,23 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return Math.round(R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))));
 }
 
+const C = {
+  green: '#2E7D32',
+  greenBg: '#F1F8F1',
+  greenBorder: '#A5D6A7',
+  greenMid: '#43A047',
+  navy: '#1A2332',
+  text: '#1A2332',
+  textMuted: '#64748B',
+  textFaint: '#94A3B8',
+  border: '#E2E8F0',
+  surface: '#FFFFFF',
+  bg: '#F8FAFC',
+  blue: '#1D4ED8',
+  blueBg: '#EFF6FF',
+  blueBorder: '#BFDBFE',
+};
+
 export default function TerritoryTab({
   targets,
   isLoadingRoute,
@@ -824,43 +1406,58 @@ export default function TerritoryTab({
   setIsDealModalOpen,
   setPhotoUri,
 }) {
-  const [step, setStep] = useState('camera'); // 'area' | 'camera' | 'feed'
-  const [selectedAreas, setSelectedAreas] = useState([]); 
+  const [step, setStep] = useState('camera');
+  const [selectedAreas, setSelectedAreas] = useState([]);
+  const [isAreaDropdownOpen, setIsAreaDropdownOpen] = useState(false);
   const [localPhoto, setLocalPhoto] = useState(null);
   const [location, setLocation] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isMounted, setIsMounted] = useState(false);
-  
+
   const fileInputRef = useRef(null);
-  
-  // 🚨 STRICT GEOFENCE LIMIT: Maximum 5km (5000 meters)
+  const dropdownRef = useRef(null);
   const GEOFENCE_RADIUS_METERS = 5000;
 
-  // Extract unique areas dynamically from the target database objects
   const uniqueAreas = useMemo(() => {
-    return [...new Set(targets?.map(t => t.areaName).filter(Boolean))].sort();
+    return [...new Set(targets?.map((t) => t.areaName).filter(Boolean))].sort();
   }, [targets]);
 
-  // ── 1. LOAD PERMANENT AREAS ON STARTUP ──
   useEffect(() => {
     setIsMounted(true);
-    const savedAreas = localStorage.getItem('assignedSalesAreas');
-    if (savedAreas) {
+    const saved = localStorage.getItem('assignedSalesAreas');
+    if (saved) {
       try {
-        const parsed = JSON.parse(savedAreas);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setSelectedAreas(parsed);
-          return;
-        }
-      } catch (e) { console.error("Error parsing saved areas"); }
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) setSelectedAreas(parsed);
+      } catch {}
     }
-    setStep('area');
   }, []);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target))
+        setIsAreaDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const toggleArea = (area) => {
+    const next = selectedAreas.includes(area)
+      ? selectedAreas.filter((a) => a !== area)
+      : [...selectedAreas, area];
+    setSelectedAreas(next);
+    localStorage.setItem('assignedSalesAreas', JSON.stringify(next));
+    setStep('camera');
+    setLocalPhoto(null);
+    setLocation(null);
+    if (setPhotoUri) setPhotoUri(null);
+  };
 
   const activeTargets = useMemo(() => {
     if (selectedAreas.length === 0) return [];
-    return targets?.filter(t => selectedAreas.includes(t.areaName)) || [];
+    return targets?.filter((t) => selectedAreas.includes(t.areaName)) || [];
   }, [targets, selectedAreas]);
 
   const visitedCount = activeTargets.filter((t) => t.status === 'COMPLETED').length || 0;
@@ -868,109 +1465,68 @@ export default function TerritoryTab({
   const safeCommission = totalCommission || 0;
   const progress = totalCount > 0 ? Math.round((visitedCount / totalCount) * 100) : 0;
 
-  const toggleArea = (area) => {
-    setSelectedAreas(prev => 
-      prev.includes(area) ? prev.filter(a => a !== area) : [...prev, area]
+  const handleCapture = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLocalPhoto(reader.result);
+      if (setPhotoUri) setPhotoUri(reader.result);
+      verifyGeofence();
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const verifyGeofence = () => {
+    setIsLocating(true);
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported.');
+      setIsLocating(false);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const areaShops = targets?.filter(
+          (s) => s.latitude && s.longitude && selectedAreas.includes(s.areaName)
+        ) || [];
+        if (areaShops.length > 0) {
+          let minDist = Infinity;
+          areaShops.forEach((s) => {
+            const d = getDistance(lat, lng, Number(s.latitude), Number(s.longitude));
+            if (d < minDist) minDist = d;
+          });
+          if (minDist > GEOFENCE_RADIUS_METERS) {
+            alert(
+              `📍 Outside territory\n\nYou are ${(minDist / 1000).toFixed(1)}km from the nearest shop in ${selectedAreas.join(', ')}. Move within ${GEOFENCE_RADIUS_METERS / 1000}km to unlock.`
+            );
+            setIsLocating(false);
+            setLocalPhoto(null);
+            if (setPhotoUri) setPhotoUri(null);
+            return;
+          }
+        }
+        setLocation({ lat, lng });
+        setIsLocating(false);
+        setStep('feed');
+      },
+      () => {
+        alert('Could not get location. Enable Location Services and try again.');
+        setIsLocating(false);
+        setLocalPhoto(null);
+        if (setPhotoUri) setPhotoUri(null);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
 
-  const confirmAreaSelection = () => {
-    localStorage.setItem('assignedSalesAreas', JSON.stringify(selectedAreas));
-    setStep('camera');
-  };
-
-  // ── CAMERA & ULTRA-SMART GEOFENCE LOGIC ──
-  const handleCapture = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLocalPhoto(reader.result);
-        if (setPhotoUri) setPhotoUri(reader.result);
-        findLocationAndVerifyGeofence();
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const findLocationAndVerifyGeofence = () => {
-    setIsLocating(true);
-    
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          
-          // Look at ALL shops in the database that have valid GPS
-          const allValidTargets = targets?.filter(shop => shop.latitude && shop.longitude) || [];
-
-          if (allValidTargets.length > 0) {
-            let closestShop = null;
-            let minDistance = Infinity;
-
-            // Find the absolute closest shop to the salesman's current GPS
-            allValidTargets.forEach(shop => {
-              const dist = getDistance(lat, lng, Number(shop.latitude), Number(shop.longitude));
-              if (dist < minDistance) {
-                minDistance = dist;
-                closestShop = shop;
-              }
-            });
-
-            // CHECK 1: Are they within 5km of ANY shop?
-            if (minDistance > GEOFENCE_RADIUS_METERS) {
-              const distKm = (minDistance / 1000).toFixed(1);
-              const maxKm = (GEOFENCE_RADIUS_METERS / 1000).toFixed(1);
-              
-              alert(`🚨 GEOFENCE BLOCKED 🚨\n\nYou are ${distKm}km away from the nearest registered shop in the database.\n\nYou must be within ${maxKm}km of your territory to unlock.`);
-              setIsLocating(false);
-              setLocalPhoto(null); 
-              if (setPhotoUri) setPhotoUri(null);
-              setStep('camera'); 
-              return;
-            }
-
-            // CHECK 2: Is the closest shop actually inside their SELECTED AREA?
-            if (closestShop && !selectedAreas.includes(closestShop.areaName)) {
-              alert(`🚨 AREA MISMATCH 🚨\n\nYour GPS matches ${closestShop.areaName} (near ${closestShop.name}), but you selected ${selectedAreas.join(', ')}.\n\nPlease edit your Working Territories in the sidebar.`);
-              setIsLocating(false);
-              setLocalPhoto(null); 
-              if (setPhotoUri) setPhotoUri(null);
-              setStep('camera'); 
-              return;
-            }
-          }
-
-          // If passed both checks (or if no shops exist in DB yet to compare against), allow access!
-          setLocation({ lat, lng });
-          setIsLocating(false);
-          setStep('feed');
-        },
-        (err) => {
-          console.warn('GPS Error:', err);
-          alert('Could not get strict GPS location. Please ensure Location Services are enabled to verify your area.');
-          setIsLocating(false);
-          setLocalPhoto(null);
-          setStep('camera');
-        },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-      );
-    } else {
-      setIsLocating(false);
-      alert('Geolocation is not supported by your browser.');
-    }
-  };
-
-  const sortedAndFilteredShops = useMemo(() => {
-    let result = [...activeTargets]; 
-    
-    if (searchQuery.trim().length > 0) {
+  const sortedShops = useMemo(() => {
+    let result = [...activeTargets];
+    if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
-        (s) =>
-          s.name?.toLowerCase().includes(q) ||
-          s.address?.toLowerCase().includes(q)
+        (s) => s.name?.toLowerCase().includes(q) || s.address?.toLowerCase().includes(q)
       );
     } else if (location) {
       result = result
@@ -983,383 +1539,323 @@ export default function TerritoryTab({
     return result;
   }, [activeTargets, searchQuery, location]);
 
-  if (!isMounted) return null; 
+  if (!isMounted) return null;
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#F0F2F5]" style={{ WebkitOverflowScrolling: 'touch' }}>
+    <div style={{ flex: 1, overflowY: 'auto', background: C.bg, WebkitOverflowScrolling: 'touch' }}>
+      <input type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handleCapture} style={{ display: 'none' }} />
 
-      <input
-        type="file"
-        accept="image/*"
-        capture="environment"
-        ref={fileInputRef}
-        onChange={handleCapture}
-        className="hidden"
-      />
-
-      {/* ── STICKY HEADER ── */}
-      <div className="sticky top-0 z-30 bg-[#0A0F1A] px-4 lg:px-6 py-3 flex items-center justify-between shadow-md">
-        <div>
-          <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500">Operating Territory</p>
-          <p className="text-[15px] font-bold text-white mt-0.5 truncate max-w-[200px]">
-            {step === 'area' ? 'Assignment Required' : selectedAreas.length > 0 ? selectedAreas.join(', ') : 'No Area'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {step === 'feed' && localPhoto && (
-            <div className="w-7 h-7 rounded-full overflow-hidden border-2 border-[#97C22A]/40">
-              <img src={localPhoto} alt="Verified" className="w-full h-full object-cover" />
-            </div>
-          )}
-          <div
-            className="flex items-center gap-1.5 rounded-full px-3 py-1.5"
-            style={{ background: 'rgba(151,194,42,0.10)', border: '1px solid rgba(151,194,42,0.2)' }}
-          >
-            <div
-              className={`w-1.5 h-1.5 rounded-full ${step === 'feed' ? 'animate-pulse' : ''}`}
-              style={{ background: step === 'feed' ? '#97C22A' : '#475569' }}
-            />
-            <span
-              className="text-[9px] font-bold tracking-widest uppercase"
-              style={{ color: step === 'feed' ? '#97C22A' : '#64748b' }}
-            >
-              {step === 'area' ? 'Setup' : step === 'camera' ? 'Locked' : 'Verified'}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── PAGE BODY ── */}
-      <div className="max-w-6xl mx-auto w-full pb-28 lg:pb-12 px-4 lg:px-6 pt-5">
-        <div className="flex flex-col lg:flex-row lg:gap-6 items-start">
-
-          {/* =========================================
-              LEFT SIDEBAR — Selected Areas & Stats
-          ========================================= */}
-          <div className="w-full lg:w-[300px] xl:w-[320px] shrink-0 lg:sticky lg:top-[60px] space-y-3">
-
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#E2E8F0]">
-              <div className="flex items-center justify-between mb-3">
-                <label className="block text-[9px] font-bold tracking-widest uppercase text-slate-500">Working Territories</label>
-                <button 
-                  onClick={() => {
-                    setStep('area');
-                    setLocalPhoto(null);
-                    setLocation(null);
-                    if (setPhotoUri) setPhotoUri(null);
-                  }} 
-                  className="w-6 h-6 bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 rounded-full flex items-center justify-center transition-colors active:scale-95"
-                  title="Change Areas"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {selectedAreas.length > 0 ? selectedAreas.map(a => (
-                  <span key={a} className="bg-[#F0F2F5] border border-[#E2E8F0] text-[#1E293B] text-[10px] font-bold px-2.5 py-1.5 rounded-md">
+      {/* ══ STICKY HEADER ══ */}
+      <div
+        ref={dropdownRef}
+        style={{
+          position: 'sticky', top: 0, zIndex: 30,
+          background: C.surface,
+          borderBottom: `1px solid ${C.border}`,
+        }}
+      >
+        <div style={{ padding: '14px 20px 12px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+          {/* Left */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', color: C.textFaint, textTransform: 'uppercase', margin: '0 0 6px' }}>
+              Operating Territory
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+              {selectedAreas.length === 0 ? (
+                <span style={{ fontSize: 13, color: C.textMuted, fontStyle: 'italic' }}>No area selected</span>
+              ) : (
+                selectedAreas.map((a) => (
+                  <span key={a} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: C.green, background: C.greenBg, border: `1px solid ${C.greenBorder}`, borderRadius: 20, padding: '3px 8px 3px 10px' }}>
                     {a}
+                    <button onClick={() => toggleArea(a)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: C.green, opacity: 0.55 }}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                    </button>
                   </span>
-                )) : <span className="text-[11px] text-slate-400 font-medium">None selected</span>}
-              </div>
-            </div>
-
-            <div className="bg-[#0A0F1A] rounded-2xl p-5 relative overflow-hidden" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.18)' }}>
-              <div
-                className="absolute -top-8 -right-8 w-36 h-36 rounded-full pointer-events-none"
-                style={{ background: 'radial-gradient(circle, rgba(151,194,42,0.15) 0%, transparent 70%)' }}
-              />
-
-              <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-4 relative z-10">Combined Target</p>
-
-              <div className="relative z-10 mb-4">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] font-bold tracking-widest uppercase text-slate-500">Completion</span>
-                  <span className="text-[10px] font-bold" style={{ color: '#97C22A' }}>{progress}%</span>
-                </div>
-                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                  <div className="h-full rounded-full transition-all duration-700" style={{ width: `${progress}%`, background: 'linear-gradient(90deg,#6fa81a,#97C22A)' }} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 relative z-10">
-                <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Target</p>
-                  <p className="text-2xl font-bold text-white leading-none">{totalCount}</p>
-                </div>
-                <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(151,194,42,0.10)', border: '1px solid rgba(151,194,42,0.2)' }}>
-                  <p className="text-[9px] font-bold tracking-widest uppercase mb-1" style={{ color: 'rgba(151,194,42,0.7)' }}>Done</p>
-                  <p className="text-2xl font-bold leading-none" style={{ color: '#97C22A' }}>{visitedCount}</p>
-                </div>
-                <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Left</p>
-                  <p className="text-2xl font-bold text-slate-300 leading-none">{totalCount - visitedCount}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-4 flex items-center justify-between" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.08)', border: '1px solid #E2E8F0' }}>
-              <div>
-                <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Earned Today</p>
-                <p className="text-2xl font-bold leading-none" style={{ color: '#1E293B' }}>
-                  ₹{safeCommission >= 1000 ? (safeCommission / 1000).toFixed(1) + 'k' : safeCommission.toLocaleString('en-IN')}
-                </p>
-              </div>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(151,194,42,0.10)', border: '1px solid rgba(151,194,42,0.2)' }}>
-                <svg className="w-4 h-4" style={{ color: '#97C22A' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                ))
+              )}
+              <button
+                onClick={() => setIsAreaDropdownOpen((p) => !p)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: isAreaDropdownOpen ? C.surface : C.green, background: isAreaDropdownOpen ? C.green : C.greenBg, border: `1px solid ${C.greenBorder}`, borderRadius: 20, padding: '3px 10px', cursor: 'pointer' }}
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
+                  {isAreaDropdownOpen ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M12 4v16M4 12h16" />}
                 </svg>
-              </div>
+                {isAreaDropdownOpen ? 'Close' : 'Add area'}
+              </button>
             </div>
-
           </div>
 
-          {/* =========================================
-              RIGHT — Main Workflow Container
-          ========================================= */}
-          <div className="flex-1 min-w-0 w-full mt-3 lg:mt-0">
-
-            {isLoadingRoute ? (
-              <div className="bg-white rounded-2xl flex flex-col items-center justify-center py-24 gap-3 border border-[#E2E8F0] shadow-sm">
-                <div className="w-6 h-6 rounded-full border-2 border-[#97C22A] border-t-transparent animate-spin" />
-                <p className="text-[11px] font-medium text-slate-400">Loading territory…</p>
-              </div>
-
-            ) : step === 'area' ? (
-
-              <AreaSelector 
-                areas={uniqueAreas} 
-                selectedAreas={selectedAreas}
-                onToggleArea={toggleArea} 
-                onConfirm={confirmAreaSelection}
-              />
-
-            ) : step === 'camera' ? (
-
-              <div className="bg-white rounded-2xl p-10 md:p-16 flex flex-col items-center text-center animate-in zoom-in-95 duration-300 border border-[#E2E8F0] shadow-sm">
-                <div className="relative mb-6">
-                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(151,194,42,0.10)', border: '1px solid rgba(151,194,42,0.2)' }}>
-                    <svg className="w-7 h-7" style={{ color: '#97C22A' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                      <circle cx="12" cy="13" r="3" strokeWidth="1.8" />
-                    </svg>
-                  </div>
-                </div>
-
-                <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-2">Security Verification</p>
-                <h2 className="text-[15px] font-bold mb-2 text-[#1E293B]">Field Geofence Check</h2>
-                <p className="text-[11px] font-medium text-slate-400 max-w-[280px] leading-relaxed mb-8">
-                  Take a live photo to verify your GPS location matches your selected territories and unlock your shops.
-                </p>
-
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isLocating || selectedAreas.length === 0}
-                  className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-[12px] font-bold text-white active:scale-95 transition-all shadow-md disabled:opacity-50"
-                  style={{ background: '#0A0F1A' }}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                  </svg>
-                  {isLocating ? 'Verifying Coordinates...' : 'Open Camera to Unlock'}
-                </button>
-                <p className="text-[9px] font-bold tracking-widest uppercase text-slate-400 mt-4">Strict Geofencing Active</p>
-              </div>
-
-            ) : (
-
-              <div className="space-y-3 animate-in fade-in slide-in-from-bottom-3 duration-300">
-
-                <div className="bg-[#0A0F1A] rounded-2xl p-4 shadow-sm">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full animate-pulse bg-[#97C22A]" />
-                      <p className="text-[13px] font-bold text-white">Geofence Verified</p>
-                    </div>
-                    {location && !isLocating && (
-                      <span className="text-[9px] font-bold tracking-widest uppercase px-2 py-1 rounded-full text-[#97C22A] border border-[#97C22A]/20 bg-[#97C22A]/10">
-                        Proximity sorted
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Search within selected areas…"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full rounded-xl pl-9 pr-9 py-2.5 text-[12px] font-bold text-white placeholder-slate-600 focus:outline-none transition-colors"
-                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
-                    />
-                    {searchQuery && (
-                      <button onClick={() => setSearchQuery('')} className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300 transition-colors">
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-2xl overflow-hidden border border-[#E2E8F0] shadow-sm">
-                  <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-                    <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500">
-                      {searchQuery ? 'Search Results' : 'Territory Shops'}
-                    </p>
-                    <p className="text-[9px] font-bold tracking-widest uppercase text-slate-400">
-                      {sortedAndFilteredShops.length} shops
-                    </p>
-                  </div>
-
-                  {sortedAndFilteredShops.length === 0 ? (
-                    <div className="py-14 text-center px-6">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style={{ background: '#F0F2F5', border: '1px solid #E2E8F0' }}>
-                        <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                      </div>
-                      <p className="text-[13px] font-bold text-[#1E293B]">No shops found</p>
-                      <p className="text-[11px] font-medium text-slate-400 mt-1">Try a different search term or edit areas.</p>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-slate-100">
-                      {sortedAndFilteredShops.map((shop, idx) => (
-                        <ShopRow
-                          key={shop.id}
-                          shop={shop}
-                          idx={idx}
-                          onLogVisit={() => {
-                            initiateCheckIn(shop);
-                            setIsDealModalOpen(true);
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-              </div>
+          {/* Right: status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 20, background: step === 'feed' ? C.greenBg : '#F1F5F9', border: `1px solid ${step === 'feed' ? C.greenBorder : C.border}`, flexShrink: 0, marginTop: 2 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: step === 'feed' ? C.greenMid : C.textFaint, display: 'inline-block' }} />
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: step === 'feed' ? C.green : C.textMuted }}>
+              {step === 'camera' ? 'Locked' : 'Verified'}
+            </span>
+            {step === 'feed' && localPhoto && (
+              <img src={localPhoto} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: `1.5px solid ${C.greenBorder}`, marginLeft: 2 }} />
             )}
           </div>
-
         </div>
-      </div>
-    </div>
-  );
-}
 
-function AreaSelector({ areas, selectedAreas, onToggleArea, onConfirm }) {
-  if (areas.length === 0) {
-    return (
-      <div className="bg-white rounded-2xl p-10 text-center border border-[#E2E8F0] shadow-sm animate-in zoom-in-95">
-        <h2 className="text-[15px] font-bold text-[#1E293B] mb-2">No Territories Assigned</h2>
-        <p className="text-[12px] text-slate-500">You do not have any shops assigned to your route yet.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white rounded-2xl p-6 md:p-10 border border-[#E2E8F0] shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-300 text-center">
-      <h2 className="text-[16px] font-bold text-[#1E293B] mb-2">Select Your Territories</h2>
-      <p className="text-[11px] font-medium text-[#94A3B8] max-w-[300px] mx-auto mb-8 leading-relaxed">
-        Choose one or more areas you are working in today. You must physically be inside your selected territory to unlock the feed.
-      </p>
-
-      <div className="flex flex-wrap justify-center gap-3 mb-10">
-        {areas.map((area) => {
-          const isSelected = selectedAreas.includes(area);
-          return (
-            <button
-              key={area}
-              onClick={() => onToggleArea(area)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-bold transition-all active:scale-95 border ${
-                isSelected 
-                  ? 'bg-[#97C22A]/10 border-[#97C22A]/30 text-[#97C22A]' 
-                  : 'bg-[#F0F2F5] border-transparent text-[#1E293B] hover:bg-[#E2E8F0]'
-              }`}
-            >
-              {isSelected && <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>}
-              {area}
-            </button>
-          )
-        })}
+        {/* Area dropdown */}
+        {isAreaDropdownOpen && (
+          <div style={{ margin: '0 16px 14px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.09)' }}>
+            {uniqueAreas.length === 0 ? (
+              <p style={{ padding: '14px 16px', fontSize: 13, color: C.textMuted, margin: 0 }}>No territories in data.</p>
+            ) : (
+              <>
+                <div style={{ padding: '12px', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {uniqueAreas.map((area) => {
+                    const sel = selectedAreas.includes(area);
+                    return (
+                      <button
+                        key={area}
+                        onClick={() => toggleArea(area)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 13, fontWeight: 600, padding: '7px 14px', borderRadius: 8, border: `1px solid ${sel ? C.greenBorder : C.border}`, background: sel ? C.greenBg : C.bg, color: sel ? C.green : C.text, cursor: 'pointer' }}
+                      >
+                        {sel && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>}
+                        {area}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ padding: '8px 12px 12px', borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={() => setIsAreaDropdownOpen(false)}
+                    disabled={selectedAreas.length === 0}
+                    style={{ fontSize: 13, fontWeight: 600, padding: '7px 22px', borderRadius: 8, border: 'none', background: selectedAreas.length > 0 ? C.green : C.border, color: selectedAreas.length > 0 ? '#fff' : C.textMuted, cursor: selectedAreas.length > 0 ? 'pointer' : 'not-allowed' }}
+                  >
+                    Done
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
-      <button
-        onClick={onConfirm}
-        disabled={selectedAreas.length === 0}
-        className="w-full max-w-[260px] mx-auto bg-[#0A0F1A] text-white hover:bg-[#97C22A] hover:text-[#0A0F1A] disabled:opacity-50 disabled:pointer-events-none rounded-xl py-3.5 font-bold text-[13px] uppercase tracking-wider transition-all shadow-sm"
-      >
-        Confirm & Continue
-      </button>
+      {/* ══ BODY ══ */}
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '18px 16px 80px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+        {/* Stats — only when area selected */}
+        {selectedAreas.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+
+            {/* Progress card spans 2 cols */}
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: '16px 18px', gridColumn: 'span 2' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.textFaint }}>Daily progress</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.green }}>{progress}%</span>
+              </div>
+              <div style={{ height: 4, background: '#EFF2F7', borderRadius: 99, overflow: 'hidden', marginBottom: 14 }}>
+                <div style={{ height: '100%', width: `${progress}%`, background: C.greenMid, borderRadius: 99, transition: 'width 0.6s ease' }} />
+              </div>
+              <div style={{ display: 'flex', gap: 0 }}>
+                {[
+                  { label: 'Total', val: totalCount, color: C.text },
+                  { label: 'Done', val: visitedCount, color: C.green },
+                  { label: 'Left', val: totalCount - visitedCount, color: C.textMuted },
+                ].map(({ label, val, color }, i) => (
+                  <div key={label} style={{ flex: 1, textAlign: 'center', borderLeft: i > 0 ? `1px solid ${C.border}` : 'none' }}>
+                    <p style={{ fontSize: 24, fontWeight: 700, color, margin: 0, lineHeight: 1 }}>{val}</p>
+                    <p style={{ fontSize: 10, fontWeight: 600, color: C.textFaint, letterSpacing: '0.07em', textTransform: 'uppercase', margin: '5px 0 0' }}>{label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Commission */}
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: '16px 18px' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.textFaint, display: 'block', marginBottom: 8 }}>Earned today</span>
+              <p style={{ fontSize: 26, fontWeight: 700, color: C.text, margin: 0 }}>
+                ₹{safeCommission >= 1000 ? (safeCommission / 1000).toFixed(1) + 'k' : safeCommission.toLocaleString('en-IN')}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Main panel */}
+        {isLoadingRoute ? (
+          <LoadingCard label="Loading territory…" />
+        ) : selectedAreas.length === 0 ? (
+          <EmptyState onAddArea={() => setIsAreaDropdownOpen(true)} />
+        ) : step === 'camera' ? (
+          <CameraGate selectedAreas={selectedAreas} isLocating={isLocating} geofenceKm={GEOFENCE_RADIUS_METERS / 1000} onOpen={() => fileInputRef.current?.click()} />
+        ) : (
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
+
+            {/* Search + verified bar */}
+            <div style={{ padding: '12px 16px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 20, background: C.greenBg, border: `1px solid ${C.greenBorder}`, flexShrink: 0 }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>
+                <span style={{ fontSize: 10, fontWeight: 700, color: C.green, letterSpacing: '0.07em', textTransform: 'uppercase' }}>GPS verified</span>
+              </div>
+
+              <div style={{ flex: 1, position: 'relative' }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.textFaint} strokeWidth="2" strokeLinecap="round" style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                  <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search shops or addresses…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ width: '100%', fontSize: 13, padding: '7px 30px 7px 30px', border: `1px solid ${C.border}`, borderRadius: 8, background: C.bg, color: C.text, outline: 'none', boxSizing: 'border-box' }}
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.textFaint, padding: 2, display: 'flex' }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                  </button>
+                )}
+              </div>
+
+              <span style={{ fontSize: 12, color: C.textFaint, fontWeight: 500, flexShrink: 0 }}>{sortedShops.length} shops</span>
+            </div>
+
+            {/* Table head */}
+            <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 72px 88px', gap: 8, padding: '7px 16px', background: C.bg, borderBottom: `1px solid ${C.border}` }}>
+              {['#', 'Shop', 'Dist.', ''].map((h, i) => (
+                <span key={i} style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textFaint }}>{h}</span>
+              ))}
+            </div>
+
+            {/* Rows */}
+            {sortedShops.length === 0 ? (
+              <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                <p style={{ fontSize: 14, fontWeight: 600, color: C.text, margin: '0 0 4px' }}>No shops found</p>
+                <p style={{ fontSize: 12, color: C.textMuted, margin: 0 }}>Try a different search term.</p>
+              </div>
+            ) : (
+              sortedShops.map((shop, idx) => (
+                <ShopRow key={shop.id} shop={shop} idx={idx} onLogVisit={() => { initiateCheckIn(shop); setIsDealModalOpen(true); }} />
+              ))
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 function ShopRow({ shop, idx, onLogVisit }) {
-  const isCompleted = shop.status === 'COMPLETED';
-
+  const done = shop.status === 'COMPLETED';
+  const [hov, setHov] = useState(false);
   return (
     <div
-      className="px-4 py-3.5 flex items-center gap-3 transition-colors"
-      style={{ background: 'transparent' }}
-      onMouseEnter={e => { if (!isCompleted) e.currentTarget.style.background = '#F8FAFC'; }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{ display: 'grid', gridTemplateColumns: '32px 1fr 72px 88px', gap: 8, alignItems: 'center', padding: '11px 16px', borderBottom: `1px solid ${C.border}`, background: hov && !done ? C.bg : C.surface, transition: 'background 0.1s' }}
     >
-      <div
-        className="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center text-[10px] font-bold"
-        style={
-          isCompleted
-            ? { background: 'rgba(151,194,42,0.10)', color: '#97C22A', border: '1px solid rgba(151,194,42,0.2)' }
-            : { background: '#F0F2F5', color: '#94A3B8', border: '1px solid #E2E8F0' }
-        }
-      >
-        {isCompleted ? <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg> : idx + 1}
+      <div style={{ width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, background: done ? C.greenBg : '#F1F5F9', border: `1px solid ${done ? C.greenBorder : C.border}`, color: done ? C.green : C.textMuted, flexShrink: 0 }}>
+        {done
+          ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>
+          : idx + 1}
       </div>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-[13px] font-bold truncate" style={{ color: isCompleted ? '#94A3B8' : '#1E293B' }}>{shop.name}</p>
-          {shop.distance !== undefined && shop.distance < 999999 && (
-            <span
-              className="text-[9px] font-bold tracking-widest uppercase shrink-0 px-1.5 py-0.5 rounded-full"
-              style={{ color: '#3b82f6', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}
-            >
-              {shop.distance < 1000 ? `${shop.distance}m` : `${(shop.distance / 1000).toFixed(1)}km`}
-            </span>
-          )}
-        </div>
-        <p className="text-[11px] font-medium truncate mt-0.5" style={{ color: '#94A3B8' }}>{shop.address}</p>
+      <div style={{ minWidth: 0 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: done ? C.textMuted : C.text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shop.name}</p>
+        <p style={{ fontSize: 11, color: C.textFaint, margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shop.address}</p>
         {shop.lastVisited && (
-          <p className="text-[9px] font-bold tracking-widest uppercase mt-1" style={{ color: isCompleted ? '#97C22A' : '#94A3B8' }}>
-            {isCompleted ? '✓ ' : ''}{shop.lastVisited}
+          <p style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: done ? C.green : C.textFaint, margin: '2px 0 0' }}>
+            {done ? '✓ ' : ''}{shop.lastVisited}
           </p>
         )}
       </div>
 
-      <div className="shrink-0">
-        {isCompleted ? (
-          <span
-            className="inline-flex items-center gap-1 text-[9px] font-bold tracking-widest uppercase px-2.5 py-1.5 rounded-full"
-            style={{ color: '#97C22A', background: 'rgba(151,194,42,0.10)', border: '1px solid rgba(151,194,42,0.2)' }}
-          >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
-            Visited
+      <div>
+        {shop.distance !== undefined && shop.distance < 999999 ? (
+          <span style={{ display: 'inline-flex', fontSize: 11, fontWeight: 600, color: C.blue, background: C.blueBg, border: `1px solid ${C.blueBorder}`, borderRadius: 6, padding: '3px 7px' }}>
+            {shop.distance < 1000 ? `${shop.distance}m` : `${(shop.distance / 1000).toFixed(1)}km`}
           </span>
+        ) : null}
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        {done ? (
+          <span style={{ fontSize: 11, fontWeight: 600, color: C.green, background: C.greenBg, border: `1px solid ${C.greenBorder}`, borderRadius: 7, padding: '5px 10px' }}>Visited</span>
         ) : (
           <button
             onClick={onLogVisit}
-            className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold text-white active:scale-95 transition-all shadow-sm"
-            style={{ background: '#0A0F1A' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#97C22A'; e.currentTarget.style.color = '#0A0F1A'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#0A0F1A'; e.currentTarget.style.color = 'white'; }}
+            style={{ fontSize: 12, fontWeight: 600, color: '#fff', background: C.navy, border: 'none', borderRadius: 7, padding: '6px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = C.green; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = C.navy; }}
           >
-            Log Visit
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg>
+            Log visit
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+function CameraGate({ selectedAreas, isLocating, geofenceKm, onOpen }) {
+  return (
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: '52px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+      <div style={{ width: 54, height: 54, borderRadius: 14, background: C.greenBg, border: `1px solid ${C.greenBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" /><circle cx="12" cy="13" r="4" />
+        </svg>
+      </div>
+      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.textFaint, margin: '0 0 6px' }}>Security check</p>
+      <h2 style={{ fontSize: 17, fontWeight: 700, color: C.text, margin: '0 0 10px' }}>Field geofence verification</h2>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', margin: '0 0 12px' }}>
+        {selectedAreas.map((a) => (
+          <span key={a} style={{ fontSize: 12, fontWeight: 600, color: C.green, background: C.greenBg, border: `1px solid ${C.greenBorder}`, borderRadius: 20, padding: '3px 10px' }}>{a}</span>
+        ))}
+      </div>
+      <p style={{ fontSize: 13, color: C.textMuted, maxWidth: 300, lineHeight: 1.6, margin: '0 0 28px' }}>
+        Take a live photo to confirm your GPS location matches your selected territories and unlock your shop list.
+      </p>
+      <button
+        onClick={onOpen}
+        disabled={isLocating}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: '#fff', background: isLocating ? C.textFaint : C.navy, border: 'none', borderRadius: 10, padding: '11px 26px', cursor: isLocating ? 'not-allowed' : 'pointer' }}
+        onMouseEnter={(e) => { if (!isLocating) e.currentTarget.style.background = C.green; }}
+        onMouseLeave={(e) => { if (!isLocating) e.currentTarget.style.background = C.navy; }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" /><circle cx="12" cy="13" r="4" />
+        </svg>
+        {isLocating ? 'Verifying location…' : 'Open camera to unlock'}
+      </button>
+      <p style={{ fontSize: 11, color: C.textFaint, margin: '14px 0 0', letterSpacing: '0.05em' }}>Geofence radius · {geofenceKm}km</p>
+    </div>
+  );
+}
+
+function EmptyState({ onAddArea }) {
+  return (
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: '56px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+      <div style={{ width: 52, height: 52, borderRadius: 14, background: C.greenBg, border: `1px solid ${C.greenBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
+        </svg>
+      </div>
+      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.textFaint, margin: '0 0 6px' }}>No territory selected</p>
+      <h2 style={{ fontSize: 17, fontWeight: 700, color: C.text, margin: '0 0 8px' }}>Select your working area</h2>
+      <p style={{ fontSize: 13, color: C.textMuted, maxWidth: 260, lineHeight: 1.6, margin: '0 0 24px' }}>
+        Tap <strong style={{ color: C.text }}>Add area</strong> in the header to choose which territories you are working in today.
+      </p>
+      <button
+        onClick={onAddArea}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#fff', background: C.navy, border: 'none', borderRadius: 9, padding: '10px 22px', cursor: 'pointer' }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = C.green; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = C.navy; }}
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 4v16M4 12h16" /></svg>
+        Add area
+      </button>
+    </div>
+  );
+}
+
+function LoadingCard({ label }) {
+  return (
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: '52px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+      <div style={{ width: 20, height: 20, borderRadius: '50%', border: `2.5px solid ${C.greenBorder}`, borderTopColor: C.green, animation: 'spin 0.8s linear infinite' }} />
+      <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>{label}</p>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }
