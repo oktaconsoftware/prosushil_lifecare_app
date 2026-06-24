@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import { db } from '../../../../db/index';
 import { areas, places, medicalShops } from '../../../../db/schema';
-import { eq } from 'drizzle-orm';
+// CRITICAL FIX: Added inArray, ilike, and 'and' to the imports
+import { eq, inArray, ilike, and } from 'drizzle-orm';
+
+// Helper to standardize text to Title Case (e.g., "sangli" -> "Sangli")
+function toTitleCase(str) {
+  return String(str).trim().toLowerCase().replace(/\b\w/g, s => s.toUpperCase());
+}
 
 // GET: Fetch all territories
 export async function GET() {
@@ -26,15 +32,30 @@ export async function GET() {
   }
 }
 
-// POST: Add new record
+// POST: Add new record (With Duplicate Prevention)
 export async function POST(request) {
   try {
     const { type, name, parentId, address } = await request.json();
+    const cleanName = toTitleCase(name);
     let newRecord;
 
-    if (type === 'area') newRecord = await db.insert(areas).values({ name }).returning();
-    else if (type === 'place') newRecord = await db.insert(places).values({ name, areaId: parentId }).returning();
-    else if (type === 'medical') newRecord = await db.insert(medicalShops).values({ name, address, placeId: parentId }).returning();
+    if (type === 'area') {
+      // Check if area already exists (case-insensitive)
+      const existing = await db.select().from(areas).where(ilike(areas.name, cleanName)).limit(1);
+      if (existing.length > 0) return NextResponse.json({ error: 'Area already exists' }, { status: 400 });
+      
+      newRecord = await db.insert(areas).values({ name: cleanName }).returning();
+    } 
+    else if (type === 'place') {
+      // Check if place already exists inside this specific area (case-insensitive)
+      const existing = await db.select().from(places).where(and(ilike(places.name, cleanName), eq(places.areaId, parentId))).limit(1);
+      if (existing.length > 0) return NextResponse.json({ error: 'Place already exists in this area' }, { status: 400 });
+      
+      newRecord = await db.insert(places).values({ name: cleanName, areaId: parentId }).returning();
+    } 
+    else if (type === 'medical') {
+      newRecord = await db.insert(medicalShops).values({ name: cleanName, address, placeId: parentId }).returning();
+    }
 
     return NextResponse.json({ success: true, data: newRecord[0] });
   } catch (error) {
@@ -46,10 +67,11 @@ export async function POST(request) {
 export async function PUT(request) {
   try {
     const { type, id, name, address } = await request.json();
+    const cleanName = toTitleCase(name);
     
-    if (type === 'area') await db.update(areas).set({ name }).where(eq(areas.id, id));
-    else if (type === 'place') await db.update(places).set({ name }).where(eq(places.id, id));
-    else if (type === 'medical') await db.update(medicalShops).set({ name, address }).where(eq(medicalShops.id, id));
+    if (type === 'area') await db.update(areas).set({ name: cleanName }).where(eq(areas.id, id));
+    else if (type === 'place') await db.update(places).set({ name: cleanName }).where(eq(places.id, id));
+    else if (type === 'medical') await db.update(medicalShops).set({ name: cleanName, address }).where(eq(medicalShops.id, id));
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -57,7 +79,7 @@ export async function PUT(request) {
   }
 }
 
-/// DELETE: Remove record (With Manual Cascade)
+// DELETE: Remove record (With Manual Cascade)
 export async function DELETE(request) {
   try {
     const { type, id } = await request.json();
@@ -67,7 +89,7 @@ export async function DELETE(request) {
       const linkedPlaces = await db.select({ id: places.id }).from(places).where(eq(places.areaId, id));
       const placeIds = linkedPlaces.map(p => p.id);
 
-      // 2. Delete medical shops linked to those places
+      // 2. Delete medical shops linked to those places (using the imported inArray)
       if (placeIds.length > 0) {
         await db.delete(medicalShops).where(inArray(medicalShops.placeId, placeIds));
       }
