@@ -34,6 +34,7 @@ export const visits = pgTable('visits', {
   remark: text('remark'),
   createdAt: timestamp('created_at').defaultNow(),
   status: varchar('status').notNull().default('Pending Review'),
+  paymentMethod: varchar('payment_method', { length: 50 })
 });
 
 

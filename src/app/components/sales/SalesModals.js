@@ -1,6 +1,5 @@
 'use client';
-import { useState } from 'react';
-import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { useState, useRef, useMemo } from 'react';
 
 export function SalesModals({ 
   isRegisterModalOpen, setIsRegisterModalOpen, newShopData, setNewShopData, handleRegisterShop, isRegistering,
@@ -9,54 +8,107 @@ export function SalesModals({
 }) {
 
   const [isLocatingVisit, setIsLocatingVisit] = useState(false);
+  const [isLocatingShop, setIsLocatingShop] = useState(false); 
+  
+  const [showAreaSuggestions, setShowAreaSuggestions] = useState(false);
+  const [showPlaceSuggestions, setShowPlaceSuggestions] = useState(false);
+  
+  const fileInputRef = useRef(null);
 
-  // ── CAPTURE PHOTO & GPS SIMULTANEOUSLY ──
-  const captureVisitPhotoAndLocation = async () => {
-    try {
-      // 1. Take the Photo
-      const image = await Camera.getPhoto({ 
-        quality: 80, 
-        allowEditing: false, 
-        resultType: CameraResultType.DataUrl, 
-        source: CameraSource.Camera 
-      });
-      setPhotoUri(image.dataUrl);
+  const handleNativeVisitCapture = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoUri(reader.result);
+        
+        setIsLocatingVisit(true);
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              setDealData(prev => ({
+                ...prev,
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude
+              }));
+              setIsLocatingVisit(false);
+            },
+            (error) => {
+              alert("Photo captured, but GPS lock failed. Please enable location services.");
+              setIsLocatingVisit(false);
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+          );
+        } else {
+          alert("Geolocation is not supported by your device browser.");
+          setIsLocatingVisit(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = null; 
+  };
 
-      // 2. Lock the GPS Coordinates
-      setIsLocatingVisit(true);
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            // Save latitude and longitude directly into dealData so it gets submitted!
-            setDealData(prev => ({
-              ...prev,
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude
-            }));
-            setIsLocatingVisit(false);
-          },
-          (error) => {
-            alert("Photo captured, but GPS lock failed. Please enable location services.");
-            setIsLocatingVisit(false);
-          },
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
-      } else {
-        alert("Geolocation is not supported by your device.");
-        setIsLocatingVisit(false);
-      }
-    } catch (err) {
-      console.warn("Camera cancelled or failed:", err);
-      setIsLocatingVisit(false);
+  const interceptRegisterSubmit = (e) => {
+    e.preventDefault();
+    setIsLocatingShop(true);
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setNewShopData(prev => ({
+            ...prev,
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          }));
+          
+          setIsLocatingShop(false);
+          handleRegisterShop(e);
+        },
+        (error) => {
+          alert("Could not get GPS location. Please enable location services to register a shop.");
+          setIsLocatingShop(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    } else {
+      alert("Geolocation is not supported.");
+      setIsLocatingShop(false);
     }
   };
 
-  // Logic to find places based on the selected area for Register Modal
-  const selectedAreaObj = masterTerritories?.find(a => a.id == newShopData.areaId);
-  const availablePlaces = selectedAreaObj ? selectedAreaObj.places : [];
+  const filteredAreas = useMemo(() => {
+    if (!newShopData.areaName) return masterTerritories || [];
+    return (masterTerritories || []).filter(a => 
+      a.name.toLowerCase().includes(newShopData.areaName.toLowerCase())
+    );
+  }, [newShopData.areaName, masterTerritories]);
+
+  const matchedAreaObj = useMemo(() => {
+    if (!newShopData.areaName) return null;
+    return masterTerritories?.find(a => a.name.toLowerCase() === newShopData.areaName.toLowerCase());
+  }, [newShopData.areaName, masterTerritories]);
+
+  const availablePlaces = matchedAreaObj ? matchedAreaObj.places : [];
+
+  const filteredPlaces = useMemo(() => {
+    if (!newShopData.placeName) return availablePlaces;
+    return availablePlaces.filter(p => 
+      p.name.toLowerCase().includes(newShopData.placeName.toLowerCase())
+    );
+  }, [newShopData.placeName, availablePlaces]);
 
   return (
     <>
+      <input 
+        type="file" 
+        accept="image/*" 
+        capture="environment" 
+        ref={fileInputRef} 
+        onChange={handleNativeVisitCapture} 
+        className="hidden" 
+      />
+
       {/* 1. REGISTER NEW SHOP MODAL */}
       {isRegisterModalOpen && (
         <div className="absolute inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4" style={{ background: 'rgba(10,15,26,0.7)', backdropFilter: 'blur(6px)' }}>
@@ -69,37 +121,85 @@ export function SalesModals({
               <button onClick={() => setIsRegisterModalOpen(false)} className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center active:scale-95 transition-transform"><svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
             
-            <form onSubmit={handleRegisterShop} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+            <form onSubmit={interceptRegisterSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
               
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Select Area</label>
-                  <select required value={newShopData.areaId} onChange={e => setNewShopData({...newShopData, areaId: e.target.value, placeId: ''})} className="w-full px-3 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#97C22A]">
-                    <option value="">-- Choose --</option>
-                    {masterTerritories?.map(area => (
-                      <option key={area.id} value={area.id}>{area.name}</option>
-                    ))}
-                  </select>
+                <div className="relative">
+                  <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Area / City</label>
+                  <input 
+                    type="text" 
+                    required 
+                    placeholder="Type area..." 
+                    value={newShopData.areaName || ''} 
+                    onChange={e => {
+                      setNewShopData({...newShopData, areaName: e.target.value, placeName: ''});
+                      setShowAreaSuggestions(true);
+                    }} 
+                    onFocus={() => setShowAreaSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowAreaSuggestions(false), 200)}
+                    className="w-full px-3 py-3 bg-slate-50 border border-slate-200 rounded-xl text-[13px] font-semibold text-[#1E293B] outline-none focus:border-[#97C22A] transition-colors" 
+                  />
+                  {showAreaSuggestions && filteredAreas.length > 0 && (
+                    <ul className="absolute z-20 w-full mt-1 bg-white border border-slate-200 shadow-xl rounded-xl overflow-hidden max-h-40 overflow-y-auto">
+                      {filteredAreas.map(area => (
+                        <li 
+                          key={area.id} 
+                          onClick={() => {
+                            setNewShopData({...newShopData, areaName: area.name, placeName: ''});
+                            setShowAreaSuggestions(false);
+                          }}
+                          className="px-4 py-2.5 text-[13px] font-medium text-slate-700 hover:bg-[#97C22A]/10 hover:text-[#97C22A] cursor-pointer border-b border-slate-50 last:border-0"
+                        >
+                          {area.name}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Select Place</label>
-                  <select required disabled={!newShopData.areaId} value={newShopData.placeId} onChange={e => setNewShopData({...newShopData, placeId: e.target.value})} className="w-full px-3 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#97C22A] disabled:opacity-50">
-                    <option value="">-- Choose --</option>
-                    {availablePlaces.map(place => (
-                      <option key={place.id} value={place.id}>{place.name}</option>
-                    ))}
-                  </select>
+
+                <div className="relative">
+                  <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Place / Zone</label>
+                  <input 
+                    type="text" 
+                    required 
+                    disabled={!newShopData.areaName}
+                    placeholder={newShopData.areaName ? "Type place..." : "Select Area first"} 
+                    value={newShopData.placeName || ''} 
+                    onChange={e => {
+                      setNewShopData({...newShopData, placeName: e.target.value});
+                      setShowPlaceSuggestions(true);
+                    }} 
+                    onFocus={() => setShowPlaceSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowPlaceSuggestions(false), 200)}
+                    className="w-full px-3 py-3 bg-slate-50 border border-slate-200 rounded-xl text-[13px] font-semibold text-[#1E293B] outline-none focus:border-[#97C22A] disabled:opacity-50 transition-colors" 
+                  />
+                  {showPlaceSuggestions && newShopData.areaName && filteredPlaces.length > 0 && (
+                    <ul className="absolute z-20 w-full mt-1 bg-white border border-slate-200 shadow-xl rounded-xl overflow-hidden max-h-40 overflow-y-auto">
+                      {filteredPlaces.map(place => (
+                        <li 
+                          key={place.id} 
+                          onClick={() => {
+                            setNewShopData({...newShopData, placeName: place.name});
+                            setShowPlaceSuggestions(false);
+                          }}
+                          className="px-4 py-2.5 text-[13px] font-medium text-slate-700 hover:bg-[#97C22A]/10 hover:text-[#97C22A] cursor-pointer border-b border-slate-50 last:border-0"
+                        >
+                          {place.name}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
 
               <div>
                 <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Shop Name</label>
-                <input type="text" required value={newShopData.name} onChange={e => setNewShopData({...newShopData, name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#97C22A]" placeholder="e.g. Wellness Medicos" />
+                <input type="text" required value={newShopData.name || ''} onChange={e => setNewShopData({...newShopData, name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#97C22A]" placeholder="e.g. Wellness Medicos" />
               </div>
               
               <div>
                 <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Full Address</label>
-                <textarea rows="2" value={newShopData.address} onChange={e => setNewShopData({...newShopData, address: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#97C22A] resize-none" placeholder="Street, Landmark..."></textarea>
+                <textarea rows="2" value={newShopData.address || ''} onChange={e => setNewShopData({...newShopData, address: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#97C22A] resize-none" placeholder="Street, Landmark..."></textarea>
               </div>
               
               <div className="bg-[#97C22A]/10 border border-[#97C22A]/20 p-3 rounded-xl flex items-start gap-3 mt-4">
@@ -109,8 +209,21 @@ export function SalesModals({
                 </p>
               </div>
 
-              <button type="submit" disabled={isRegistering || !newShopData.placeId} className="w-full py-3.5 mt-2 bg-[#0A0F1A] text-white hover:bg-[#97C22A] hover:text-[#0A0F1A] font-bold tracking-wide rounded-xl text-[13px] active:scale-95 transition-all disabled:opacity-50">
-                {isRegistering ? 'Processing...' : 'Save & Proceed to Visit'}
+              <button 
+                type="submit" 
+                disabled={isRegistering || isLocatingShop || !newShopData.placeName} 
+                className="w-full py-3.5 mt-2 bg-[#0A0F1A] text-white hover:bg-[#97C22A] hover:text-[#0A0F1A] font-bold tracking-wide rounded-xl text-[13px] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isLocatingShop ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Locking Coordinates...
+                  </>
+                ) : isRegistering ? (
+                  'Saving Database...'
+                ) : (
+                  'Save & Proceed to Visit'
+                )}
               </button>
             </form>
           </div>
@@ -131,7 +244,8 @@ export function SalesModals({
                 onClick={() => {
                   setIsDealModalOpen(false);
                   setPhotoUri(null); 
-                  setDealData({ orderAmount: '', collectionAmount: '', remark: '' }); 
+                  // CLEAR NEW PAYMENT METHOD STATE ON CLOSE
+                  setDealData({ orderAmount: '', collectionAmount: '', paymentMethod: '', remark: '', latitude: null, longitude: null }); 
                 }} 
                 className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center hover:bg-slate-100 active:scale-95 transition-transform"
               >
@@ -158,7 +272,6 @@ export function SalesModals({
                   <div className="relative w-full h-36 rounded-xl overflow-hidden border-2 border-[#97C22A] shadow-sm">
                     <img src={photoUri} alt="Shop Proof" className="w-full h-full object-cover" />
                     
-                    {/* GPS Status Overlay inside the photo */}
                     <div className="absolute bottom-2 left-2 right-2 bg-black/60 backdrop-blur-sm rounded-lg p-2 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {isLocatingVisit ? (
@@ -191,13 +304,30 @@ export function SalesModals({
                 ) : (
                   <button 
                     type="button" 
-                    onClick={captureVisitPhotoAndLocation} 
+                    onClick={() => fileInputRef.current?.click()} 
                     className="w-full h-28 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center text-slate-500 hover:bg-[#97C22A]/5 hover:border-[#97C22A] hover:text-[#97C22A] transition-colors active:scale-[0.98]"
                   >
                     <svg className="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                     <span className="text-[12px] font-bold tracking-wide">Tap to Capture Image & GPS</span>
                   </button>
                 )}
+              </div>
+
+              {/* ── NEW PAYMENT METHOD UI ── */}
+              <div>
+                <label className="block text-[10px] font-bold tracking-widest text-[#94A3B8] uppercase mb-1.5">Payment Method</label>
+                <select 
+                  required
+                  value={dealData.paymentMethod || ''} 
+                  onChange={e => setDealData({...dealData, paymentMethod: e.target.value})} 
+                  className="w-full px-4 py-3 bg-[#F0F2F5] border border-[#E2E8F0] rounded-xl text-[13px] font-bold text-[#1E293B] outline-none focus:ring-2 focus:ring-[#97C22A]/30 focus:border-[#97C22A] transition-all cursor-pointer"
+                >
+                  <option value="" disabled>Select Method...</option>
+                  <option value="None">None (No Collection)</option>
+                  <option value="UPI">UPI</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Cheque">Cheque</option>
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -218,7 +348,7 @@ export function SalesModals({
 
               <button 
                 type="submit" 
-                disabled={isSubmittingDeal || !photoUri || isLocatingVisit || !dealData.latitude} 
+                disabled={isSubmittingDeal || !photoUri || isLocatingVisit || !dealData.latitude || !dealData.paymentMethod} 
                 className="w-full py-4 mt-2 bg-[#0A0F1A] text-white hover:bg-[#97C22A] hover:text-[#0A0F1A] font-bold tracking-wider rounded-xl text-[13px] uppercase active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 shadow-lg"
               >
                 {isLocatingVisit ? (

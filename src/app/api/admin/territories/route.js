@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/db';
-import { areas, places, medicalShops } from '@/db/schema';
+import { db } from '../../../../db/index';
+import { areas, places, medicalShops } from '../../../../db/schema';
 import { eq } from 'drizzle-orm';
 
 // GET: Fetch all territories
