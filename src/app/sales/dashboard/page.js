@@ -618,7 +618,6 @@
 //     </div>
 //   );
 // }
-
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -633,20 +632,23 @@ import { SalesModals } from '../../components/sales/SalesModals'; // Kept strict
 
 export default function SalesDashboard() {
   const router = useRouter();
-  
+
   // App Navigation State
   const [mobileNav, setMobileNav] = useState('route'); 
   const [currentGps, setCurrentGps] = useState(null);
   
   // Route State
   const [targets, setTargets] = useState([]);
+  const [masterTerritories, setMasterTerritories] = useState([]); // 👈 Master Areas State
   const [isLoadingRoute, setIsLoadingRoute] = useState(true);
 
   // Visit & Deal State
   const [isDealModalOpen, setIsDealModalOpen] = useState(false);
   const [activeTarget, setActiveTarget] = useState(null); 
-  const [photoUri, setPhotoUri] = useState(null); // Captured from TerritoryTab
-  const [dealData, setDealData] = useState({ orderAmount: '', collectionAmount: '', remark: '' }); 
+  const [photoUri, setPhotoUri] = useState(null); 
+  
+  // 👈 Added paymentMethod to state so it doesn't crash
+  const [dealData, setDealData] = useState({ orderAmount: '', collectionAmount: '', paymentMethod: '', remark: '' }); 
   const [isSubmittingDeal, setIsSubmittingDeal] = useState(false);
 
   // Derived Stats
@@ -680,9 +682,14 @@ export default function SalesDashboard() {
       const routeRes = await fetch(`/api/sales/visits?agentId=${agentId}&_t=${Date.now()}`, { cache: 'no-store' });
       const routeData = await routeRes.json();
       
-      if (routeRes.ok && Array.isArray(routeData)) {
-        setTargets(routeData);
+      // 🚨 CRITICAL FIX: Extract BOTH arrays from the new API format!
+      if (routeData && routeData.targets) {
+        setTargets(routeData.targets);
+        setMasterTerritories(routeData.masterAreas || []); 
+      } else if (Array.isArray(routeData)) {
+        setTargets(routeData); // Fallback
       }
+
     } catch (err) { 
       console.error("Failed to load initial dashboard data:", err); 
     } finally { 
@@ -725,6 +732,7 @@ export default function SalesDashboard() {
           photoUrl: photoUri, 
           orderAmount: parseFloat(dealData.orderAmount) || 0,
           collectionAmount: parseFloat(dealData.collectionAmount) || 0,
+          paymentMethod: dealData.paymentMethod, // 👈 Passing new payment method to DB
           remark: dealData.remark
         }),
       });
@@ -752,8 +760,8 @@ export default function SalesDashboard() {
 
       // Cleanup & Reset
       setIsDealModalOpen(false);
-      setDealData({ orderAmount: '', collectionAmount: '', remark: '' });
-      setPhotoUri(null); // Clear the radar photo
+      setDealData({ orderAmount: '', collectionAmount: '', paymentMethod: '', remark: '' });
+      setPhotoUri(null); 
       setActiveTarget(null);
       
       fetchInitialData(); // Silently syncs with database
@@ -775,10 +783,11 @@ export default function SalesDashboard() {
         
         <TopHeader mobileNav={mobileNav} handleLogout={handleLogout} />
 
-        {/* ── 1. ROUTE / TERRITORY TAB (Now handles Radar + Route) ── */}
+        {/* ── 1. ROUTE / TERRITORY TAB ── */}
         {mobileNav === 'route' && (
           <TerritoryTab 
             targets={targets} 
+            masterTerritories={masterTerritories} // 👈 Props perfectly passed down
             isLoadingRoute={isLoadingRoute} 
             initiateCheckIn={initiateCheckIn} 
             setIsDealModalOpen={setIsDealModalOpen} 
@@ -790,8 +799,9 @@ export default function SalesDashboard() {
         {/* ── 2. NEW: ADD SHOP TAB ── */}
         {mobileNav === 'add-shop' && (
           <AddShopTab 
-            onSuccess={fetchInitialData} // Auto-refreshes territory when a shop is added!
-            setMobileNav={setMobileNav}  // Sends user back to main route after success
+            targets={targets} // Adding targets so auto-detect works
+            onSuccess={fetchInitialData} 
+            setMobileNav={setMobileNav}  
           />
         )}
 
@@ -807,7 +817,7 @@ export default function SalesDashboard() {
 
         <BottomNav mobileNav={mobileNav} setMobileNav={setMobileNav} />
 
-        {/* ── LEGACY MODALS (Now only handles Deal Submission) ── */}
+        {/* ── LEGACY MODALS ── */}
         <SalesModals 
           isRegisterModalOpen={false} 
           setIsRegisterModalOpen={() => {}} 
@@ -815,7 +825,7 @@ export default function SalesDashboard() {
           setNewShopData={() => {}} 
           handleRegisterShop={() => {}} 
           isRegistering={false} 
-          
+          masterTerritories={masterTerritories} // 👈 Passed to Modals
           isDealModalOpen={isDealModalOpen} 
           setIsDealModalOpen={setIsDealModalOpen} 
           activeTarget={activeTarget} 
@@ -823,6 +833,8 @@ export default function SalesDashboard() {
           setDealData={setDealData} 
           handleDealSubmit={handleDealSubmit} 
           isSubmittingDeal={isSubmittingDeal}
+          photoUri={photoUri}
+          setPhotoUri={setPhotoUri}
         />
 
       </main>

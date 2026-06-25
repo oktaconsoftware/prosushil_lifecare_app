@@ -1363,8 +1363,6 @@
 //     </div>
 //   );
 // }
-
-
 'use client';
 import { useState, useRef, useMemo, useEffect } from 'react';
 
@@ -1400,6 +1398,8 @@ const C = {
 
 export default function TerritoryTab({
   targets,
+  masterTerritories, // 👈 Ensures we catch the master list
+  masterAreas,       // 👈 Fallback prop just in case
   isLoadingRoute,
   initiateCheckIn,
   totalCommission,
@@ -1419,9 +1419,15 @@ export default function TerritoryTab({
   const dropdownRef = useRef(null);
   const GEOFENCE_RADIUS_METERS = 5000;
 
+  // 🚨 SMART DB EXTRACTION: Merges all sources so nothing is ever missed
   const uniqueAreas = useMemo(() => {
-    return [...new Set(targets?.map((t) => t.areaName).filter(Boolean))].sort();
-  }, [targets]);
+    const fromMasterTerritories = Array.isArray(masterTerritories) ? masterTerritories.map(a => a.name) : [];
+    const fromMasterAreas = Array.isArray(masterAreas) ? masterAreas.map(a => a.name) : [];
+    const fromTargets = Array.isArray(targets) ? targets.map(t => t.areaName) : [];
+    
+    // Combine them all, remove empties, remove duplicates, and sort alphabetically
+    return [...new Set([...fromMasterTerritories, ...fromMasterAreas, ...fromTargets].filter(Boolean))].sort();
+  }, [targets, masterTerritories, masterAreas]);
 
   useEffect(() => {
     setIsMounted(true);
