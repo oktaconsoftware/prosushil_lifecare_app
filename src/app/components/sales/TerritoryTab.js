@@ -1398,8 +1398,8 @@ const C = {
 
 export default function TerritoryTab({
   targets,
-  masterTerritories, // 👈 Ensures we catch the master list
-  masterAreas,       // 👈 Fallback prop just in case
+  masterTerritories,
+  masterAreas,       
   isLoadingRoute,
   initiateCheckIn,
   totalCommission,
@@ -1417,16 +1417,19 @@ export default function TerritoryTab({
 
   const fileInputRef = useRef(null);
   const dropdownRef = useRef(null);
+  
+  // 5KM Radius Limit
   const GEOFENCE_RADIUS_METERS = 5000;
 
-  // 🚨 SMART DB EXTRACTION: Merges all sources so nothing is ever missed
   const uniqueAreas = useMemo(() => {
     const fromMasterTerritories = Array.isArray(masterTerritories) ? masterTerritories.map(a => a.name) : [];
     const fromMasterAreas = Array.isArray(masterAreas) ? masterAreas.map(a => a.name) : [];
     const fromTargets = Array.isArray(targets) ? targets.map(t => t.areaName) : [];
     
-    // Combine them all, remove empties, remove duplicates, and sort alphabetically
-    return [...new Set([...fromMasterTerritories, ...fromMasterAreas, ...fromTargets].filter(Boolean))].sort();
+    return [...new Set([...fromMasterTerritories, ...fromMasterAreas, ...fromTargets]
+      .filter(Boolean)
+      .filter(name => name !== 'Unassigned Area')
+    )].sort();
   }, [targets, masterTerritories, masterAreas]);
 
   useEffect(() => {
@@ -1494,10 +1497,14 @@ export default function TerritoryTab({
       (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
+        
+        // 1. Get shops inside the SELECTED area that have GPS
         const areaShops = targets?.filter(
           (s) => s.latitude && s.longitude && selectedAreas.includes(s.areaName)
         ) || [];
+        
         if (areaShops.length > 0) {
+          // STANDARD GEOFENCE: The selected area has known GPS shops
           let minDist = Infinity;
           areaShops.forEach((s) => {
             const d = getDistance(lat, lng, Number(s.latitude), Number(s.longitude));
@@ -1512,7 +1519,37 @@ export default function TerritoryTab({
             if (setPhotoUri) setPhotoUri(null);
             return;
           }
+        } else {
+          // 🚨 ANTI-SPOOFING CHECK: The selected area is brand new (0 GPS shops).
+          // Let's make sure they aren't standing inside a DIFFERENT known area!
+          const otherShops = targets?.filter(
+            (s) => s.latitude && s.longitude && !selectedAreas.includes(s.areaName)
+          ) || [];
+          
+          if (otherShops.length > 0) {
+            let closestOtherShop = null;
+            let minOtherDist = Infinity;
+            
+            otherShops.forEach((s) => {
+              const d = getDistance(lat, lng, Number(s.latitude), Number(s.longitude));
+              if (d < minOtherDist) {
+                minOtherDist = d;
+                closestOtherShop = s;
+              }
+            });
+            
+            // If they are within 5km of a Kolhapur shop, but selected Sangli -> BLOCK!
+            if (minOtherDist <= GEOFENCE_RADIUS_METERS) {
+              alert(`🚨 AREA MISMATCH\n\nYou selected ${selectedAreas.join(', ')}, but your GPS shows you are actually in ${closestOtherShop.areaName} (Near ${closestOtherShop.name}).\n\nPlease go back and select the correct operating area.`);
+              setIsLocating(false);
+              setLocalPhoto(null);
+              if (setPhotoUri) setPhotoUri(null);
+              return;
+            }
+          }
         }
+
+        // Passed all checks!
         setLocation({ lat, lng });
         setIsLocating(false);
         setStep('feed');

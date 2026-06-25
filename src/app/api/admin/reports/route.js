@@ -1,95 +1,158 @@
+// NUCLEAR CACHE KILLERS
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
+
 import { NextResponse } from 'next/server';
-import { db } from '@/db';
-import { users, visits, targets } from '@/db/schema';
-import { eq, and, gte, lte } from 'drizzle-orm';
+import { db } from '../../../../db';
+import { visits, medicalShops, places, areas } from '../../../../db/schema';
+import { eq, and, gte, lte, desc } from 'drizzle-orm';
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const employeeId = searchParams.get('agentId'); // e.g., 'PL-1042'
-    const dateStr = searchParams.get('date'); // e.g., '2023-10-25'
+    const agentId = searchParams.get('agentId');
+    const dateParam = searchParams.get('date');
 
-    if (!employeeId || !dateStr) {
-      return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
+    if (!agentId || !dateParam) {
+      return NextResponse.json({ error: 'Missing agentId or date parameters' }, { status: 400 });
     }
 
-    // 1. Find the internal User ID
-    const userRecord = await db.select().from(users).where(eq(users.employeeId, employeeId));
-    if (userRecord.length === 0) {
-      return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
-    }
-    const agentInternalId = userRecord[0].id;
+    // ── 1. SETUP DATE BOUNDARIES ──
+    const targetDate = new Date(dateParam);
+    
+    // Daily Bounds
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
 
-    // 2. Build Date Bounds for "That specific day"
-    const startDate = new Date(`${dateStr}T00:00:00.000Z`);
-    const endDate = new Date(`${dateStr}T23:59:59.999Z`);
+    // Monthly Bounds
+    const startOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+    const endOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0, 23, 59, 59, 999);
 
-    // 3. Fetch real visits joined with targets
-    const agentVisits = await db.select({
+    // ── 2. FETCH DAILY VISITS ──
+    const dailyVisits = await db.select({
       visit: visits,
-      target: targets
+      shop: medicalShops,
+      place: places,
+      area: areas
     })
     .from(visits)
-    .innerJoin(targets, eq(visits.targetId, targets.id))
+    .leftJoin(medicalShops, eq(visits.medicalShopId, medicalShops.id))
+    .leftJoin(places, eq(medicalShops.placeId, places.id))
+    .leftJoin(areas, eq(places.areaId, areas.id))
     .where(
       and(
-        eq(visits.agentId, agentInternalId),
-        gte(visits.createdAt, startDate),
-        lte(visits.createdAt, endDate)
+        eq(visits.agentId, agentId),
+        gte(visits.createdAt, startOfDay),
+        lte(visits.createdAt, endOfDay)
       )
-    );
+    )
+    .orderBy(desc(visits.createdAt));
 
-    // 4. Calculate Summary Metrics
-    let totalOrderValue = 0;
+    // ── 3. PROCESS DAILY TIMELINE ──
+    let dailyOrderValue = 0;
+    let dailyCollection = 0;
+    let dailyCommission = 0;
     let deviations = 0;
 
-    const timeline = agentVisits.map((record, index) => {
-      totalOrderValue += (record.visit.dealVolume || 0);
-      if (record.visit.deviationMeters > 50) deviations += 1;
+    const timeline = dailyVisits.map(row => {
+      const v = row.visit;
+      const s = row.shop;
+      const orderAmt = Number(v.orderAmount) || 0;
+      const collAmt = Number(v.collectionAmount) || 0;
+      
+      dailyOrderValue += orderAmt;
+      dailyCollection += collAmt;
+      dailyCommission += Math.round(collAmt * 0.08);
+
+      let status = 'success';
+      let errorNote = null;
+      if (!v.photoUrl || v.photoUrl === 'no-photo') {
+        status = 'error';
+        errorNote = 'Missing Photographic Proof';
+        deviations++;
+      }
 
       return {
-        id: record.visit.id,
-        time: new Date(record.visit.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+        status: status,
         type: 'visit',
-        title: record.target.name,
-        location: record.target.address,
-        status: record.visit.status === 'Flagged' ? 'error' : 'success',
-        errorNote: record.visit.status === 'Flagged' ? `Geofence Warning: ${record.visit.deviationMeters}m away` : null,
-        details: record.visit.dealVolume > 0 ? {
-          order: record.visit.dealVolume,
-          samples: record.visit.dealsClosed,
-          note: 'Visit completed and deal logged.'
-        } : null
+        title: s ? s.name : 'Unknown Shop',
+        time: new Date(v.createdAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }),
+        location: `${s?.address || 'No Address'} | ${row.place?.name || ''}, ${row.area?.name || ''}`,
+        errorNote: errorNote,
+        details: { order: orderAmt, collection: collAmt, paymentMethod: v.paymentMethod || 'None', note: v.remark || '' }
       };
     });
 
-    // Add a system entry for when the day started (if they have visits)
-    if (timeline.length > 0) {
-      timeline.unshift({
-        id: 'start',
-        time: '09:00 AM',
-        type: 'system',
-        title: 'System Access',
-        location: 'GPS Active & Verified',
-        details: null,
-        status: 'info'
-      });
+    // ── 4. FETCH MONTHLY DATA & CALCULATE ATTENDANCE ──
+    const monthlyVisits = await db.select()
+      .from(visits)
+      .where(
+        and(
+          eq(visits.agentId, agentId),
+          gte(visits.createdAt, startOfMonth),
+          lte(visits.createdAt, endOfMonth)
+        )
+      );
+
+    const monthlyOrderValue = monthlyVisits.reduce((sum, v) => sum + (Number(v.orderAmount) || 0), 0);
+    const monthlyCollection = monthlyVisits.reduce((sum, v) => sum + (Number(v.collectionAmount) || 0), 0);
+    const monthlyCommission = Math.round(monthlyCollection * 0.08);
+
+    // Group visits by Day to check the "10 Visits" rule
+    const visitsByDate = {};
+    monthlyVisits.forEach(v => {
+      const d = new Date(v.createdAt);
+      // Format as YYYY-MM-DD
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      visitsByDate[dateStr] = (visitsByDate[dateStr] || 0) + 1;
+    });
+
+    // Calculate Present Days (Days with >= 10 visits)
+    let presentDays = 0;
+    Object.values(visitsByDate).forEach(count => {
+      if (count >= 10) presentDays++;
+    });
+
+    // Calculate Total Working Days in the Month (Up to today)
+    const now = new Date();
+    let elapsedDaysInMonth;
+    if (targetDate.getFullYear() === now.getFullYear() && targetDate.getMonth() === now.getMonth()) {
+      elapsedDaysInMonth = now.getDate(); // If current month, only count up to today
+    } else {
+      elapsedDaysInMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate(); // Total days in past month
     }
 
-    const reportData = {
+    // Absent Days = Total Days - Present Days
+    const absentDays = elapsedDaysInMonth - presentDays;
+
+    return NextResponse.json({
       summary: {
-        totalVisits: agentVisits.length,
-        completedVisits: agentVisits.filter(v => v.visit.status !== 'Flagged').length,
-        totalOrderValue: totalOrderValue,
-        commissionEarned: Math.round(totalOrderValue * 0.08), // 8% Commission
+        completedVisits: dailyVisits.length,
+        totalVisits: dailyVisits.length,
+        totalOrderValue: dailyOrderValue,
+        totalCollection: dailyCollection, 
+        commissionEarned: dailyCommission,
         deviations: deviations
       },
-      timeline: timeline
-    };
+      timeline: timeline,
+      monthlySummary: {
+        presentDays: presentDays,
+        absentDays: absentDays,
+        totalVisits: monthlyVisits.length,
+        totalOrderValue: monthlyOrderValue,
+        commissionEarned: monthlyCommission
+      }
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      }
+    });
 
-    return NextResponse.json(reportData);
   } catch (error) {
-    console.error('Report generation failed:', error);
+    console.error("Report Error:", error);
     return NextResponse.json({ error: 'Failed to generate report' }, { status: 500 });
   }
 }

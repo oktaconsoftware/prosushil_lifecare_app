@@ -4,17 +4,18 @@ export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 
 import { NextResponse } from 'next/server';
-import { db } from '@/db';
-import { visits, medicalShops } from '@/db/schema';
+import { db } from '../../../../db/index';
+import { visits, medicalShops, users } from '../../../../db/schema';
 import { eq, desc } from 'drizzle-orm';
 
 // GET: Fetch all live deals from the field
 export async function GET() {
   try {
-    // Join the visits table with the medicalShops table to get the Pharmacy Name
+    // Join visits with medicalShops AND users to get actual names
     const allVisits = await db.select({
       id: visits.id,
       agentId: visits.agentId,
+      agentName: users.name, // 👈 FETCH REAL AGENT NAME
       pharmacyName: medicalShops.name,
       orderAmount: visits.orderAmount,
       collectionAmount: visits.collectionAmount,
@@ -23,24 +24,24 @@ export async function GET() {
     })
     .from(visits)
     .leftJoin(medicalShops, eq(visits.medicalShopId, medicalShops.id))
-    .orderBy(desc(visits.createdAt)); // Sort by newest deals first!
+    .leftJoin(users, eq(visits.agentId, users.employeeId)) // 👈 JOIN WITH USERS TABLE
+    .orderBy(desc(visits.createdAt)); 
 
     // Format the data perfectly for your CommissionTab UI
     const formattedDeals = allVisits.map((v) => {
       const vDate = new Date(v.createdAt);
       
-      // Get exact date and time in IST
       const dateStr = vDate.toLocaleDateString('en-IN', { 
         timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric', 
         hour: '2-digit', minute: '2-digit' 
       });
 
-      // Calculate the actual 8% commission based on the collection amount
       const commissionAmount = Math.round(Number(v.collectionAmount) * 0.08) || 0;
 
       return {
         id: v.id,
-        agentName: v.agentId, // Shows agent ID (e.g., PL-1043)
+        // 🚨 CRITICAL FIX: Use Real Name, fallback to ID if they were deleted
+        agentName: v.agentName || v.agentId || 'Unknown Agent', 
         pharmacy: v.pharmacyName || 'Unknown Pharmacy',
         date: dateStr,
         orderValue: Number(v.orderAmount) || 0,
