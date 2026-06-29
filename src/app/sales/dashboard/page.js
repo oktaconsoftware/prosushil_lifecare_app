@@ -618,6 +618,234 @@
 //     </div>
 //   );
 // }
+
+
+// 'use client';
+// import { useState, useEffect, useCallback } from 'react';
+// import { useRouter } from 'next/navigation';
+// import { Geolocation } from '@capacitor/geolocation';
+
+// // Import Components
+// import { TopHeader, Sidebar, BottomNav } from '../../components/sales/Navigation';
+// import TerritoryTab from '../../components/sales/TerritoryTab';
+// import AddShopTab  from '../../components/sales/AddShop'; // Your new dedicated page
+// import DealsTab from '../../components/sales/DealsTab';
+// import { SalesModals } from '../../components/sales/SalesModals'; // Kept strictly for the Deal Modal
+
+// export default function SalesDashboard() {
+//   const router = useRouter();
+
+//   // App Navigation State
+//   const [mobileNav, setMobileNav] = useState('route'); 
+//   const [currentGps, setCurrentGps] = useState(null);
+  
+//   // Route State
+//   const [targets, setTargets] = useState([]);
+//   const [masterTerritories, setMasterTerritories] = useState([]); // 👈 Master Areas State
+//   const [isLoadingRoute, setIsLoadingRoute] = useState(true);
+
+//   // Visit & Deal State
+//   const [isDealModalOpen, setIsDealModalOpen] = useState(false);
+//   const [activeTarget, setActiveTarget] = useState(null); 
+//   const [photoUri, setPhotoUri] = useState(null); 
+  
+//   // 👈 Added paymentMethod to state so it doesn't crash
+//   const [dealData, setDealData] = useState({ orderAmount: '', collectionAmount: '', paymentMethod: '', remark: '' }); 
+//   const [isSubmittingDeal, setIsSubmittingDeal] = useState(false);
+
+//   // Derived Stats
+//   const totalCommission = targets.reduce((sum, t) => sum + (Number(t.commission) || 0), 0);
+//   const totalPipeline = targets.reduce((sum, t) => sum + (Number(t.orderAmount) || 0), 0);
+//   const completedCount = targets.filter(t => t.status === 'COMPLETED').length;
+//   const completedDeals = targets.filter(t => t.status === 'COMPLETED').reverse();
+  
+//   // 1. Start Background GPS Tracking
+//   useEffect(() => {
+//     let watchId;
+//     const startTracking = async () => {
+//       try {
+//         await Geolocation.requestPermissions();
+//         watchId = await Geolocation.watchPosition({ enableHighAccuracy: true }, (pos) => {
+//           if (pos) setCurrentGps({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+//         });
+//       } catch (err) { 
+//         console.warn("GPS tracking not available on desktop or permission denied."); 
+//       }
+//     };
+//     startTracking();
+//     return () => { if (watchId) Geolocation.clearWatch({ id: watchId }); };
+//   }, []);
+
+//   // 2. Fetch Territories & Agent's Route
+//   const fetchInitialData = useCallback(async () => {
+//     setIsLoadingRoute(true);
+//     try {
+//       const agentId = localStorage.getItem('employeeId') || 'PL-1043'; 
+//       const routeRes = await fetch(`/api/sales/visits?agentId=${agentId}&_t=${Date.now()}`, { cache: 'no-store' });
+//       const routeData = await routeRes.json();
+      
+//       // 🚨 CRITICAL FIX: Extract BOTH arrays from the new API format!
+//       if (routeData && routeData.targets) {
+//         setTargets(routeData.targets);
+//         setMasterTerritories(routeData.masterAreas || []); 
+//       } else if (Array.isArray(routeData)) {
+//         setTargets(routeData); // Fallback
+//       }
+
+//     } catch (err) { 
+//       console.error("Failed to load initial dashboard data:", err); 
+//     } finally { 
+//       setIsLoadingRoute(false); 
+//     }
+//   }, []);
+
+//   useEffect(() => {
+//     fetchInitialData();
+//   }, [fetchInitialData]);
+
+//   const handleLogout = () => {
+//     localStorage.removeItem('employeeId');
+//     router.push('/');
+//   };
+
+//   // Prepares the target and opens the deal form
+//   const initiateCheckIn = (target) => {
+//     setActiveTarget(target);
+//     setIsDealModalOpen(true); 
+//   };
+
+//   // 3. Handle Submitting a Deal
+//   const handleDealSubmit = async (e) => {
+//     e.preventDefault();
+//     setIsSubmittingDeal(true);
+//     try {
+//       if (!activeTarget) throw new Error("No active target selected.");
+      
+//       const agentId = localStorage.getItem('employeeId') || 'PL-1043';
+
+//       const response = await fetch('/api/sales/visits', {
+//         method: 'POST',
+//         headers: { 'Content-Type': 'application/json' },
+//         body: JSON.stringify({ 
+//           agentId, 
+//           targetId: activeTarget.id, 
+//           latitude: currentGps?.lat, 
+//           longitude: currentGps?.lng,
+//           photoUrl: photoUri, 
+//           orderAmount: parseFloat(dealData.orderAmount) || 0,
+//           collectionAmount: parseFloat(dealData.collectionAmount) || 0,
+//           paymentMethod: dealData.paymentMethod, // 👈 Passing new payment method to DB
+//           remark: dealData.remark
+//         }),
+//       });
+      
+//       const data = await response.json();
+//       if (!response.ok) throw new Error(data.error || "Failed to save visit.");
+
+//       // Optimistically update the UI to instantly show "Visited"
+//       setTargets(prev => {
+//         const matchId = String(activeTarget.id);
+//         return prev.map(t => {
+//           if (String(t.id) === matchId) {
+//             return { 
+//               ...t, 
+//               status: 'COMPLETED', 
+//               time: data.time, 
+//               lastVisited: `Visited just now at ${data.time}`,
+//               commission: data.commission, 
+//               orderAmount: Number(dealData.orderAmount) 
+//             };
+//           }
+//           return t;
+//         });
+//       });
+
+//       // Cleanup & Reset
+//       setIsDealModalOpen(false);
+//       setDealData({ orderAmount: '', collectionAmount: '', paymentMethod: '', remark: '' });
+//       setPhotoUri(null); 
+//       setActiveTarget(null);
+      
+//       fetchInitialData(); // Silently syncs with database
+
+//     } catch (err) { 
+//       console.error("Deal Submit Error:", err);
+//       alert(`Error: ${err.message}`); 
+//     } finally { 
+//       setIsSubmittingDeal(false); 
+//     }
+//   };
+
+//   return (
+//     <div className="flex h-[100dvh] w-full overflow-hidden font-sans" style={{ background: '#f1f5f9' }}>
+      
+//       <Sidebar mobileNav={mobileNav} setMobileNav={setMobileNav} handleLogout={handleLogout} />
+
+//       <main className="flex-1 flex flex-col h-[100dvh] overflow-hidden relative w-full">
+        
+//         <TopHeader mobileNav={mobileNav} handleLogout={handleLogout} />
+
+//         {/* ── 1. ROUTE / TERRITORY TAB ── */}
+//         {mobileNav === 'route' && (
+//           <TerritoryTab 
+//             targets={targets} 
+//             masterTerritories={masterTerritories} // 👈 Props perfectly passed down
+//             isLoadingRoute={isLoadingRoute} 
+//             initiateCheckIn={initiateCheckIn} 
+//             setIsDealModalOpen={setIsDealModalOpen} 
+//             onRefreshData={fetchInitialData}
+//             totalCommission={totalCommission} 
+//             setPhotoUri={setPhotoUri}
+//           />
+//         )}
+
+//         {/* ── 2. NEW: ADD SHOP TAB ── */}
+//         {mobileNav === 'add-shop' && (
+//           <AddShopTab 
+//             targets={targets} // Adding targets so auto-detect works
+//             onSuccess={fetchInitialData} 
+//             setMobileNav={setMobileNav}  
+//           />
+//         )}
+
+//         {/* ── 3. DEALS / LEDGER TAB ── */}
+//         {mobileNav === 'deals' && (
+//           <DealsTab 
+//             totalPipeline={totalPipeline} 
+//             totalCommission={totalCommission} 
+//             completedCount={completedCount} 
+//             completedDeals={completedDeals} 
+//           />
+//         )}
+
+//         <BottomNav mobileNav={mobileNav} setMobileNav={setMobileNav} />
+
+//         {/* ── LEGACY MODALS ── */}
+//         <SalesModals 
+//           isRegisterModalOpen={false} 
+//           setIsRegisterModalOpen={() => {}} 
+//           newShopData={{}} 
+//           setNewShopData={() => {}} 
+//           handleRegisterShop={() => {}} 
+//           isRegistering={false} 
+//           masterTerritories={masterTerritories} // 👈 Passed to Modals
+//           isDealModalOpen={isDealModalOpen} 
+//           setIsDealModalOpen={setIsDealModalOpen} 
+//           activeTarget={activeTarget} 
+//           dealData={dealData} 
+//           setDealData={setDealData} 
+//           handleDealSubmit={handleDealSubmit} 
+//           isSubmittingDeal={isSubmittingDeal}
+//           photoUri={photoUri}
+//           setPhotoUri={setPhotoUri}
+//         />
+
+//       </main>
+//     </div>
+//   );
+// }
+
+
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -626,9 +854,8 @@ import { Geolocation } from '@capacitor/geolocation';
 // Import Components
 import { TopHeader, Sidebar, BottomNav } from '../../components/sales/Navigation';
 import TerritoryTab from '../../components/sales/TerritoryTab';
-import AddShopTab  from '../../components/sales/AddShop'; // Your new dedicated page
+import AddShopTab from '../../components/sales/AddShop'; 
 import DealsTab from '../../components/sales/DealsTab';
-import { SalesModals } from '../../components/sales/SalesModals'; // Kept strictly for the Deal Modal
 
 export default function SalesDashboard() {
   const router = useRouter();
@@ -639,19 +866,10 @@ export default function SalesDashboard() {
   
   // Route State
   const [targets, setTargets] = useState([]);
-  const [masterTerritories, setMasterTerritories] = useState([]); // 👈 Master Areas State
+  const [masterTerritories, setMasterTerritories] = useState([]); 
   const [isLoadingRoute, setIsLoadingRoute] = useState(true);
 
-  // Visit & Deal State
-  const [isDealModalOpen, setIsDealModalOpen] = useState(false);
-  const [activeTarget, setActiveTarget] = useState(null); 
-  const [photoUri, setPhotoUri] = useState(null); 
-  
-  // 👈 Added paymentMethod to state so it doesn't crash
-  const [dealData, setDealData] = useState({ orderAmount: '', collectionAmount: '', paymentMethod: '', remark: '' }); 
-  const [isSubmittingDeal, setIsSubmittingDeal] = useState(false);
-
-  // Derived Stats
+  // Derived Stats for UI
   const totalCommission = targets.reduce((sum, t) => sum + (Number(t.commission) || 0), 0);
   const totalPipeline = targets.reduce((sum, t) => sum + (Number(t.orderAmount) || 0), 0);
   const completedCount = targets.filter(t => t.status === 'COMPLETED').length;
@@ -682,7 +900,7 @@ export default function SalesDashboard() {
       const routeRes = await fetch(`/api/sales/visits?agentId=${agentId}&_t=${Date.now()}`, { cache: 'no-store' });
       const routeData = await routeRes.json();
       
-      // 🚨 CRITICAL FIX: Extract BOTH arrays from the new API format!
+      // Extract BOTH arrays from the API format
       if (routeData && routeData.targets) {
         setTargets(routeData.targets);
         setMasterTerritories(routeData.masterAreas || []); 
@@ -706,74 +924,6 @@ export default function SalesDashboard() {
     router.push('/');
   };
 
-  // Prepares the target and opens the deal form
-  const initiateCheckIn = (target) => {
-    setActiveTarget(target);
-    setIsDealModalOpen(true); 
-  };
-
-  // 3. Handle Submitting a Deal
-  const handleDealSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmittingDeal(true);
-    try {
-      if (!activeTarget) throw new Error("No active target selected.");
-      
-      const agentId = localStorage.getItem('employeeId') || 'PL-1043';
-
-      const response = await fetch('/api/sales/visits', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          agentId, 
-          targetId: activeTarget.id, 
-          latitude: currentGps?.lat, 
-          longitude: currentGps?.lng,
-          photoUrl: photoUri, 
-          orderAmount: parseFloat(dealData.orderAmount) || 0,
-          collectionAmount: parseFloat(dealData.collectionAmount) || 0,
-          paymentMethod: dealData.paymentMethod, // 👈 Passing new payment method to DB
-          remark: dealData.remark
-        }),
-      });
-      
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to save visit.");
-
-      // Optimistically update the UI to instantly show "Visited"
-      setTargets(prev => {
-        const matchId = String(activeTarget.id);
-        return prev.map(t => {
-          if (String(t.id) === matchId) {
-            return { 
-              ...t, 
-              status: 'COMPLETED', 
-              time: data.time, 
-              lastVisited: `Visited just now at ${data.time}`,
-              commission: data.commission, 
-              orderAmount: Number(dealData.orderAmount) 
-            };
-          }
-          return t;
-        });
-      });
-
-      // Cleanup & Reset
-      setIsDealModalOpen(false);
-      setDealData({ orderAmount: '', collectionAmount: '', paymentMethod: '', remark: '' });
-      setPhotoUri(null); 
-      setActiveTarget(null);
-      
-      fetchInitialData(); // Silently syncs with database
-
-    } catch (err) { 
-      console.error("Deal Submit Error:", err);
-      alert(`Error: ${err.message}`); 
-    } finally { 
-      setIsSubmittingDeal(false); 
-    }
-  };
-
   return (
     <div className="flex h-[100dvh] w-full overflow-hidden font-sans" style={{ background: '#f1f5f9' }}>
       
@@ -783,23 +933,21 @@ export default function SalesDashboard() {
         
         <TopHeader mobileNav={mobileNav} handleLogout={handleLogout} />
 
-        {/* ── 1. ROUTE / TERRITORY TAB ── */}
+        {/* ── 1. ROUTE / TERRITORY TAB (Now handles the Fast Check-In Form) ── */}
         {mobileNav === 'route' && (
           <TerritoryTab 
             targets={targets} 
-            masterTerritories={masterTerritories} // 👈 Props perfectly passed down
+            masterTerritories={masterTerritories} 
             isLoadingRoute={isLoadingRoute} 
-            initiateCheckIn={initiateCheckIn} 
-            setIsDealModalOpen={setIsDealModalOpen} 
-            totalCommission={totalCommission} 
-            setPhotoUri={setPhotoUri}
+            totalCommission={totalCommission}
+            onRefreshData={fetchInitialData} // 👈 Tells TerritoryTab to refresh this dashboard when done!
           />
         )}
 
-        {/* ── 2. NEW: ADD SHOP TAB ── */}
+        {/* ── 2. ADD SHOP TAB ── */}
         {mobileNav === 'add-shop' && (
           <AddShopTab 
-            targets={targets} // Adding targets so auto-detect works
+            targets={targets} 
             onSuccess={fetchInitialData} 
             setMobileNav={setMobileNav}  
           />
@@ -816,26 +964,6 @@ export default function SalesDashboard() {
         )}
 
         <BottomNav mobileNav={mobileNav} setMobileNav={setMobileNav} />
-
-        {/* ── LEGACY MODALS ── */}
-        <SalesModals 
-          isRegisterModalOpen={false} 
-          setIsRegisterModalOpen={() => {}} 
-          newShopData={{}} 
-          setNewShopData={() => {}} 
-          handleRegisterShop={() => {}} 
-          isRegistering={false} 
-          masterTerritories={masterTerritories} // 👈 Passed to Modals
-          isDealModalOpen={isDealModalOpen} 
-          setIsDealModalOpen={setIsDealModalOpen} 
-          activeTarget={activeTarget} 
-          dealData={dealData} 
-          setDealData={setDealData} 
-          handleDealSubmit={handleDealSubmit} 
-          isSubmittingDeal={isSubmittingDeal}
-          photoUri={photoUri}
-          setPhotoUri={setPhotoUri}
-        />
 
       </main>
     </div>
