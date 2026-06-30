@@ -1905,6 +1905,531 @@
 // }
 
 
+// 'use client';
+// import { useState, useRef, useMemo, useEffect } from 'react';
+
+// function getDistance(lat1, lon1, lat2, lon2) {
+//   if (!lat1 || !lon1 || !lat2 || !lon2) return 999999;
+//   const R = 6371e3;
+//   const p1 = (lat1 * Math.PI) / 180;
+//   const p2 = (lat2 * Math.PI) / 180;
+//   const dp = ((lat2 - lat1) * Math.PI) / 180;
+//   const dl = ((lon2 - lon1) * Math.PI) / 180;
+//   const a =
+//     Math.sin(dp / 2) * Math.sin(dp / 2) +
+//     Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+//   return Math.round(R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))));
+// }
+
+// const C = {
+//   green: '#2E7D32',
+//   greenBg: '#F1F8F1',
+//   greenBorder: '#A5D6A7',
+//   greenMid: '#43A047',
+//   navy: '#1A2332',
+//   text: '#1A2332',
+//   textMuted: '#64748B',
+//   textFaint: '#94A3B8',
+//   border: '#E2E8F0',
+//   surface: '#FFFFFF',
+//   bg: '#F8FAFC',
+//   blue: '#1D4ED8',
+//   blueBg: '#EFF6FF',
+//   blueBorder: '#BFDBFE',
+// };
+
+// export default function TerritoryTab({
+//   targets,
+//   masterTerritories,
+//   masterAreas,       
+//   isLoadingRoute,
+//   totalCommission,
+//   setPhotoUri,
+//   onRefreshData // 👈 Use this to refresh the dashboard after logging
+// }) {
+//   const [step, setStep] = useState('camera'); // 'camera' or 'form'
+//   const [selectedAreas, setSelectedAreas] = useState([]);
+//   const [isAreaDropdownOpen, setIsAreaDropdownOpen] = useState(false);
+//   const [localPhoto, setLocalPhoto] = useState(null);
+//   const [location, setLocation] = useState(null);
+//   const [isLocating, setIsLocating] = useState(false);
+//   const [isSubmitting, setIsSubmitting] = useState(false);
+//   const [isMounted, setIsMounted] = useState(false);
+
+//   // Form State
+//   const [nearbyShops, setNearbyShops] = useState([]);
+//   const [selectedShopId, setSelectedShopId] = useState('');
+//   const [formData, setFormData] = useState({
+//     orderAmount: '',
+//     collectionAmount: '',
+//     paymentMethod: 'Cash',
+//     remark: ''
+//   });
+
+//   const fileInputRef = useRef(null);
+//   const dropdownRef = useRef(null);
+  
+//   // 5KM Radius Limit
+//   const GEOFENCE_RADIUS_METERS = 5000;
+
+//   const uniqueAreas = useMemo(() => {
+//     const fromMasterTerritories = Array.isArray(masterTerritories) ? masterTerritories.map(a => a.name) : [];
+//     const fromMasterAreas = Array.isArray(masterAreas) ? masterAreas.map(a => a.name) : [];
+//     const fromTargets = Array.isArray(targets) ? targets.map(t => t.areaName) : [];
+    
+//     return [...new Set([...fromMasterTerritories, ...fromMasterAreas, ...fromTargets]
+//       .filter(Boolean)
+//       .filter(name => name !== 'Unassigned Area')
+//     )].sort();
+//   }, [targets, masterTerritories, masterAreas]);
+
+//   useEffect(() => {
+//     setIsMounted(true);
+//     const saved = localStorage.getItem('assignedSalesAreas');
+//     if (saved) {
+//       try {
+//         const parsed = JSON.parse(saved);
+//         if (Array.isArray(parsed) && parsed.length > 0) setSelectedAreas(parsed);
+//       } catch {}
+//     }
+//   }, []);
+
+//   useEffect(() => {
+//     const handler = (e) => {
+//       if (dropdownRef.current && !dropdownRef.current.contains(e.target))
+//         setIsAreaDropdownOpen(false);
+//     };
+//     document.addEventListener('mousedown', handler);
+//     return () => document.removeEventListener('mousedown', handler);
+//   }, []);
+
+//   const toggleArea = (area) => {
+//     const next = selectedAreas.includes(area)
+//       ? selectedAreas.filter((a) => a !== area)
+//       : [...selectedAreas, area];
+//     setSelectedAreas(next);
+//     localStorage.setItem('assignedSalesAreas', JSON.stringify(next));
+//     setStep('camera');
+//     setLocalPhoto(null);
+//     setLocation(null);
+//     if (setPhotoUri) setPhotoUri(null);
+//   };
+
+//   const activeTargets = useMemo(() => {
+//     if (selectedAreas.length === 0) return [];
+//     return targets?.filter((t) => selectedAreas.includes(t.areaName)) || [];
+//   }, [targets, selectedAreas]);
+
+//   const visitedCount = activeTargets.filter((t) => t.status === 'COMPLETED').length || 0;
+//   const totalCount = activeTargets.length || 0;
+//   const safeCommission = totalCommission || 0;
+//   const progress = totalCount > 0 ? Math.round((visitedCount / totalCount) * 100) : 0;
+
+//   // ── 1. HANDLE CAMERA & GPS ──
+//   const handleCapture = (e) => {
+//     const file = e.target.files[0];
+//     if (!file) return;
+//     const reader = new FileReader();
+    
+//     setIsLocating(true);
+//     reader.onloadend = () => {
+//       setLocalPhoto(reader.result);
+//       if (setPhotoUri) setPhotoUri(reader.result);
+//       verifyGeofence();
+//     };
+//     reader.readAsDataURL(file);
+//   };
+
+//   const verifyGeofence = () => {
+//     if (!navigator.geolocation) {
+//       alert('Geolocation is not supported.');
+//       setIsLocating(false);
+//       return;
+//     }
+//     navigator.geolocation.getCurrentPosition(
+//       (pos) => {
+//         const lat = pos.coords.latitude;
+//         const lng = pos.coords.longitude;
+        
+//         const areaShops = targets?.filter(
+//           (s) => s.latitude && s.longitude && selectedAreas.includes(s.areaName)
+//         ) || [];
+        
+//         if (areaShops.length > 0) {
+//           let minDist = Infinity;
+//           areaShops.forEach((s) => {
+//             const d = getDistance(lat, lng, Number(s.latitude), Number(s.longitude));
+//             if (d < minDist) minDist = d;
+//           });
+//           if (minDist > GEOFENCE_RADIUS_METERS) {
+//             alert(
+//               `📍 Outside territory\n\nYou are ${(minDist / 1000).toFixed(1)}km from the nearest shop in ${selectedAreas.join(', ')}. Move within ${GEOFENCE_RADIUS_METERS / 1000}km to unlock.`
+//             );
+//             setIsLocating(false);
+//             setLocalPhoto(null);
+//             if (setPhotoUri) setPhotoUri(null);
+//             return;
+//           }
+//         } else {
+//           // Anti-Spoofing Check
+//           const otherShops = targets?.filter(
+//             (s) => s.latitude && s.longitude && !selectedAreas.includes(s.areaName)
+//           ) || [];
+          
+//           if (otherShops.length > 0) {
+//             let closestOtherShop = null;
+//             let minOtherDist = Infinity;
+//             otherShops.forEach((s) => {
+//               const d = getDistance(lat, lng, Number(s.latitude), Number(s.longitude));
+//               if (d < minOtherDist) {
+//                 minOtherDist = d;
+//                 closestOtherShop = s;
+//               }
+//             });
+//             if (minOtherDist <= GEOFENCE_RADIUS_METERS) {
+//               alert(`🚨 AREA MISMATCH\n\nYou selected ${selectedAreas.join(', ')}, but your GPS shows you are actually in ${closestOtherShop.areaName} (Near ${closestOtherShop.name}).\n\nPlease go back and select the correct operating area.`);
+//               setIsLocating(false);
+//               setLocalPhoto(null);
+//               if (setPhotoUri) setPhotoUri(null);
+//               return;
+//             }
+//           }
+//         }
+
+//         // Passed all checks! Sort shops by distance and Auto-Select the closest one
+//         setLocation({ lat, lng });
+        
+//         const sorted = activeTargets.map(t => ({
+//           ...t,
+//           distance: getDistance(lat, lng, Number(t.latitude), Number(t.longitude))
+//         })).sort((a, b) => a.distance - b.distance);
+
+//         setNearbyShops(sorted);
+//         if (sorted.length > 0) setSelectedShopId(sorted[0].id.toString());
+        
+//         setIsLocating(false);
+//         setStep('form');
+//       },
+//       () => {
+//         alert('Could not get location. Enable Location Services and try again.');
+//         setIsLocating(false);
+//         setLocalPhoto(null);
+//         if (setPhotoUri) setPhotoUri(null);
+//       },
+//       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+//     );
+//   };
+
+//   // ── 2. HANDLE FORM SUBMISSION ──
+//   const handleSubmitVisit = async (e) => {
+//     e.preventDefault();
+//     if (!selectedShopId) return alert("Please select a medical shop.");
+    
+//     setIsSubmitting(true);
+//     try {
+//       const agentId = localStorage.getItem('employeeId') || 'Unknown';
+
+//       const response = await fetch('/api/sales/visits', {
+//         method: 'POST',
+//         headers: { 'Content-Type': 'application/json' },
+//         body: JSON.stringify({ 
+//           agentId, 
+//           targetId: selectedShopId, 
+//           latitude: location?.lat, 
+//           longitude: location?.lng,
+//           photoUrl: localPhoto, 
+//           orderAmount: parseFloat(formData.orderAmount) || 0,
+//           collectionAmount: parseFloat(formData.collectionAmount) || 0,
+//           paymentMethod: formData.paymentMethod,
+//           remark: formData.remark
+//         }),
+//       });
+      
+//       const data = await response.json();
+//       if (!response.ok) throw new Error(data.error || "Failed to log visit.");
+
+//       // Success! Reset form and refresh data silently
+//       setStep('camera');
+//       setLocalPhoto(null);
+//       setLocation(null);
+//       setFormData({ orderAmount: '', collectionAmount: '', paymentMethod: 'Cash', remark: '' });
+      
+//       if (onRefreshData) onRefreshData(); // Tell dashboard to refresh stats
+//       else window.location.reload(); // Fallback if prop not passed
+
+//     } catch (err) {
+//       console.error("Submission Error:", err);
+//       alert(`Error: ${err.message}`);
+//     } finally {
+//       setIsSubmitting(false);
+//     }
+//   };
+
+//   if (!isMounted) return null;
+
+//   return (
+//     <div style={{ flex: 1, overflowY: 'auto', background: C.bg, WebkitOverflowScrolling: 'touch' }}>
+//       <input type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handleCapture} style={{ display: 'none' }} />
+
+//       {/* ══ STICKY HEADER (UNTOUCHED) ══ */}
+//       <div
+//         ref={dropdownRef}
+//         style={{ position: 'sticky', top: 0, zIndex: 30, background: C.surface, borderBottom: `1px solid ${C.border}` }}
+//       >
+//         <div style={{ padding: '14px 20px 12px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+//           {/* Left */}
+//           <div style={{ flex: 1, minWidth: 0 }}>
+//             <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', color: C.textFaint, textTransform: 'uppercase', margin: '0 0 6px' }}>
+//               Operating Territory
+//             </p>
+//             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+//               {selectedAreas.length === 0 ? (
+//                 <span style={{ fontSize: 13, color: C.textMuted, fontStyle: 'italic' }}>No area selected</span>
+//               ) : (
+//                 selectedAreas.map((a) => (
+//                   <span key={a} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: C.green, background: C.greenBg, border: `1px solid ${C.greenBorder}`, borderRadius: 20, padding: '3px 8px 3px 10px' }}>
+//                     {a}
+//                     <button onClick={() => toggleArea(a)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: C.green, opacity: 0.55 }}>
+//                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+//                     </button>
+//                   </span>
+//                 ))
+//               )}
+//               <button
+//                 onClick={() => setIsAreaDropdownOpen((p) => !p)}
+//                 style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: isAreaDropdownOpen ? C.surface : C.green, background: isAreaDropdownOpen ? C.green : C.greenBg, border: `1px solid ${C.greenBorder}`, borderRadius: 20, padding: '3px 10px', cursor: 'pointer' }}
+//               >
+//                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
+//                   {isAreaDropdownOpen ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M12 4v16M4 12h16" />}
+//                 </svg>
+//                 {isAreaDropdownOpen ? 'Close' : 'Add area'}
+//               </button>
+//             </div>
+//           </div>
+
+//           {/* Right: status */}
+//           <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 20, background: step === 'form' ? C.greenBg : '#F1F5F9', border: `1px solid ${step === 'form' ? C.greenBorder : C.border}`, flexShrink: 0, marginTop: 2 }}>
+//             <span style={{ width: 6, height: 6, borderRadius: '50%', background: step === 'form' ? C.greenMid : C.textFaint, display: 'inline-block' }} />
+//             <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: step === 'form' ? C.green : C.textMuted }}>
+//               {step === 'camera' ? 'Locked' : 'Verified'}
+//             </span>
+//             {step === 'form' && localPhoto && (
+//               <img src={localPhoto} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: `1.5px solid ${C.greenBorder}`, marginLeft: 2 }} />
+//             )}
+//           </div>
+//         </div>
+
+//         {/* Area dropdown */}
+//         {isAreaDropdownOpen && (
+//           <div style={{ margin: '0 16px 14px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.09)' }}>
+//             {uniqueAreas.length === 0 ? (
+//               <p style={{ padding: '14px 16px', fontSize: 13, color: C.textMuted, margin: 0 }}>No territories in data.</p>
+//             ) : (
+//               <>
+//                 <div style={{ padding: '12px', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+//                   {uniqueAreas.map((area) => {
+//                     const sel = selectedAreas.includes(area);
+//                     return (
+//                       <button
+//                         key={area}
+//                         onClick={() => toggleArea(area)}
+//                         style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 13, fontWeight: 600, padding: '7px 14px', borderRadius: 8, border: `1px solid ${sel ? C.greenBorder : C.border}`, background: sel ? C.greenBg : C.bg, color: sel ? C.green : C.text, cursor: 'pointer' }}
+//                       >
+//                         {sel && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>}
+//                         {area}
+//                       </button>
+//                     );
+//                   })}
+//                 </div>
+//                 <div style={{ padding: '8px 12px 12px', borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'flex-end' }}>
+//                   <button onClick={() => setIsAreaDropdownOpen(false)} disabled={selectedAreas.length === 0} style={{ fontSize: 13, fontWeight: 600, padding: '7px 22px', borderRadius: 8, border: 'none', background: selectedAreas.length > 0 ? C.green : C.border, color: selectedAreas.length > 0 ? '#fff' : C.textMuted, cursor: selectedAreas.length > 0 ? 'pointer' : 'not-allowed' }}>
+//                     Done
+//                   </button>
+//                 </div>
+//               </>
+//             )}
+//           </div>
+//         )}
+//       </div>
+
+//       {/* ══ BODY ══ */}
+//       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '18px 16px 80px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+//         {/* Stats — only when area selected (UNTOUCHED) */}
+//         {selectedAreas.length > 0 && (
+//           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+//             <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: '16px 18px', gridColumn: 'span 2' }}>
+//               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+//                 <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.textFaint }}>Daily progress</span>
+//                 <span style={{ fontSize: 13, fontWeight: 700, color: C.green }}>{progress}%</span>
+//               </div>
+//               <div style={{ height: 4, background: '#EFF2F7', borderRadius: 99, overflow: 'hidden', marginBottom: 14 }}>
+//                 <div style={{ height: '100%', width: `${progress}%`, background: C.greenMid, borderRadius: 99, transition: 'width 0.6s ease' }} />
+//               </div>
+//               <div style={{ display: 'flex', gap: 0 }}>
+//                 {[
+//                   { label: 'Total', val: totalCount, color: C.text },
+//                   { label: 'Done', val: visitedCount, color: C.green },
+//                   { label: 'Left', val: totalCount - visitedCount, color: C.textMuted },
+//                 ].map(({ label, val, color }, i) => (
+//                   <div key={label} style={{ flex: 1, textAlign: 'center', borderLeft: i > 0 ? `1px solid ${C.border}` : 'none' }}>
+//                     <p style={{ fontSize: 24, fontWeight: 700, color, margin: 0, lineHeight: 1 }}>{val}</p>
+//                     <p style={{ fontSize: 10, fontWeight: 600, color: C.textFaint, letterSpacing: '0.07em', textTransform: 'uppercase', margin: '5px 0 0' }}>{label}</p>
+//                   </div>
+//                 ))}
+//               </div>
+//             </div>
+//             <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: '16px 18px' }}>
+//               <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.textFaint, display: 'block', marginBottom: 8 }}>Earned today</span>
+//               <p style={{ fontSize: 26, fontWeight: 700, color: C.text, margin: 0 }}>
+//                 ₹{safeCommission >= 1000 ? (safeCommission / 1000).toFixed(1) + 'k' : safeCommission.toLocaleString('en-IN')}
+//               </p>
+//             </div>
+//           </div>
+//         )}
+
+//         {/* ══ DYNAMIC PANEL (CAMERA vs FORM) ══ */}
+//         {isLoadingRoute ? (
+//           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: '52px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+//             <div style={{ width: 20, height: 20, borderRadius: '50%', border: `2.5px solid ${C.greenBorder}`, borderTopColor: C.green, animation: 'spin 0.8s linear infinite' }} />
+//             <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>Loading territory…</p>
+//             <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+//           </div>
+//         ) : selectedAreas.length === 0 ? (
+//           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: '56px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+//             <div style={{ width: 52, height: 52, borderRadius: 14, background: C.greenBg, border: `1px solid ${C.greenBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
+//               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
+//             </div>
+//             <h2 style={{ fontSize: 17, fontWeight: 700, color: C.text, margin: '0 0 8px' }}>Select your working area</h2>
+//             <p style={{ fontSize: 13, color: C.textMuted, maxWidth: 260, lineHeight: 1.6, margin: '0 0 24px' }}>Tap <strong>Add area</strong> in the header to choose which territories you are working in today.</p>
+//             <button onClick={() => setIsAreaDropdownOpen(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#fff', background: C.navy, border: 'none', borderRadius: 9, padding: '10px 22px', cursor: 'pointer' }}>
+//               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 4v16M4 12h16" /></svg> Add area
+//             </button>
+//           </div>
+//         ) : step === 'camera' ? (
+//           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: '52px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+//             <div style={{ w: 54, height: 54, borderRadius: 14, background: C.greenBg, border: `1px solid ${C.greenBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18, padding: 10 }}>
+//               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" /><circle cx="12" cy="13" r="4" /></svg>
+//             </div>
+//             <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.textFaint, margin: '0 0 6px' }}>Security check</p>
+//             <h2 style={{ fontSize: 17, fontWeight: 700, color: C.text, margin: '0 0 10px' }}>Field Check-In</h2>
+//             <p style={{ fontSize: 13, color: C.textMuted, maxWidth: 300, lineHeight: 1.6, margin: '0 0 28px' }}>
+//               Take a photo of the shop. We will use your GPS to automatically fill the form for you.
+//             </p>
+//             <button onClick={() => fileInputRef.current?.click()} disabled={isLocating} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: '#fff', background: isLocating ? C.textFaint : C.navy, border: 'none', borderRadius: 10, padding: '12px 30px', cursor: isLocating ? 'not-allowed' : 'pointer' }}>
+//               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" /><circle cx="12" cy="13" r="4" /></svg>
+//               {isLocating ? 'Analyzing GPS...' : 'Take Photo to Unlock'}
+//             </button>
+//           </div>
+//         ) : (
+//           /* =========================================
+//              FAST CHECK-IN FORM (AUTO DETECTED)
+//           ========================================= */
+//           <div className="animate-in slide-in-from-bottom-4 duration-300">
+//             {/* Photo Preview Header */}
+//             <div style={{ background: C.surface, padding: 12, borderRadius: 14, boxShadow: '0 1px 2px rgba(0,0,0,0.05)', border: `1px solid ${C.border}`, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
+//               <img src={localPhoto} alt="Captured" style={{ width: 60, height: 60, borderRadius: 10, objectFit: 'cover', border: `1px solid ${C.border}` }} />
+//               <div style={{ flex: 1 }}>
+//                 <p style={{ fontSize: 10, fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 4 }}>
+//                   <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"></path></svg> GPS Verified
+//                 </p>
+//                 <button onClick={() => setStep('camera')} style={{ fontSize: 12, fontWeight: 600, color: C.textMuted, textDecoration: 'underline', background: 'none', border: 'none', padding: 0, marginTop: 4, cursor: 'pointer' }}>Retake Photo</button>
+//               </div>
+//             </div>
+
+//             <form onSubmit={handleSubmitVisit} style={{ background: C.surface, borderRadius: 16, padding: '24px 20px', border: `1px solid ${C.border}`, boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}>
+              
+//               {/* DROPDOWN (AUTO-SELECTED) */}
+//               <div style={{ marginBottom: 20 }}>
+//                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Detected Medical Shop</label>
+//                 <select 
+//                   value={selectedShopId}
+//                   onChange={(e) => setSelectedShopId(e.target.value)}
+//                   required
+//                   style={{ width: '100%', padding: '12px 16px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontWeight: 700, color: C.text, outline: 'none' }}
+//                 >
+//                   <option value="" disabled>Select a shop...</option>
+//                   {nearbyShops.map((shop, idx) => (
+//                     <option key={shop.id} value={shop.id}>
+//                       {idx === 0 ? '📍 (Nearest) ' : ''}{shop.name} {shop.distance < 999999 ? `- ${(shop.distance / 1000).toFixed(1)}km` : ''}
+//                     </option>
+//                   ))}
+//                 </select>
+//               </div>
+
+//               {/* AMOUNTS */}
+//               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+//                 <div>
+//                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Order Vol (₹)</label>
+//                   <input 
+//                     type="number" 
+//                     value={formData.orderAmount}
+//                     onChange={(e) => setFormData({...formData, orderAmount: e.target.value})}
+//                     placeholder="0"
+//                     style={{ width: '100%', padding: '12px 16px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontWeight: 700, color: C.text, outline: 'none' }}
+//                   />
+//                 </div>
+//                 <div>
+//                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Collection (₹)</label>
+//                   <input 
+//                     type="number" 
+//                     value={formData.collectionAmount}
+//                     onChange={(e) => setFormData({...formData, collectionAmount: e.target.value})}
+//                     placeholder="0"
+//                     style={{ width: '100%', padding: '12px 16px', background: C.greenBg, border: `1px solid ${C.greenBorder}`, borderRadius: 10, fontSize: 14, fontWeight: 700, color: C.text, outline: 'none' }}
+//                   />
+//                 </div>
+//               </div>
+
+//               {/* PAYMENT METHOD */}
+//               <div style={{ marginBottom: 20 }}>
+//                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Payment Method</label>
+//                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+//                   {['Cash', 'UPI', 'Cheque', 'Credit'].map((method) => (
+//                     <button
+//                       key={method}
+//                       type="button"
+//                       onClick={() => setFormData({...formData, paymentMethod: method})}
+//                       style={{ padding: '10px 0', fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: 'pointer', transition: 'all 0.2s', border: formData.paymentMethod === method ? `1px solid ${C.navy}` : `1px solid ${C.border}`, background: formData.paymentMethod === method ? C.navy : C.bg, color: formData.paymentMethod === method ? '#fff' : C.textMuted }}
+//                     >
+//                       {method}
+//                     </button>
+//                   ))}
+//                 </div>
+//               </div>
+
+//               {/* REMARK */}
+//               <div style={{ marginBottom: 24 }}>
+//                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Remark / Note</label>
+//                 <textarea 
+//                   value={formData.remark}
+//                   onChange={(e) => setFormData({...formData, remark: e.target.value})}
+//                   placeholder="Optional notes regarding this visit..."
+//                   rows="2"
+//                   style={{ width: '100%', padding: '12px 16px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 13, fontWeight: 500, color: C.text, outline: 'none', resize: 'none' }}
+//                 ></textarea>
+//               </div>
+
+//               {/* SUBMIT BUTTON */}
+//               <div style={{ paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+//                 <button 
+//                   type="submit" 
+//                   disabled={isSubmitting}
+//                   style={{ width: '100%', padding: '14px', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 15, background: C.greenMid, border: 'none', cursor: isSubmitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: isSubmitting ? 0.7 : 1 }}
+//                 >
+//                   {isSubmitting ? 'Submitting...' : 'Log This Visit'}
+//                 </button>
+//               </div>
+//             </form>
+//           </div>
+//         )}
+//       </div>
+//     </div>
+//   );
+// }
+
+
+
 'use client';
 import { useState, useRef, useMemo, useEffect } from 'react';
 
@@ -1921,33 +2446,29 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return Math.round(R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))));
 }
 
+// ━━━ DESIGN TOKENS ━━━
 const C = {
-  green: '#2E7D32',
-  greenBg: '#F1F8F1',
-  greenBorder: '#A5D6A7',
-  greenMid: '#43A047',
-  navy: '#1A2332',
-  text: '#1A2332',
-  textMuted: '#64748B',
-  textFaint: '#94A3B8',
+  dark: '#0A0F1A',
+  green: '#97C22A',
+  greenSoft: 'rgba(151,194,42,0.10)',
+  greenSoftBorder: 'rgba(151,194,42,0.30)',
+  surface: '#F0F2F5',
+  card: '#FFFFFF',
   border: '#E2E8F0',
-  surface: '#FFFFFF',
-  bg: '#F8FAFC',
-  blue: '#1D4ED8',
-  blueBg: '#EFF6FF',
-  blueBorder: '#BFDBFE',
+  muted: '#94A3B8',
+  text: '#1E293B',
 };
 
 export default function TerritoryTab({
   targets,
   masterTerritories,
-  masterAreas,       
+  masterAreas,
   isLoadingRoute,
   totalCommission,
   setPhotoUri,
-  onRefreshData // 👈 Use this to refresh the dashboard after logging
+  onRefreshData
 }) {
-  const [step, setStep] = useState('camera'); // 'camera' or 'form'
+  const [step, setStep] = useState('camera');
   const [selectedAreas, setSelectedAreas] = useState([]);
   const [isAreaDropdownOpen, setIsAreaDropdownOpen] = useState(false);
   const [localPhoto, setLocalPhoto] = useState(null);
@@ -1956,7 +2477,6 @@ export default function TerritoryTab({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Form State
   const [nearbyShops, setNearbyShops] = useState([]);
   const [selectedShopId, setSelectedShopId] = useState('');
   const [formData, setFormData] = useState({
@@ -1968,15 +2488,14 @@ export default function TerritoryTab({
 
   const fileInputRef = useRef(null);
   const dropdownRef = useRef(null);
-  
-  // 5KM Radius Limit
-  const GEOFENCE_RADIUS_METERS = 5000;
+
+  const GEOFENCE_RADIUS_METERS = 1000;
 
   const uniqueAreas = useMemo(() => {
     const fromMasterTerritories = Array.isArray(masterTerritories) ? masterTerritories.map(a => a.name) : [];
     const fromMasterAreas = Array.isArray(masterAreas) ? masterAreas.map(a => a.name) : [];
     const fromTargets = Array.isArray(targets) ? targets.map(t => t.areaName) : [];
-    
+
     return [...new Set([...fromMasterTerritories, ...fromMasterAreas, ...fromTargets]
       .filter(Boolean)
       .filter(name => name !== 'Unassigned Area')
@@ -2025,21 +2544,59 @@ export default function TerritoryTab({
   const safeCommission = totalCommission || 0;
   const progress = totalCount > 0 ? Math.round((visitedCount / totalCount) * 100) : 0;
 
-  // ── 1. HANDLE CAMERA & GPS ──
+// ── 1. HANDLE CAMERA, COMPRESS IMAGE & GET GPS ──
   const handleCapture = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
     
     setIsLocating(true);
-    reader.onloadend = () => {
-      setLocalPhoto(reader.result);
-      if (setPhotoUri) setPhotoUri(reader.result);
-      verifyGeofence();
+    const reader = new FileReader();
+    
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        // 1. Set Maximum dimensions to prevent massive file sizes
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+
+        // 2. Calculate the new size while keeping the aspect ratio
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= Math.round(MAX_WIDTH / width);
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= Math.round(MAX_HEIGHT / height);
+            height = MAX_HEIGHT;
+          }
+        }
+
+        // 3. Draw the resized image on a hidden canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // 4. Compress into a lightweight JPEG (70% quality)
+        const compressedPhoto = canvas.toDataURL('image/jpeg', 0.7);
+        
+        // 5. Save the lightweight photo and move to GPS check
+        setLocalPhoto(compressedPhoto);
+        if (setPhotoUri) setPhotoUri(compressedPhoto);
+        
+        verifyGeofence();
+      };
+      
+      // Feed the raw file into the image object to start the compression
+      img.src = event.target.result;
     };
+    
     reader.readAsDataURL(file);
   };
-
   const verifyGeofence = () => {
     if (!navigator.geolocation) {
       alert('Geolocation is not supported.');
@@ -2050,11 +2607,11 @@ export default function TerritoryTab({
       (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
-        
+
         const areaShops = targets?.filter(
           (s) => s.latitude && s.longitude && selectedAreas.includes(s.areaName)
         ) || [];
-        
+
         if (areaShops.length > 0) {
           let minDist = Infinity;
           areaShops.forEach((s) => {
@@ -2071,11 +2628,10 @@ export default function TerritoryTab({
             return;
           }
         } else {
-          // Anti-Spoofing Check
           const otherShops = targets?.filter(
             (s) => s.latitude && s.longitude && !selectedAreas.includes(s.areaName)
           ) || [];
-          
+
           if (otherShops.length > 0) {
             let closestOtherShop = null;
             let minOtherDist = Infinity;
@@ -2096,9 +2652,8 @@ export default function TerritoryTab({
           }
         }
 
-        // Passed all checks! Sort shops by distance and Auto-Select the closest one
         setLocation({ lat, lng });
-        
+
         const sorted = activeTargets.map(t => ({
           ...t,
           distance: getDistance(lat, lng, Number(t.latitude), Number(t.longitude))
@@ -2106,7 +2661,7 @@ export default function TerritoryTab({
 
         setNearbyShops(sorted);
         if (sorted.length > 0) setSelectedShopId(sorted[0].id.toString());
-        
+
         setIsLocating(false);
         setStep('form');
       },
@@ -2120,11 +2675,10 @@ export default function TerritoryTab({
     );
   };
 
-  // ── 2. HANDLE FORM SUBMISSION ──
   const handleSubmitVisit = async (e) => {
     e.preventDefault();
     if (!selectedShopId) return alert("Please select a medical shop.");
-    
+
     setIsSubmitting(true);
     try {
       const agentId = localStorage.getItem('employeeId') || 'Unknown';
@@ -2132,30 +2686,29 @@ export default function TerritoryTab({
       const response = await fetch('/api/sales/visits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          agentId, 
-          targetId: selectedShopId, 
-          latitude: location?.lat, 
+        body: JSON.stringify({
+          agentId,
+          targetId: selectedShopId,
+          latitude: location?.lat,
           longitude: location?.lng,
-          photoUrl: localPhoto, 
+          photoUrl: localPhoto,
           orderAmount: parseFloat(formData.orderAmount) || 0,
           collectionAmount: parseFloat(formData.collectionAmount) || 0,
           paymentMethod: formData.paymentMethod,
           remark: formData.remark
         }),
       });
-      
+
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to log visit.");
 
-      // Success! Reset form and refresh data silently
       setStep('camera');
       setLocalPhoto(null);
       setLocation(null);
       setFormData({ orderAmount: '', collectionAmount: '', paymentMethod: 'Cash', remark: '' });
-      
-      if (onRefreshData) onRefreshData(); // Tell dashboard to refresh stats
-      else window.location.reload(); // Fallback if prop not passed
+
+      if (onRefreshData) onRefreshData();
+      else window.location.reload();
 
     } catch (err) {
       console.error("Submission Error:", err);
@@ -2168,38 +2721,37 @@ export default function TerritoryTab({
   if (!isMounted) return null;
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', background: C.bg, WebkitOverflowScrolling: 'touch' }}>
+    <div style={{ flex: 1, overflowY: 'auto', background: C.surface, WebkitOverflowScrolling: 'touch' }}>
       <input type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handleCapture} style={{ display: 'none' }} />
 
-      {/* ══ STICKY HEADER (UNTOUCHED) ══ */}
+      {/* ══ STICKY HEADER — dark navy ══ */}
       <div
         ref={dropdownRef}
-        style={{ position: 'sticky', top: 0, zIndex: 30, background: C.surface, borderBottom: `1px solid ${C.border}` }}
+        style={{ position: 'sticky', top: 0, zIndex: 30, background: C.dark }}
       >
-        <div style={{ padding: '14px 20px 12px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-          {/* Left */}
+        <div style={{ padding: '12px 16px 10px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', color: C.textFaint, textTransform: 'uppercase', margin: '0 0 6px' }}>
+            <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', margin: '0 0 6px' }}>
               Operating Territory
             </p>
-            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 5 }}>
               {selectedAreas.length === 0 ? (
-                <span style={{ fontSize: 13, color: C.textMuted, fontStyle: 'italic' }}>No area selected</span>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>No area selected</span>
               ) : (
                 selectedAreas.map((a) => (
-                  <span key={a} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: C.green, background: C.greenBg, border: `1px solid ${C.greenBorder}`, borderRadius: 20, padding: '3px 8px 3px 10px' }}>
+                  <span key={a} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: C.green, background: C.greenSoft, border: `1px solid ${C.greenSoftBorder}`, borderRadius: 20, padding: '3px 7px 3px 9px' }}>
                     {a}
-                    <button onClick={() => toggleArea(a)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: C.green, opacity: 0.55 }}>
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                    <button onClick={() => toggleArea(a)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: C.green, opacity: 0.6 }}>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
                     </button>
                   </span>
                 ))
               )}
               <button
                 onClick={() => setIsAreaDropdownOpen((p) => !p)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: isAreaDropdownOpen ? C.surface : C.green, background: isAreaDropdownOpen ? C.green : C.greenBg, border: `1px solid ${C.greenBorder}`, borderRadius: 20, padding: '3px 10px', cursor: 'pointer' }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: isAreaDropdownOpen ? C.dark : C.green, background: isAreaDropdownOpen ? C.green : C.greenSoft, border: `1px solid ${C.greenSoftBorder}`, borderRadius: 20, padding: '3px 9px' }}
               >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
                   {isAreaDropdownOpen ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M12 4v16M4 12h16" />}
                 </svg>
                 {isAreaDropdownOpen ? 'Close' : 'Add area'}
@@ -2207,42 +2759,40 @@ export default function TerritoryTab({
             </div>
           </div>
 
-          {/* Right: status */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 20, background: step === 'form' ? C.greenBg : '#F1F5F9', border: `1px solid ${step === 'form' ? C.greenBorder : C.border}`, flexShrink: 0, marginTop: 2 }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: step === 'form' ? C.greenMid : C.textFaint, display: 'inline-block' }} />
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: step === 'form' ? C.green : C.textMuted }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 20, background: step === 'form' ? C.greenSoft : 'rgba(255,255,255,0.06)', border: `1px solid ${step === 'form' ? C.greenSoftBorder : 'rgba(255,255,255,0.1)'}`, flexShrink: 0, marginTop: 2 }}>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: step === 'form' ? C.green : 'rgba(255,255,255,0.3)', display: 'inline-block' }} />
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: step === 'form' ? C.green : 'rgba(255,255,255,0.5)' }}>
               {step === 'camera' ? 'Locked' : 'Verified'}
             </span>
             {step === 'form' && localPhoto && (
-              <img src={localPhoto} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: `1.5px solid ${C.greenBorder}`, marginLeft: 2 }} />
+              <img src={localPhoto} alt="" style={{ width: 16, height: 16, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.greenSoftBorder}`, marginLeft: 2 }} />
             )}
           </div>
         </div>
 
-        {/* Area dropdown */}
         {isAreaDropdownOpen && (
-          <div style={{ margin: '0 16px 14px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.09)' }}>
+          <div style={{ margin: '0 12px 12px', background: C.card, borderRadius: 14, overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
             {uniqueAreas.length === 0 ? (
-              <p style={{ padding: '14px 16px', fontSize: 13, color: C.textMuted, margin: 0 }}>No territories in data.</p>
+              <p style={{ padding: '14px 16px', fontSize: 12, color: C.muted, margin: 0 }}>No territories in data.</p>
             ) : (
               <>
-                <div style={{ padding: '12px', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ padding: '10px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {uniqueAreas.map((area) => {
                     const sel = selectedAreas.includes(area);
                     return (
                       <button
                         key={area}
                         onClick={() => toggleArea(area)}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 13, fontWeight: 600, padding: '7px 14px', borderRadius: 8, border: `1px solid ${sel ? C.greenBorder : C.border}`, background: sel ? C.greenBg : C.bg, color: sel ? C.green : C.text, cursor: 'pointer' }}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, padding: '7px 12px', borderRadius: 8, border: sel ? `1px solid ${C.greenSoftBorder}` : `1px solid ${C.border}`, background: sel ? C.greenSoft : C.surface, color: sel ? '#5C7A1A' : C.text, cursor: 'pointer' }}
                       >
-                        {sel && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>}
+                        {sel && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#5C7A1A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>}
                         {area}
                       </button>
                     );
                   })}
                 </div>
-                <div style={{ padding: '8px 12px 12px', borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'flex-end' }}>
-                  <button onClick={() => setIsAreaDropdownOpen(false)} disabled={selectedAreas.length === 0} style={{ fontSize: 13, fontWeight: 600, padding: '7px 22px', borderRadius: 8, border: 'none', background: selectedAreas.length > 0 ? C.green : C.border, color: selectedAreas.length > 0 ? '#fff' : C.textMuted, cursor: selectedAreas.length > 0 ? 'pointer' : 'not-allowed' }}>
+                <div style={{ padding: '8px 10px 10px', borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'flex-end' }}>
+                  <button onClick={() => setIsAreaDropdownOpen(false)} disabled={selectedAreas.length === 0} style={{ fontSize: 12, fontWeight: 600, padding: '8px 20px', borderRadius: 8, border: 'none', background: selectedAreas.length > 0 ? C.dark : C.border, color: selectedAreas.length > 0 ? C.green : C.muted, cursor: selectedAreas.length > 0 ? 'pointer' : 'not-allowed' }}>
                     Done
                   </button>
                 </div>
@@ -2253,100 +2803,94 @@ export default function TerritoryTab({
       </div>
 
       {/* ══ BODY ══ */}
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '18px 16px 80px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '14px 14px 70px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-        {/* Stats — only when area selected (UNTOUCHED) */}
         {selectedAreas.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: '16px 18px', gridColumn: 'span 2' }}>
+            <div style={{ background: C.card, borderRadius: 16, padding: '14px 16px', gridColumn: 'span 2', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.textFaint }}>Daily progress</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: C.green }}>{progress}%</span>
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted }}>Daily progress</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#5C7A1A' }}>{progress}%</span>
               </div>
-              <div style={{ height: 4, background: '#EFF2F7', borderRadius: 99, overflow: 'hidden', marginBottom: 14 }}>
-                <div style={{ height: '100%', width: `${progress}%`, background: C.greenMid, borderRadius: 99, transition: 'width 0.6s ease' }} />
+              <div style={{ height: 4, background: '#EEF1F4', borderRadius: 99, overflow: 'hidden', marginBottom: 14 }}>
+                <div style={{ height: '100%', width: `${progress}%`, background: C.green, borderRadius: 99, transition: 'width 0.6s ease' }} />
               </div>
-              <div style={{ display: 'flex', gap: 0 }}>
+              <div className="divide-x divide-slate-100" style={{ display: 'flex' }}>
                 {[
-                  { label: 'Total', val: totalCount, color: C.text },
-                  { label: 'Done', val: visitedCount, color: C.green },
-                  { label: 'Left', val: totalCount - visitedCount, color: C.textMuted },
-                ].map(({ label, val, color }, i) => (
-                  <div key={label} style={{ flex: 1, textAlign: 'center', borderLeft: i > 0 ? `1px solid ${C.border}` : 'none' }}>
-                    <p style={{ fontSize: 24, fontWeight: 700, color, margin: 0, lineHeight: 1 }}>{val}</p>
-                    <p style={{ fontSize: 10, fontWeight: 600, color: C.textFaint, letterSpacing: '0.07em', textTransform: 'uppercase', margin: '5px 0 0' }}>{label}</p>
+                  { label: 'Total', val: totalCount },
+                  { label: 'Done', val: visitedCount },
+                  { label: 'Left', val: totalCount - visitedCount },
+                ].map(({ label, val }) => (
+                  <div key={label} style={{ flex: 1, textAlign: 'center' }}>
+                    <p style={{ fontSize: 22, fontWeight: 700, color: C.text, margin: 0, lineHeight: 1 }}>{val}</p>
+                    <p style={{ fontSize: 9, fontWeight: 600, color: C.muted, letterSpacing: '0.08em', textTransform: 'uppercase', margin: '5px 0 0' }}>{label}</p>
                   </div>
                 ))}
               </div>
             </div>
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: '16px 18px' }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.textFaint, display: 'block', marginBottom: 8 }}>Earned today</span>
-              <p style={{ fontSize: 26, fontWeight: 700, color: C.text, margin: 0 }}>
+            <div style={{ background: C.card, borderRadius: 16, padding: '14px 16px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, display: 'block', marginBottom: 8 }}>Earned today</span>
+              <p style={{ fontSize: 22, fontWeight: 700, color: C.text, margin: 0 }}>
                 ₹{safeCommission >= 1000 ? (safeCommission / 1000).toFixed(1) + 'k' : safeCommission.toLocaleString('en-IN')}
               </p>
             </div>
           </div>
         )}
 
-        {/* ══ DYNAMIC PANEL (CAMERA vs FORM) ══ */}
         {isLoadingRoute ? (
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: '52px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 20, height: 20, borderRadius: '50%', border: `2.5px solid ${C.greenBorder}`, borderTopColor: C.green, animation: 'spin 0.8s linear infinite' }} />
-            <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>Loading territory…</p>
+          <div style={{ background: C.card, borderRadius: 16, padding: '46px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+            <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2.5px solid ${C.greenSoftBorder}`, borderTopColor: C.green, animation: 'spin 0.8s linear infinite' }} />
+            <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>Loading territory…</p>
             <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
           </div>
         ) : selectedAreas.length === 0 ? (
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: '56px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-            <div style={{ width: 52, height: 52, borderRadius: 14, background: C.greenBg, border: `1px solid ${C.greenBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
+          <div style={{ background: C.card, borderRadius: 16, padding: '48px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: C.greenSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5C7A1A" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
             </div>
-            <h2 style={{ fontSize: 17, fontWeight: 700, color: C.text, margin: '0 0 8px' }}>Select your working area</h2>
-            <p style={{ fontSize: 13, color: C.textMuted, maxWidth: 260, lineHeight: 1.6, margin: '0 0 24px' }}>Tap <strong>Add area</strong> in the header to choose which territories you are working in today.</p>
-            <button onClick={() => setIsAreaDropdownOpen(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#fff', background: C.navy, border: 'none', borderRadius: 9, padding: '10px 22px', cursor: 'pointer' }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 4v16M4 12h16" /></svg> Add area
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: '0 0 8px' }}>Select your working area</h2>
+            <p style={{ fontSize: 12, color: C.muted, maxWidth: 250, lineHeight: 1.6, margin: '0 0 22px' }}>Tap <span style={{ fontWeight: 600, color: C.text }}>Add area</span> in the header to choose which territories you are working in today.</p>
+            <button onClick={() => setIsAreaDropdownOpen(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: C.green, background: C.dark, border: 'none', borderRadius: 10, padding: '10px 20px', cursor: 'pointer' }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 4v16M4 12h16" /></svg> Add area
             </button>
           </div>
         ) : step === 'camera' ? (
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: '52px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-            <div style={{ w: 54, height: 54, borderRadius: 14, background: C.greenBg, border: `1px solid ${C.greenBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18, padding: 10 }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" /><circle cx="12" cy="13" r="4" /></svg>
+          <div style={{ background: C.card, borderRadius: 16, padding: '46px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+            <div style={{ width: 52, height: 52, borderRadius: 14, background: C.greenSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, padding: 10 }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5C7A1A" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" /><circle cx="12" cy="13" r="4" /></svg>
             </div>
-            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.textFaint, margin: '0 0 6px' }}>Security check</p>
-            <h2 style={{ fontSize: 17, fontWeight: 700, color: C.text, margin: '0 0 10px' }}>Field Check-In</h2>
-            <p style={{ fontSize: 13, color: C.textMuted, maxWidth: 300, lineHeight: 1.6, margin: '0 0 28px' }}>
-              Take a photo of the shop. We will use your GPS to automatically fill the form for you.
+            <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, margin: '0 0 6px' }}>Security check</p>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: '0 0 10px' }}>Field Check-In</h2>
+            <p style={{ fontSize: 12, color: C.muted, maxWidth: 280, lineHeight: 1.6, margin: '0 0 24px' }}>
+              Take a photo of the shop. We'll use your GPS to automatically fill the form for you.
             </p>
-            <button onClick={() => fileInputRef.current?.click()} disabled={isLocating} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: '#fff', background: isLocating ? C.textFaint : C.navy, border: 'none', borderRadius: 10, padding: '12px 30px', cursor: isLocating ? 'not-allowed' : 'pointer' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" /><circle cx="12" cy="13" r="4" /></svg>
+            <button onClick={() => fileInputRef.current?.click()} disabled={isLocating} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: isLocating ? '#fff' : C.green, background: C.dark, border: 'none', borderRadius: 12, padding: '12px 26px', cursor: isLocating ? 'not-allowed' : 'pointer', opacity: isLocating ? 0.7 : 1 }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" /><circle cx="12" cy="13" r="4" /></svg>
               {isLocating ? 'Analyzing GPS...' : 'Take Photo to Unlock'}
             </button>
           </div>
         ) : (
-          /* =========================================
-             FAST CHECK-IN FORM (AUTO DETECTED)
-          ========================================= */
           <div className="animate-in slide-in-from-bottom-4 duration-300">
             {/* Photo Preview Header */}
-            <div style={{ background: C.surface, padding: 12, borderRadius: 14, boxShadow: '0 1px 2px rgba(0,0,0,0.05)', border: `1px solid ${C.border}`, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
-              <img src={localPhoto} alt="Captured" style={{ width: 60, height: 60, borderRadius: 10, objectFit: 'cover', border: `1px solid ${C.border}` }} />
+            <div style={{ background: C.card, padding: 12, borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.08)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 14 }}>
+              <img src={localPhoto} alt="Captured" style={{ width: 52, height: 52, borderRadius: 10, objectFit: 'cover', border: `1px solid ${C.border}` }} />
               <div style={{ flex: 1 }}>
-                <p style={{ fontSize: 10, fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"></path></svg> GPS Verified
+                <p style={{ fontSize: 9, fontWeight: 700, color: '#5C7A1A', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 4, margin: 0 }}>
+                  <svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"></path></svg> GPS Verified
                 </p>
-                <button onClick={() => setStep('camera')} style={{ fontSize: 12, fontWeight: 600, color: C.textMuted, textDecoration: 'underline', background: 'none', border: 'none', padding: 0, marginTop: 4, cursor: 'pointer' }}>Retake Photo</button>
+                <button onClick={() => setStep('camera')} style={{ fontSize: 11, fontWeight: 600, color: C.muted, textDecoration: 'underline', background: 'none', border: 'none', padding: 0, marginTop: 4, cursor: 'pointer' }}>Retake photo</button>
               </div>
             </div>
 
-            <form onSubmit={handleSubmitVisit} style={{ background: C.surface, borderRadius: 16, padding: '24px 20px', border: `1px solid ${C.border}`, boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}>
-              
-              {/* DROPDOWN (AUTO-SELECTED) */}
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Detected Medical Shop</label>
-                <select 
+            <form onSubmit={handleSubmitVisit} style={{ background: C.card, borderRadius: 18, padding: '18px 16px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Detected medical shop</label>
+                <select
                   value={selectedShopId}
                   onChange={(e) => setSelectedShopId(e.target.value)}
                   required
-                  style={{ width: '100%', padding: '12px 16px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontWeight: 700, color: C.text, outline: 'none' }}
+                  style={{ width: '100%', padding: '11px 14px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 13, fontWeight: 600, color: C.text, outline: 'none' }}
                 >
                   <option value="" disabled>Select a shop...</option>
                   {nearbyShops.map((shop, idx) => (
@@ -2357,67 +2901,66 @@ export default function TerritoryTab({
                 </select>
               </div>
 
-              {/* AMOUNTS */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Order Vol (₹)</label>
-                  <input 
-                    type="number" 
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Order vol (₹)</label>
+                  <input
+                    type="number"
                     value={formData.orderAmount}
                     onChange={(e) => setFormData({...formData, orderAmount: e.target.value})}
                     placeholder="0"
-                    style={{ width: '100%', padding: '12px 16px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontWeight: 700, color: C.text, outline: 'none' }}
+                    style={{ width: '100%', padding: '11px 14px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 13, fontWeight: 600, color: C.text, outline: 'none' }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Collection (₹)</label>
-                  <input 
-                    type="number" 
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#5C7A1A', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Collection (₹)</label>
+                  <input
+                    type="number"
                     value={formData.collectionAmount}
                     onChange={(e) => setFormData({...formData, collectionAmount: e.target.value})}
                     placeholder="0"
-                    style={{ width: '100%', padding: '12px 16px', background: C.greenBg, border: `1px solid ${C.greenBorder}`, borderRadius: 10, fontSize: 14, fontWeight: 700, color: C.text, outline: 'none' }}
+                    style={{ width: '100%', padding: '11px 14px', background: C.greenSoft, border: `1px solid ${C.greenSoftBorder}`, borderRadius: 10, fontSize: 13, fontWeight: 600, color: C.text, outline: 'none' }}
                   />
                 </div>
               </div>
 
-              {/* PAYMENT METHOD */}
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Payment Method</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-                  {['Cash', 'UPI', 'Cheque', 'Credit'].map((method) => (
-                    <button
-                      key={method}
-                      type="button"
-                      onClick={() => setFormData({...formData, paymentMethod: method})}
-                      style={{ padding: '10px 0', fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: 'pointer', transition: 'all 0.2s', border: formData.paymentMethod === method ? `1px solid ${C.navy}` : `1px solid ${C.border}`, background: formData.paymentMethod === method ? C.navy : C.bg, color: formData.paymentMethod === method ? '#fff' : C.textMuted }}
-                    >
-                      {method}
-                    </button>
-                  ))}
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Payment method</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 7 }}>
+                  {['Cash', 'UPI', 'Cheque', 'Credit'].map((method) => {
+                    const active = formData.paymentMethod === method;
+                    return (
+                      <button
+                        key={method}
+                        type="button"
+                        onClick={() => setFormData({...formData, paymentMethod: method})}
+                        style={{ padding: '9px 0', fontSize: 11, fontWeight: 600, borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s', border: active ? `1px solid ${C.dark}` : `1px solid ${C.border}`, background: active ? C.dark : C.surface, color: active ? C.green : C.muted }}
+                      >
+                        {method}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* REMARK */}
-              <div style={{ marginBottom: 24 }}>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Remark / Note</label>
-                <textarea 
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Remark / note</label>
+                <textarea
                   value={formData.remark}
                   onChange={(e) => setFormData({...formData, remark: e.target.value})}
                   placeholder="Optional notes regarding this visit..."
                   rows="2"
-                  style={{ width: '100%', padding: '12px 16px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 13, fontWeight: 500, color: C.text, outline: 'none', resize: 'none' }}
+                  style={{ width: '100%', padding: '11px 14px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 12, fontWeight: 500, color: C.text, outline: 'none', resize: 'none' }}
                 ></textarea>
               </div>
 
-              {/* SUBMIT BUTTON */}
-              <div style={{ paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
-                <button 
-                  type="submit" 
+              <div style={{ paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
+                <button
+                  type="submit"
                   disabled={isSubmitting}
-                  style={{ width: '100%', padding: '14px', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 15, background: C.greenMid, border: 'none', cursor: isSubmitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: isSubmitting ? 0.7 : 1 }}
+                  style={{ width: '100%', padding: '13px', borderRadius: 12, color: C.dark, fontWeight: 700, fontSize: 13, background: C.green, border: 'none', cursor: isSubmitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: isSubmitting ? 0.7 : 1 }}
                 >
-                  {isSubmitting ? 'Submitting...' : 'Log This Visit'}
+                  {isSubmitting ? 'Submitting...' : 'Log this visit'}
                 </button>
               </div>
             </form>
