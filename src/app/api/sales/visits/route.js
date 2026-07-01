@@ -165,7 +165,19 @@ export const fetchCache = 'force-no-store';
 import { NextResponse } from 'next/server';
 import { db } from '../../../../db';
 import { medicalShops, places, areas, visits } from '../../../../db/schema';
-import { eq, desc, and, isNull } from 'drizzle-orm'; // 👈 Added 'and' & 'isNull'
+import { eq, desc, and, isNull, sql } from 'drizzle-orm'; 
+
+// 🚨 ADDED THIS: The math function to calculate distances in meters
+function getDistance(lat1, lon1, lat2, lon2) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return 999999;
+  const R = 6371e3;
+  const p1 = (lat1 * Math.PI) / 180;
+  const p2 = (lat2 * Math.PI) / 180;
+  const dp = ((lat2 - lat1) * Math.PI) / 180;
+  const dl = ((lon2 - lon1) * Math.PI) / 180;
+  const a = Math.sin(dp / 2) * Math.sin(dp / 2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+  return Math.round(R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))));
+}
 
 // FETCH ALL SHOPS & AGENT'S VISITS & MASTER AREAS (Self-Assignment Mode)
 export async function GET(request) {
@@ -183,13 +195,13 @@ export async function GET(request) {
       .where(eq(visits.agentId, agentId))
       .orderBy(desc(visits.createdAt)); 
 
-    // 2. FETCH MASTER AREAS (So the dropdown is ALWAYS full!)
+    // 2. FETCH MASTER AREAS
     const masterAreas = await db.select({
       id: areas.id,
       name: areas.name
     }).from(areas);
 
-    // 3. FETCH ALL SHOPS (No Admin Route Assignment Required)
+    // 3. FETCH ALL SHOPS
     const allTargets = await db.select({
       id: medicalShops.id,
       name: medicalShops.name,
@@ -205,7 +217,7 @@ export async function GET(request) {
 
     const now = new Date();
 
-    // 4. Merge the master shop data with the agent's visit data
+    // 4. Merge data
     const formattedTargets = allTargets.map((t) => {
       const shopVisits = agentVisits.filter(v => 
         String(v.medicalShopId) === String(t.id) || 
@@ -249,7 +261,6 @@ export async function GET(request) {
       };
     });
 
-    // 🚨 CRITICAL CHANGE: Returning BOTH targets and masterAreas in a single object
     return NextResponse.json({
       targets: formattedTargets,
       masterAreas: masterAreas
@@ -272,7 +283,6 @@ export async function POST(request) {
   try {
     const body = await request.json();
     
-    // 1. EXTRACT paymentMethod from the request body!
     const { agentId, targetId, photoUrl, orderAmount, collectionAmount, paymentMethod, remark, latitude, longitude } = body;
 
     if (!agentId || !targetId) {
@@ -283,7 +293,7 @@ export async function POST(request) {
     const cleanOrderAmt = parseFloat(orderAmount) || 0;
     const cleanCollectionAmt = parseFloat(collectionAmount) || 0;
 
-    // 2. SAVE paymentMethod to the database
+    // 2. SAVE VISIT
     const newVisit = await db.insert(visits).values({
       agentId: agentId,
       medicalShopId: cleanTargetId,
@@ -294,16 +304,88 @@ export async function POST(request) {
       remark: remark || ''
     }).returning();
 
-    // 3. AUTO-UPDATE MISSING GPS COORDINATES
+
+    // 3. AUTO-UPDATE MISSING GPS COORDINATES & DYNAMIC CITY-CENTER SHIELD
     if (latitude && longitude) {
+      
+      const shopDetails = await db.select({
+        areaId: places.areaId,
+        areaName: areas.name,
+        areaLat: areas.latitude,
+        areaLng: areas.longitude
+      })
+      .from(medicalShops)
+      .leftJoin(places, eq(medicalShops.placeId, places.id))
+      .leftJoin(areas, eq(places.areaId, areas.id))
+      .where(eq(medicalShops.id, cleanTargetId))
+      .limit(1);
+
+      if (shopDetails.length > 0 && shopDetails[0].areaName) {
+        let targetCityLat = shopDetails[0].areaLat ? Number(shopDetails[0].areaLat) : null;
+        let targetCityLng = shopDetails[0].areaLng ? Number(shopDetails[0].areaLng) : null;
+
+        // 🤖 ZERO MANUAL WORK & ZERO HARDCODING: Ask OpenStreetMap dynamically!
+        if (!targetCityLat) {
+          try {
+            // We append ", Maharashtra, India" to make the search highly accurate for your region
+            const searchQuery = encodeURIComponent(`${shopDetails[0].areaName}, Maharashtra, India`);
+            const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${searchQuery}`, {
+               headers: { 'User-Agent': 'ProSushil-Sales-App' } // Required by free OpenStreetMap API
+            });
+            const geoData = await geoRes.json();
+
+            if (geoData && geoData.length > 0) {
+              targetCityLat = parseFloat(geoData[0].lat);
+              targetCityLng = parseFloat(geoData[0].lon);
+
+              // Save the dynamically fetched coordinates to your database forever
+              if (shopDetails[0].areaId) {
+                await db.update(areas)
+                  .set({ latitude: String(targetCityLat), longitude: String(targetCityLng) })
+                  .where(eq(areas.id, shopDetails[0].areaId));
+              }
+            } else {
+              return NextResponse.json({ 
+                error: `🚨 MAP ERROR: Could not locate ${shopDetails[0].areaName} on the global map. Check the spelling of your Area name.` 
+              }, { status: 400 });
+            }
+          } catch (err) {
+             console.error("Geocoding API Failed:", err);
+             return NextResponse.json({ error: "Failed to verify city location dynamically." }, { status: 500 });
+          }
+        }
+
+        // Enforce the 50km Shield using the newly fetched (or existing) coordinates
+        if (targetCityLat && targetCityLng) {
+          const distanceToCity = getDistance(latitude, longitude, targetCityLat, targetCityLng);
+          
+          if (distanceToCity > 50000) {
+            return NextResponse.json({ 
+              error: `🚨 AREA MISMATCH: You selected a shop in ${shopDetails[0].areaName}, but your GPS is ${(distanceToCity / 1000).toFixed(1)}km away. Check-in blocked.` 
+            }, { status: 403 });
+          }
+        }
+      }
+
+      // If they pass the shield, lock the specific shop's coordinates
       await db.update(medicalShops)
         .set({ latitude: String(latitude), longitude: String(longitude) })
         .where(
           and(
             eq(medicalShops.id, cleanTargetId),
-            isNull(medicalShops.latitude) // 🚨 CRITICAL FIX: Only lock GPS if it's currently blank
+            isNull(medicalShops.latitude)
           )
         );
+
+      // Trigger background math updates for neighboring places
+      try {
+        const protocol = request.headers.get('x-forwarded-proto') || 'http';
+        const host = request.headers.get('host');
+        // 🚨 ADDED THIS: You MUST have 'await' here or the server kills the request before it finishes!
+        await fetch(`${protocol}://${host}/api/admin/update-centers`, { method: 'POST' });
+      } catch (err) {
+        console.error("Background calculator failed to trigger:", err);
+      }
     }
 
     const calculatedCommission = Math.round(cleanCollectionAmt * 0.08) || 0;

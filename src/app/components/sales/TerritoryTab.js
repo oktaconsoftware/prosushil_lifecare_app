@@ -2597,7 +2597,7 @@ export default function TerritoryTab({
     
     reader.readAsDataURL(file);
   };
-  const verifyGeofence = () => {
+const verifyGeofence = () => {
     if (!navigator.geolocation) {
       alert('Geolocation is not supported.');
       setIsLocating(false);
@@ -2608,60 +2608,43 @@ export default function TerritoryTab({
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
 
-        const areaShops = targets?.filter(
-          (s) => s.latitude && s.longitude && selectedAreas.includes(s.areaName)
-        ) || [];
+        // Split targets into Mapped (has GPS) and Unmapped (Blank DB)
+        const shopsWithGps = activeTargets.filter(s => s.latitude && s.longitude);
+        const shopsWithoutGps = activeTargets.filter(s => !s.latitude || !s.longitude);
 
-        if (areaShops.length > 0) {
-          let minDist = Infinity;
-          areaShops.forEach((s) => {
-            const d = getDistance(lat, lng, Number(s.latitude), Number(s.longitude));
-            if (d < minDist) minDist = d;
-          });
-          if (minDist > GEOFENCE_RADIUS_METERS) {
-            alert(
-              `📍 Outside territory\n\nYou are ${(minDist / 1000).toFixed(1)}km from the nearest shop in ${selectedAreas.join(', ')}. Move within ${GEOFENCE_RADIUS_METERS / 1000}km to unlock.`
-            );
-            setIsLocating(false);
-            setLocalPhoto(null);
-            if (setPhotoUri) setPhotoUri(null);
-            return;
-          }
+        let closestShop = null;
+        let minDistance = Infinity;
+
+        // Check distance to mapped shops
+        shopsWithGps.forEach((s) => {
+          const d = getDistance(lat, lng, Number(s.latitude), Number(s.longitude));
+          if (d < minDistance) { minDistance = d; closestShop = s; }
+        });
+
+        let availableOptions = [];
+        let autoSelectId = "";
+
+        if (closestShop && minDistance <= GEOFENCE_RADIUS_METERS) {
+          // 🟢 SCENARIO A: Next Visit. Found a known shop within radius! Auto-select it.
+          availableOptions = [{ ...closestShop, distance: minDistance }];
+          autoSelectId = closestShop.id.toString();
+        } else if (shopsWithoutGps.length > 0) {
+          // 🟡 SCENARIO B: First Visit. No known shops nearby, but there are unmapped shops!
+          // Give them a dropdown of unmapped shops to set the anchor.
+          availableOptions = shopsWithoutGps.map(s => ({ ...s, isNewAnchor: true }));
+          autoSelectId = ""; // Force them to manually select which new shop they are at
         } else {
-          const otherShops = targets?.filter(
-            (s) => s.latitude && s.longitude && !selectedAreas.includes(s.areaName)
-          ) || [];
-
-          if (otherShops.length > 0) {
-            let closestOtherShop = null;
-            let minOtherDist = Infinity;
-            otherShops.forEach((s) => {
-              const d = getDistance(lat, lng, Number(s.latitude), Number(s.longitude));
-              if (d < minOtherDist) {
-                minOtherDist = d;
-                closestOtherShop = s;
-              }
-            });
-            if (minOtherDist <= GEOFENCE_RADIUS_METERS) {
-              alert(`🚨 AREA MISMATCH\n\nYou selected ${selectedAreas.join(', ')}, but your GPS shows you are actually in ${closestOtherShop.areaName} (Near ${closestOtherShop.name}).\n\nPlease go back and select the correct operating area.`);
-              setIsLocating(false);
-              setLocalPhoto(null);
-              if (setPhotoUri) setPhotoUri(null);
-              return;
-            }
-          }
+          // 🔴 SCENARIO C: Blocked! Not near a mapped shop, and no unmapped shops left.
+          alert(`📍 Blocked by Geofence\n\nYou are not within ${GEOFENCE_RADIUS_METERS}m of a mapped shop, and all shops in this territory already have locked GPS coordinates.`);
+          setIsLocating(false); 
+          setLocalPhoto(null);
+          if (setPhotoUri) setPhotoUri(null);
+          return;
         }
 
         setLocation({ lat, lng });
-
-        const sorted = activeTargets.map(t => ({
-          ...t,
-          distance: getDistance(lat, lng, Number(t.latitude), Number(t.longitude))
-        })).sort((a, b) => a.distance - b.distance);
-
-        setNearbyShops(sorted);
-        if (sorted.length > 0) setSelectedShopId(sorted[0].id.toString());
-
+        setNearbyShops(availableOptions);
+        setSelectedShopId(autoSelectId);
         setIsLocating(false);
         setStep('form');
       },
@@ -2719,6 +2702,7 @@ export default function TerritoryTab({
   };
 
   if (!isMounted) return null;
+
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: C.surface, WebkitOverflowScrolling: 'touch' }}>
@@ -2884,7 +2868,7 @@ export default function TerritoryTab({
 
             <form onSubmit={handleSubmitVisit} style={{ background: C.card, borderRadius: 18, padding: '18px 16px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
 
-              <div style={{ marginBottom: 18 }}>
+          <div style={{ marginBottom: 18 }}>
                 <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Detected medical shop</label>
                 <select
                   value={selectedShopId}
@@ -2893,12 +2877,18 @@ export default function TerritoryTab({
                   style={{ width: '100%', padding: '11px 14px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 13, fontWeight: 600, color: C.text, outline: 'none' }}
                 >
                   <option value="" disabled>Select a shop...</option>
-                  {nearbyShops.map((shop, idx) => (
+                  {nearbyShops.map((shop) => (
                     <option key={shop.id} value={shop.id}>
-                      {idx === 0 ? '📍 (Nearest) ' : ''}{shop.name} {shop.distance < 999999 ? `- ${(shop.distance / 1000).toFixed(1)}km` : ''}
+                      {shop.isNewAnchor ? '🆕 (First Visit) ' : '📍 (Auto-Detected) '}
+                      {shop.name} {shop.distance !== undefined && shop.distance < 999999 ? `- ${(shop.distance / 1000).toFixed(1)}km` : ''}
                     </option>
                   ))}
                 </select>
+                {nearbyShops.length > 0 && nearbyShops[0].isNewAnchor && (
+                  <p style={{ fontSize: 10, color: C.green, marginTop: 6, fontWeight: 600 }}>
+                    * First visit to this shop. Submitting will permanently lock its GPS coordinates here.
+                  </p>
+                )}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>

@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export', // 👈 This is required for Capacitor
+  // output: 'export', // 👈 Comment this out while developing on your PC!
   images: {
-    unoptimized: true, // 👈 Required because mobile apps can't use Next.js image server
+    unoptimized: true, 
   }
 };
 
