@@ -26,14 +26,16 @@ export const targets = pgTable('targets', {
 
 export const visits = pgTable('visits', {
   id: serial('id').primaryKey(),
-  agentId: varchar('agent_id').notNull(),
+  // 🚨 ADDED { length: 255 } here
+  agentId: varchar('agent_id', { length: 255 }).notNull(),
   medicalShopId: integer('medical_shop_id').references(() => medicalShops.id).notNull(),
   photoUrl: text('photo_url'),
   orderAmount: numeric('order_amount').notNull().default('0'),
   collectionAmount: numeric('collection_amount').notNull().default('0'),
   remark: text('remark'),
   createdAt: timestamp('created_at').defaultNow(),
-  status: varchar('status').notNull().default('Pending Review'),
+  // 🚨 ADDED { length: 50 } here
+  status: varchar('status', { length: 50 }).notNull().default('Pending Review'),
   paymentMethod: varchar('payment_method', { length: 50 })
 });
 
@@ -49,16 +51,12 @@ export const routeAssignments = pgTable('route_assignments', {
 export const areas = pgTable('areas', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
-  latitude: numeric('latitude'),  // The central GPS point of the city/region
-  longitude: numeric('longitude'), 
 });
 
 export const places = pgTable('places', {
   id: serial('id').primaryKey(),
   areaId: integer('area_id').references(() => areas.id).notNull(),
-  name: varchar('name', { length: 255 }).notNull(),
-  latitude: numeric('latitude'),  // The central GPS point of the specific zone
-  longitude: numeric('longitude'), 
+  name: varchar('name', { length: 255 }).notNull(), 
 });
 
 export const medicalShops = pgTable('medical_shops', {
@@ -68,4 +66,8 @@ export const medicalShops = pgTable('medical_shops', {
   address: text('address'),
   latitude: numeric('latitude'),  // The exact door of the pharmacy
   longitude: numeric('longitude'), // The exact door of the pharmacy
+  
+  // 🚨 ADDED COLUMNS:
+  photoUrl: text('photo_url'), // Stores the permanent master image of the shop
+  isVerified: boolean('is_verified').default(false) // Automatically false until mapped
 });

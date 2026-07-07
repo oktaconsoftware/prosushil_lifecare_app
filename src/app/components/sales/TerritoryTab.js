@@ -2428,8 +2428,6 @@
 //   );
 // }
 
-
-
 'use client';
 import { useState, useRef, useMemo, useEffect } from 'react';
 
@@ -2469,7 +2467,7 @@ export default function TerritoryTab({
   onRefreshData
 }) {
   const [step, setStep] = useState('camera');
-  const [selectedAreas, setSelectedAreas] = useState([]);
+  const [selectedArea, setSelectedArea] = useState(''); 
   const [isAreaDropdownOpen, setIsAreaDropdownOpen] = useState(false);
   const [localPhoto, setLocalPhoto] = useState(null);
   const [location, setLocation] = useState(null);
@@ -2488,7 +2486,6 @@ export default function TerritoryTab({
 
   const fileInputRef = useRef(null);
   const dropdownRef = useRef(null);
-
   const GEOFENCE_RADIUS_METERS = 1000;
 
   const uniqueAreas = useMemo(() => {
@@ -2504,13 +2501,8 @@ export default function TerritoryTab({
 
   useEffect(() => {
     setIsMounted(true);
-    const saved = localStorage.getItem('assignedSalesAreas');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) setSelectedAreas(parsed);
-      } catch {}
-    }
+    const saved = localStorage.getItem('assignedSalesArea');
+    if (saved) setSelectedArea(saved);
   }, []);
 
   useEffect(() => {
@@ -2523,11 +2515,9 @@ export default function TerritoryTab({
   }, []);
 
   const toggleArea = (area) => {
-    const next = selectedAreas.includes(area)
-      ? selectedAreas.filter((a) => a !== area)
-      : [...selectedAreas, area];
-    setSelectedAreas(next);
-    localStorage.setItem('assignedSalesAreas', JSON.stringify(next));
+    setSelectedArea(area);
+    localStorage.setItem('assignedSalesArea', area);
+    setIsAreaDropdownOpen(false);
     setStep('camera');
     setLocalPhoto(null);
     setLocation(null);
@@ -2535,16 +2525,15 @@ export default function TerritoryTab({
   };
 
   const activeTargets = useMemo(() => {
-    if (selectedAreas.length === 0) return [];
-    return targets?.filter((t) => selectedAreas.includes(t.areaName)) || [];
-  }, [targets, selectedAreas]);
+    if (!selectedArea) return [];
+    return targets?.filter((t) => t.areaName === selectedArea) || [];
+  }, [targets, selectedArea]);
 
   const visitedCount = activeTargets.filter((t) => t.status === 'COMPLETED').length || 0;
   const totalCount = activeTargets.length || 0;
   const safeCommission = totalCommission || 0;
   const progress = totalCount > 0 ? Math.round((visitedCount / totalCount) * 100) : 0;
 
-// ── 1. HANDLE CAMERA, COMPRESS IMAGE & GET GPS ──
   const handleCapture = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -2555,92 +2544,79 @@ export default function TerritoryTab({
     reader.onload = (event) => {
       const img = new Image();
       img.onload = () => {
-        // 1. Set Maximum dimensions to prevent massive file sizes
         const MAX_WIDTH = 800;
         const MAX_HEIGHT = 800;
         let width = img.width;
         let height = img.height;
 
-        // 2. Calculate the new size while keeping the aspect ratio
         if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= Math.round(MAX_WIDTH / width);
-            width = MAX_WIDTH;
-          }
+          if (width > MAX_WIDTH) { height *= Math.round(MAX_WIDTH / width); width = MAX_WIDTH; }
         } else {
-          if (height > MAX_HEIGHT) {
-            width *= Math.round(MAX_HEIGHT / height);
-            height = MAX_HEIGHT;
-          }
+          if (height > MAX_HEIGHT) { width *= Math.round(MAX_HEIGHT / height); height = MAX_HEIGHT; }
         }
 
-        // 3. Draw the resized image on a hidden canvas
         const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = width; canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
 
-        // 4. Compress into a lightweight JPEG (70% quality)
         const compressedPhoto = canvas.toDataURL('image/jpeg', 0.7);
-        
-        // 5. Save the lightweight photo and move to GPS check
         setLocalPhoto(compressedPhoto);
         if (setPhotoUri) setPhotoUri(compressedPhoto);
         
         verifyGeofence();
       };
-      
-      // Feed the raw file into the image object to start the compression
       img.src = event.target.result;
     };
-    
     reader.readAsDataURL(file);
   };
-const verifyGeofence = () => {
+
+  const verifyGeofence = () => {
     if (!navigator.geolocation) {
       alert('Geolocation is not supported.');
       setIsLocating(false);
       return;
     }
+    
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
-
-        // Split targets into Mapped (has GPS) and Unmapped (Blank DB)
         const shopsWithGps = activeTargets.filter(s => s.latitude && s.longitude);
-        const shopsWithoutGps = activeTargets.filter(s => !s.latitude || !s.longitude);
-
+        
         let closestShop = null;
         let minDistance = Infinity;
 
-        // Check distance to mapped shops
         shopsWithGps.forEach((s) => {
           const d = getDistance(lat, lng, Number(s.latitude), Number(s.longitude));
           if (d < minDistance) { minDistance = d; closestShop = s; }
         });
 
-        let availableOptions = [];
+        let availableOptions = activeTargets.map(s => {
+          const hasGps = s.latitude && s.longitude;
+          let dist = hasGps ? getDistance(lat, lng, Number(s.latitude), Number(s.longitude)) : undefined;
+          return {
+            ...s,
+            isNewAnchor: !hasGps,
+            distance: dist
+          };
+        });
+        
         let autoSelectId = "";
-
         if (closestShop && minDistance <= GEOFENCE_RADIUS_METERS) {
-          // 🟢 SCENARIO A: Next Visit. Found a known shop within radius! Auto-select it.
-          availableOptions = [{ ...closestShop, distance: minDistance }];
           autoSelectId = closestShop.id.toString();
-        } else if (shopsWithoutGps.length > 0) {
-          // 🟡 SCENARIO B: First Visit. No known shops nearby, but there are unmapped shops!
-          // Give them a dropdown of unmapped shops to set the anchor.
-          availableOptions = shopsWithoutGps.map(s => ({ ...s, isNewAnchor: true }));
-          autoSelectId = ""; // Force them to manually select which new shop they are at
-        } else {
-          // 🔴 SCENARIO C: Blocked! Not near a mapped shop, and no unmapped shops left.
-          alert(`📍 Blocked by Geofence\n\nYou are not within ${GEOFENCE_RADIUS_METERS}m of a mapped shop, and all shops in this territory already have locked GPS coordinates.`);
-          setIsLocating(false); 
-          setLocalPhoto(null);
-          if (setPhotoUri) setPhotoUri(null);
-          return;
         }
+
+        availableOptions.sort((a, b) => {
+           if (autoSelectId) {
+             if (a.id.toString() === autoSelectId) return -1;
+             if (b.id.toString() === autoSelectId) return 1;
+           }
+           if (a.isNewAnchor && !b.isNewAnchor) return -1;
+           if (!a.isNewAnchor && b.isNewAnchor) return 1;
+           if (!a.isNewAnchor && !b.isNewAnchor) return a.distance - b.distance;
+           return 0;
+        });
 
         setLocation({ lat, lng });
         setNearbyShops(availableOptions);
@@ -2666,20 +2642,23 @@ const verifyGeofence = () => {
     try {
       const agentId = localStorage.getItem('employeeId') || 'Unknown';
 
+      // 🚨 CRASH-PROOF PAYLOAD: Forcing strict fallbacks so we never send 'undefined'
+      const payload = {
+        agentId: agentId,
+        targetId: selectedShopId,
+        latitude: location?.lat || null,
+        longitude: location?.lng || null,
+        photoUrl: localPhoto || null,
+        orderAmount: parseFloat(formData.orderAmount) || 0,
+        collectionAmount: parseFloat(formData.collectionAmount) || 0,
+        paymentMethod: formData.paymentMethod || 'Cash',
+        remark: formData.remark || ''
+      };
+
       const response = await fetch('/api/sales/visits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          agentId,
-          targetId: selectedShopId,
-          latitude: location?.lat,
-          longitude: location?.lng,
-          photoUrl: localPhoto,
-          orderAmount: parseFloat(formData.orderAmount) || 0,
-          collectionAmount: parseFloat(formData.collectionAmount) || 0,
-          paymentMethod: formData.paymentMethod,
-          remark: formData.remark
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -2703,34 +2682,25 @@ const verifyGeofence = () => {
 
   if (!isMounted) return null;
 
-
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: C.surface, WebkitOverflowScrolling: 'touch' }}>
       <input type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handleCapture} style={{ display: 'none' }} />
 
-      {/* ══ STICKY HEADER — dark navy ══ */}
-      <div
-        ref={dropdownRef}
-        style={{ position: 'sticky', top: 0, zIndex: 30, background: C.dark }}
-      >
+      <div ref={dropdownRef} style={{ position: 'sticky', top: 0, zIndex: 30, background: C.dark }}>
         <div style={{ padding: '12px 16px 10px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', margin: '0 0 6px' }}>
               Operating Territory
             </p>
             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 5 }}>
-              {selectedAreas.length === 0 ? (
-                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>No area selected</span>
+              {selectedArea ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: C.green, background: C.greenSoft, border: `1px solid ${C.greenSoftBorder}`, borderRadius: 20, padding: '3px 7px 3px 9px' }}>
+                  {selectedArea}
+                </span>
               ) : (
-                selectedAreas.map((a) => (
-                  <span key={a} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: C.green, background: C.greenSoft, border: `1px solid ${C.greenSoftBorder}`, borderRadius: 20, padding: '3px 7px 3px 9px' }}>
-                    {a}
-                    <button onClick={() => toggleArea(a)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: C.green, opacity: 0.6 }}>
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
-                    </button>
-                  </span>
-                ))
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>No area selected</span>
               )}
+              
               <button
                 onClick={() => setIsAreaDropdownOpen((p) => !p)}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: isAreaDropdownOpen ? C.dark : C.green, background: isAreaDropdownOpen ? C.green : C.greenSoft, border: `1px solid ${C.greenSoftBorder}`, borderRadius: 20, padding: '3px 9px' }}
@@ -2738,7 +2708,7 @@ const verifyGeofence = () => {
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
                   {isAreaDropdownOpen ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M12 4v16M4 12h16" />}
                 </svg>
-                {isAreaDropdownOpen ? 'Close' : 'Add area'}
+                {selectedArea ? (isAreaDropdownOpen ? 'Close' : 'Change Area') : 'Select Area'}
               </button>
             </div>
           </div>
@@ -2759,41 +2729,32 @@ const verifyGeofence = () => {
             {uniqueAreas.length === 0 ? (
               <p style={{ padding: '14px 16px', fontSize: 12, color: C.muted, margin: 0 }}>No territories in data.</p>
             ) : (
-              <>
-                <div style={{ padding: '10px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {uniqueAreas.map((area) => {
-                    const sel = selectedAreas.includes(area);
-                    return (
-                      <button
-                        key={area}
-                        onClick={() => toggleArea(area)}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, padding: '7px 12px', borderRadius: 8, border: sel ? `1px solid ${C.greenSoftBorder}` : `1px solid ${C.border}`, background: sel ? C.greenSoft : C.surface, color: sel ? '#5C7A1A' : C.text, cursor: 'pointer' }}
-                      >
-                        {sel && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#5C7A1A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>}
-                        {area}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div style={{ padding: '8px 10px 10px', borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'flex-end' }}>
-                  <button onClick={() => setIsAreaDropdownOpen(false)} disabled={selectedAreas.length === 0} style={{ fontSize: 12, fontWeight: 600, padding: '8px 20px', borderRadius: 8, border: 'none', background: selectedAreas.length > 0 ? C.dark : C.border, color: selectedAreas.length > 0 ? C.green : C.muted, cursor: selectedAreas.length > 0 ? 'pointer' : 'not-allowed' }}>
-                    Done
-                  </button>
-                </div>
-              </>
+              <div style={{ padding: '10px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {uniqueAreas.map((area) => {
+                  const sel = area === selectedArea;
+                  return (
+                    <button
+                      key={area}
+                      onClick={() => toggleArea(area)}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, padding: '7px 12px', borderRadius: 8, border: sel ? `1px solid ${C.greenSoftBorder}` : `1px solid ${C.border}`, background: sel ? C.greenSoft : C.surface, color: sel ? '#5C7A1A' : C.text, cursor: 'pointer' }}
+                    >
+                      {sel && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#5C7A1A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>}
+                      {area}
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}
       </div>
 
-      {/* ══ BODY ══ */}
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '14px 14px 70px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-        {selectedAreas.length > 0 && (
+        {selectedArea && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
             <div style={{ background: C.card, borderRadius: 16, padding: '14px 16px', gridColumn: 'span 2', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted }}>Daily progress</span>
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted }}>Daily progress ({selectedArea})</span>
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#5C7A1A' }}>{progress}%</span>
               </div>
               <div style={{ height: 4, background: '#EEF1F4', borderRadius: 99, overflow: 'hidden', marginBottom: 14 }}>
@@ -2827,15 +2788,15 @@ const verifyGeofence = () => {
             <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>Loading territory…</p>
             <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
           </div>
-        ) : selectedAreas.length === 0 ? (
+        ) : !selectedArea ? (
           <div style={{ background: C.card, borderRadius: 16, padding: '48px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
             <div style={{ width: 48, height: 48, borderRadius: 14, background: C.greenSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5C7A1A" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
             </div>
             <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: '0 0 8px' }}>Select your working area</h2>
-            <p style={{ fontSize: 12, color: C.muted, maxWidth: 250, lineHeight: 1.6, margin: '0 0 22px' }}>Tap <span style={{ fontWeight: 600, color: C.text }}>Add area</span> in the header to choose which territories you are working in today.</p>
+            <p style={{ fontSize: 12, color: C.muted, maxWidth: 250, lineHeight: 1.6, margin: '0 0 22px' }}>Tap <span style={{ fontWeight: 600, color: C.text }}>Select Area</span> in the header to choose which territory you are working in today.</p>
             <button onClick={() => setIsAreaDropdownOpen(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: C.green, background: C.dark, border: 'none', borderRadius: 10, padding: '10px 20px', cursor: 'pointer' }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 4v16M4 12h16" /></svg> Add area
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 4v16M4 12h16" /></svg> Select Area
             </button>
           </div>
         ) : step === 'camera' ? (
@@ -2846,7 +2807,7 @@ const verifyGeofence = () => {
             <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, margin: '0 0 6px' }}>Security check</p>
             <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: '0 0 10px' }}>Field Check-In</h2>
             <p style={{ fontSize: 12, color: C.muted, maxWidth: 280, lineHeight: 1.6, margin: '0 0 24px' }}>
-              Take a photo of the shop. We'll use your GPS to automatically fill the form for you.
+              Take a photo of the shop in {selectedArea}. We'll use your GPS to auto-detect which shop you are at.
             </p>
             <button onClick={() => fileInputRef.current?.click()} disabled={isLocating} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: isLocating ? '#fff' : C.green, background: C.dark, border: 'none', borderRadius: 12, padding: '12px 26px', cursor: isLocating ? 'not-allowed' : 'pointer', opacity: isLocating ? 0.7 : 1 }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" /><circle cx="12" cy="13" r="4" /></svg>
@@ -2855,7 +2816,6 @@ const verifyGeofence = () => {
           </div>
         ) : (
           <div className="animate-in slide-in-from-bottom-4 duration-300">
-            {/* Photo Preview Header */}
             <div style={{ background: C.card, padding: 12, borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.08)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 14 }}>
               <img src={localPhoto} alt="Captured" style={{ width: 52, height: 52, borderRadius: 10, objectFit: 'cover', border: `1px solid ${C.border}` }} />
               <div style={{ flex: 1 }}>
@@ -2867,24 +2827,23 @@ const verifyGeofence = () => {
             </div>
 
             <form onSubmit={handleSubmitVisit} style={{ background: C.card, borderRadius: 18, padding: '18px 16px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
-
-          <div style={{ marginBottom: 18 }}>
-                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Detected medical shop</label>
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Selected medical shop</label>
                 <select
                   value={selectedShopId}
                   onChange={(e) => setSelectedShopId(e.target.value)}
                   required
                   style={{ width: '100%', padding: '11px 14px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 13, fontWeight: 600, color: C.text, outline: 'none' }}
                 >
-                  <option value="" disabled>Select a shop...</option>
+                  <option value="" disabled>Select a shop in {selectedArea}...</option>
                   {nearbyShops.map((shop) => (
                     <option key={shop.id} value={shop.id}>
-                      {shop.isNewAnchor ? '🆕 (First Visit) ' : '📍 (Auto-Detected) '}
+                      {shop.isNewAnchor ? '🆕 (First Visit) ' : '📍 '}
                       {shop.name} {shop.distance !== undefined && shop.distance < 999999 ? `- ${(shop.distance / 1000).toFixed(1)}km` : ''}
                     </option>
                   ))}
                 </select>
-                {nearbyShops.length > 0 && nearbyShops[0].isNewAnchor && (
+                {selectedShopId && nearbyShops.find(s => s.id.toString() === selectedShopId)?.isNewAnchor && (
                   <p style={{ fontSize: 10, color: C.green, marginTop: 6, fontWeight: 600 }}>
                     * First visit to this shop. Submitting will permanently lock its GPS coordinates here.
                   </p>
