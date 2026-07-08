@@ -54,7 +54,7 @@ export async function GET(request) {
     // ── 3. PROCESS DAILY TIMELINE ──
     let dailyOrderValue = 0;
     let dailyCollection = 0;
-    let dailyCommission = 0;
+    let dailyCollection= 0;
     let deviations = 0;
 
     const timeline = dailyVisits.map(row => {
@@ -65,7 +65,7 @@ export async function GET(request) {
       
       dailyOrderValue += orderAmt;
       dailyCollection += collAmt;
-      dailyCommission += Math.round(collAmt * 0.08);
+      dailyCollection+= Math.round(collAmt * 0.08);
 
       let status = 'success';
       let errorNote = null;
@@ -99,7 +99,7 @@ export async function GET(request) {
 
     const monthlyOrderValue = monthlyVisits.reduce((sum, v) => sum + (Number(v.orderAmount) || 0), 0);
     const monthlyCollection = monthlyVisits.reduce((sum, v) => sum + (Number(v.collectionAmount) || 0), 0);
-    const monthlyCommission = Math.round(monthlyCollection * 0.08);
+    const monthlyCollection= Math.round(monthlyCollection * 0.08);
 
     // Group visits by Day to check the "10 Visits" rule
     const visitsByDate = {};

@@ -118,14 +118,14 @@ export default function AdminDashboard() {
   const openDeleteModal = (agent) => { setAgentToDelete(agent); resetMsg(); setIsDeleteModalOpen(true); };
 
   const totalPipeline     = team.reduce((s, a) => s + (a.pipeline || 0), 0);
-  const commissionPending = team.reduce((s, a) => s + (a.commission || 0), 0);
+  const commissionPending = team.reduce((s, a) => s + (a.Collection|| 0), 0);
   const violations        = team.filter(a => a.status === 'Flagged').length;
 
   const kpis = [
     { label: 'Total pipeline',      value: `₹${totalPipeline.toLocaleString('en-IN')}`,     sub: 'All active deals',     accent: '#97c22a', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
     { label: 'Active agents',       value: team.length,                                      sub: 'Provisioned accounts', accent: '#60a5fa', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
     { label: 'Protocol violations', value: violations,                                       sub: 'Flagged agents',       accent: '#e73e43', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
-    { label: 'Commission pending',  value: `₹${commissionPending.toLocaleString('en-IN')}`, sub: 'Awaiting disbursal',   accent: '#a78bfa', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+    { label: 'Collectionpending',  value: `₹${commissionPending.toLocaleString('en-IN')}`, sub: 'Awaiting disbursal',   accent: '#a78bfa', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
   ];
 
   const Msg = () => submitMessage.text ? (
@@ -209,7 +209,7 @@ export default function AdminDashboard() {
         <header className="hidden md:flex shrink-0 items-center justify-between px-8 lg:px-10 h-[72px] bg-white" style={{ borderBottom: '1px solid #e9edf2', boxShadow: '0 1px 0 #e9edf2' }}>
       <div>
             <h2 className="text-lg font-semibold text-slate-800 tracking-tight">
-              {adminNav === 'command' ? 'Sales operations' : adminNav === 'ledger' ? 'Commission Treasury' : adminNav === 'planner' ? 'Route Dispatcher' : 'Daily Field Reports'}
+              {adminNav === 'command' ? 'Sales operations' : adminNav === 'ledger' ? 'CollectionTreasury' : adminNav === 'planner' ? 'Route Dispatcher' : 'Daily Field Reports'}
             </h2>
             <p className="text-xs font-medium mt-0.5" style={{ color: '#8896aa' }}>
               {adminNav === 'command' ? 'Real-time agent performance and territory tracking' : adminNav === 'ledger' ? 'Review and approve field force payouts' : adminNav === 'planner' ? 'Assign specific medical shops to agents' : 'Analyze daily salesman logs and outcomes'}

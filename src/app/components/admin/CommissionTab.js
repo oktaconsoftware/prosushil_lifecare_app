@@ -143,7 +143,7 @@ export default function CommissionTab({ team = [] }) { // 👈 ADDED TEAM PROP
                <svg className="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
             </div>
             <p className="text-[14px] font-bold text-slate-700">No records found</p>
-            <p className="text-[12px] text-slate-400 mt-1">There are no commission logs for {selectedAgent !== 'ALL' ? selectedAgent : 'this selection'}.</p>
+            <p className="text-[12px] text-slate-400 mt-1">There are no Collectionlogs for {selectedAgent !== 'ALL' ? selectedAgent : 'this selection'}.</p>
           </div>
         ) : (
           <div className="space-y-4 md:space-y-0">

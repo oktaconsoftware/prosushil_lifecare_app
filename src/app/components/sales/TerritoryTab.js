@@ -30,7 +30,7 @@
 //   const fileInputRef = useRef(null);
 
 //   const visitedCount = targets?.filter(t => t.status === 'COMPLETED').length || 0;
-//   const safeCommission = totalCommission || 0;
+//   const safeCollection= totalCollection|| 0;
 
 //   // ── CAMERA & GPS LOGIC ──
 //   const handleCapture = (e) => {
@@ -125,7 +125,7 @@
 //                   <div>
 //                     <p className="text-[10px] font-bold tracking-widest uppercase text-slate-500 mb-1">Earned Today</p>
 //                     <p className="text-xl font-bold text-white leading-none">
-//                       ₹{safeCommission >= 1000 ? (safeCommission / 1000).toFixed(1) + 'k' : safeCommission.toLocaleString('en-IN')}
+//                       ₹{safeCollection>= 1000 ? (safeCollection/ 1000).toFixed(1) + 'k' : safeCollection.toLocaleString('en-IN')}
 //                     </p>
 //                   </div>
 //                   <div className="w-8 h-8 rounded-md bg-[#97C22A]/20 flex items-center justify-center">
@@ -320,7 +320,7 @@
 
 //   const visitedCount = targets?.filter((t) => t.status === 'COMPLETED').length || 0;
 //   const totalCount = targets?.length || 0;
-//   const safeCommission = totalCommission || 0;
+//   const safeCollection= totalCollection|| 0;
 //   const progress = totalCount > 0 ? Math.round((visitedCount / totalCount) * 100) : 0;
 
 //   // ── CAMERA & GPS LOGIC ──
@@ -488,7 +488,7 @@
 //               </div>
 //             </div>
 
-//             {/* Commission — white card */}
+//             {/* Collection— white card */}
 //             <div
 //               className="bg-white rounded-2xl p-4 flex items-center justify-between"
 //               style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.08)', border: '1px solid #E2E8F0' }}
@@ -496,9 +496,9 @@
 //               <div>
 //                 <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Earned Today</p>
 //                 <p className="text-2xl font-bold leading-none" style={{ color: '#1E293B' }}>
-//                   ₹{safeCommission >= 1000
-//                     ? (safeCommission / 1000).toFixed(1) + 'k'
-//                     : safeCommission.toLocaleString('en-IN')}
+//                   ₹{safeCollection>= 1000
+//                     ? (safeCollection/ 1000).toFixed(1) + 'k'
+//                     : safeCollection.toLocaleString('en-IN')}
 //                 </p>
 //               </div>
 //               <div
@@ -865,7 +865,7 @@
 
 //   const visitedCount = activeTargets.filter((t) => t.status === 'COMPLETED').length || 0;
 //   const totalCount = activeTargets.length || 0;
-//   const safeCommission = totalCommission || 0;
+//   const safeCollection= totalCollection|| 0;
 //   const progress = totalCount > 0 ? Math.round((visitedCount / totalCount) * 100) : 0;
 
 //   const toggleArea = (area) => {
@@ -1101,7 +1101,7 @@
 //               <div>
 //                 <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Earned Today</p>
 //                 <p className="text-2xl font-bold leading-none" style={{ color: '#1E293B' }}>
-//                   ₹{safeCommission >= 1000 ? (safeCommission / 1000).toFixed(1) + 'k' : safeCommission.toLocaleString('en-IN')}
+//                   ₹{safeCollection>= 1000 ? (safeCollection/ 1000).toFixed(1) + 'k' : safeCollection.toLocaleString('en-IN')}
 //                 </p>
 //               </div>
 //               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(151,194,42,0.10)', border: '1px solid rgba(151,194,42,0.2)' }}>
@@ -1472,7 +1472,7 @@
 
 //   const visitedCount = activeTargets.filter((t) => t.status === 'COMPLETED').length || 0;
 //   const totalCount = activeTargets.length || 0;
-//   const safeCommission = totalCommission || 0;
+//   const safeCollection= totalCollection|| 0;
 //   const progress = totalCount > 0 ? Math.round((visitedCount / totalCount) * 100) : 0;
 
 //   const handleCapture = (e) => {
@@ -1708,11 +1708,11 @@
 //               </div>
 //             </div>
 
-//             {/* Commission */}
+//             {/* Collection*/}
 //             <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: '16px 18px' }}>
 //               <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.textFaint, display: 'block', marginBottom: 8 }}>Earned today</span>
 //               <p style={{ fontSize: 26, fontWeight: 700, color: C.text, margin: 0 }}>
-//                 ₹{safeCommission >= 1000 ? (safeCommission / 1000).toFixed(1) + 'k' : safeCommission.toLocaleString('en-IN')}
+//                 ₹{safeCollection>= 1000 ? (safeCollection/ 1000).toFixed(1) + 'k' : safeCollection.toLocaleString('en-IN')}
 //               </p>
 //             </div>
 //           </div>
@@ -2022,7 +2022,7 @@
 
 //   const visitedCount = activeTargets.filter((t) => t.status === 'COMPLETED').length || 0;
 //   const totalCount = activeTargets.length || 0;
-//   const safeCommission = totalCommission || 0;
+//   const safeCollection= totalCollection|| 0;
 //   const progress = totalCount > 0 ? Math.round((visitedCount / totalCount) * 100) : 0;
 
 //   // ── 1. HANDLE CAMERA & GPS ──
@@ -2282,7 +2282,7 @@
 //             <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: '16px 18px' }}>
 //               <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.textFaint, display: 'block', marginBottom: 8 }}>Earned today</span>
 //               <p style={{ fontSize: 26, fontWeight: 700, color: C.text, margin: 0 }}>
-//                 ₹{safeCommission >= 1000 ? (safeCommission / 1000).toFixed(1) + 'k' : safeCommission.toLocaleString('en-IN')}
+//                 ₹{safeCollection>= 1000 ? (safeCollection/ 1000).toFixed(1) + 'k' : safeCollection.toLocaleString('en-IN')}
 //               </p>
 //             </div>
 //           </div>
@@ -2462,7 +2462,7 @@ export default function TerritoryTab({
   masterTerritories,
   masterAreas,
   isLoadingRoute,
-  totalCommission,
+  totalCollection,
   setPhotoUri,
   onRefreshData
 }) {
@@ -2531,7 +2531,7 @@ export default function TerritoryTab({
 
   const visitedCount = activeTargets.filter((t) => t.status === 'COMPLETED').length || 0;
   const totalCount = activeTargets.length || 0;
-  const safeCommission = totalCommission || 0;
+  const safeCollection= totalCollection|| 0;
   const progress = totalCount > 0 ? Math.round((visitedCount / totalCount) * 100) : 0;
 
   const handleCapture = (e) => {
@@ -2776,7 +2776,7 @@ export default function TerritoryTab({
             <div style={{ background: C.card, borderRadius: 16, padding: '14px 16px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
               <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, display: 'block', marginBottom: 8 }}>Earned today</span>
               <p style={{ fontSize: 22, fontWeight: 700, color: C.text, margin: 0 }}>
-                ₹{safeCommission >= 1000 ? (safeCommission / 1000).toFixed(1) + 'k' : safeCommission.toLocaleString('en-IN')}
+                ₹{safeCollection>= 1000 ? (safeCollection/ 1000).toFixed(1) + 'k' : safeCollection.toLocaleString('en-IN')}
               </p>
             </div>
           </div>

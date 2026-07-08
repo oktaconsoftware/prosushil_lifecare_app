@@ -57,7 +57,7 @@
       
 //       let status = 'PENDING';
 //       let lastVisitedLabel = 'Never Visited';
-//       let todayCommission = 0;
+//       let todayCollection= 0;
 //       let todayOrder = 0;
 
 //       if (latestVisit && latestVisit.createdAt) {
@@ -68,7 +68,7 @@
 //             status = 'COMPLETED';
 //             const timeString = vDate.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
 //             lastVisitedLabel = `Visited today at ${timeString}`;
-//             todayCommission = Math.round(Number(latestVisit.collectionAmount) * 0.08) || 0;
+//             todayCollection= Math.round(Number(latestVisit.collectionAmount) * 0.08) || 0;
 //             todayOrder = Number(latestVisit.orderAmount) || 0;
 //           } else {
 //             const dateString = vDate.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' });
@@ -85,7 +85,7 @@
 //         placeName: t.placeName || 'Unassigned Place',
 //         status: status, 
 //         lastVisited: lastVisitedLabel,
-//         commission: todayCommission,
+//         Collection: todayCollection,
 //         orderAmount: todayOrder
 //       };
 //     });
@@ -142,12 +142,12 @@
 //         .where(eq(medicalShops.id, cleanTargetId));
 //     }
 
-//     const calculatedCommission = Math.round(cleanCollectionAmt * 0.08) || 0;
+//     const calculatedCollection= Math.round(cleanCollectionAmt * 0.08) || 0;
 
 //     return NextResponse.json({ 
 //       success: true, 
 //       visitId: newVisit[0].id,
-//       commission: calculatedCommission,
+//       Collection: calculatedCollection,
 //       time: new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })
 //     }, { status: 200 });
 
@@ -228,7 +228,7 @@
       
 //       let status = 'PENDING';
 //       let lastVisitedLabel = 'Never Visited';
-//       let todayCommission = 0;
+//       let todayCollection= 0;
 //       let todayOrder = 0;
 
 //       if (latestVisit && latestVisit.createdAt) {
@@ -239,7 +239,7 @@
 //             status = 'COMPLETED';
 //             const timeString = vDate.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
 //             lastVisitedLabel = `Visited today at ${timeString}`;
-//            todayCommission = 0; // Commission logic removed
+//            todayCollection= 0; // Collectionlogic removed
 //             todayOrder = Number(latestVisit.orderAmount) || 0;
 //           } else {
 //             const dateString = vDate.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' });
@@ -256,7 +256,7 @@
 //         placeName: t.placeName || 'Unassigned Place',
 //         status: status, 
 //         lastVisited: lastVisitedLabel,
-//         commission: todayCommission,
+//         Collection: todayCollection,
 //         orderAmount: todayOrder
 //       };
 //     });
@@ -388,12 +388,12 @@
 //       }
 //     }
 
-//     const calculatedCommission = 0; // Commission logic removed
+//     const calculatedCollection= 0; // Collectionlogic removed
 
 //     return NextResponse.json({ 
 //       success: true, 
 //       visitId: newVisit[0].id,
-//       commission: calculatedCommission,
+//       Collection: calculatedCollection,
 //       time: new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })
 //     }, { status: 200 });
 
@@ -402,6 +402,8 @@
 //     return NextResponse.json({ error: error.message || 'Database insertion failed.' }, { status: 500 });
 //   }
 // }
+
+
 // NUCLEAR CACHE KILLERS
 export const dynamic = 'force-dynamic'; 
 export const revalidate = 0; 
@@ -410,9 +412,9 @@ export const fetchCache = 'force-no-store';
 import { NextResponse } from 'next/server';
 import { db } from '../../../../db';
 import { medicalShops, places, areas, visits } from '../../../../db/schema';
-import { eq, desc, and, isNull, or } from 'drizzle-orm'; 
+import { eq, desc, sql } from 'drizzle-orm'; 
 
-// Math function to check the 50km shield
+// Math function to check the 20km shield
 function getDistance(lat1, lon1, lat2, lon2) {
   if (!lat1 || !lon1 || !lat2 || !lon2) return 999999;
   const R = 6371e3;
@@ -457,7 +459,7 @@ export async function GET(request) {
       
       let status = 'PENDING';
       let lastVisitedLabel = 'Never Visited';
-      let todayCommission = 0;
+      let todayCollection= 0;
       let todayOrder = 0;
 
       if (latestVisit && latestVisit.createdAt) {
@@ -468,7 +470,7 @@ export async function GET(request) {
             status = 'COMPLETED';
             const timeString = vDate.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
             lastVisitedLabel = `Visited today at ${timeString}`;
-            todayCommission = 0; 
+            todayCollection= 0; 
             todayOrder = Number(latestVisit.orderAmount) || 0;
           } else {
             const dateString = vDate.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' });
@@ -485,7 +487,7 @@ export async function GET(request) {
         placeName: t.placeName || 'Unassigned Place',
         status: status, 
         lastVisited: lastVisitedLabel,
-        commission: todayCommission,
+        Collection: todayCollection,
         orderAmount: todayOrder
       };
     });
@@ -513,78 +515,60 @@ export async function POST(request) {
     const cleanCollectionAmt = parseFloat(collectionAmount) || 0;
 
     // ─────────────────────────────────────────────────────────
-    // ACTION 1: LOG THE VISIT IN THE `visits` TABLE
+    // ACTION 1: RAW SQL INSERT (Log the Visit)
     // ─────────────────────────────────────────────────────────
-    const newVisit = await db.insert(visits).values({
-      agentId: String(agentId),
-      medicalShopId: cleanTargetId,
-      photoUrl: photoUrl || 'no-photo',
-      orderAmount: String(cleanOrderAmt),
-      collectionAmount: String(cleanCollectionAmt),
-      paymentMethod: paymentMethod || 'None', 
-      remark: remark || ''
-    }).returning();
-
+    const insertRes = await db.execute(sql`
+      INSERT INTO visits (agent_id, medical_shop_id, photo_url, order_amount, collection_amount, payment_method, remark)
+      VALUES (${String(agentId)}, ${cleanTargetId}, ${photoUrl || null}, ${String(cleanOrderAmt)}, ${String(cleanCollectionAmt)}, ${paymentMethod || 'None'}, ${remark || ''})
+      RETURNING id
+    `);
+    
+    const newVisitId = insertRes.rows ? insertRes.rows[0].id : (insertRes[0] ? insertRes[0].id : 0);
 
     // ─────────────────────────────────────────────────────────
-    // ACTION 2: UPDATE THE `medical_shops` MASTER RECORD
+    // ACTION 2: 20KM SHIELD & SHOP UPDATE
     // ─────────────────────────────────────────────────────────
     if (latitude && longitude) {
       
-      // FIX: We only ask for the Area Name now, avoiding the undefined crash!
-      const shopDetails = await db.select({
-        areaName: areas.name
+      // Fetch the currently saved GPS of this specific shop
+      const shopData = await db.select({
+        savedLat: medicalShops.latitude,
+        savedLng: medicalShops.longitude,
       })
       .from(medicalShops)
-      .leftJoin(places, eq(medicalShops.placeId, places.id))
-      .leftJoin(areas, eq(places.areaId, areas.id))
       .where(eq(medicalShops.id, cleanTargetId))
       .limit(1);
 
-      if (shopDetails.length > 0 && shopDetails[0].areaName) {
-        let targetCityLat = null;
-        let targetCityLng = null;
+      if (shopData.length > 0) {
+        const { savedLat, savedLng } = shopData[0];
 
-        try {
-          const searchQuery = encodeURIComponent(`${shopDetails[0].areaName}, Maharashtra, India`);
-          const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${searchQuery}`, { headers: { 'User-Agent': 'ProSushil-Sales-App' } });
-          const geoData = await geoRes.json();
-          if (geoData && geoData.length > 0) {
-            targetCityLat = parseFloat(geoData[0].lat); 
-            targetCityLng = parseFloat(geoData[0].lon);
-          }
-        } catch (err) { console.error("Geocoding API Failed:", err); }
-        
-        if (targetCityLat && targetCityLng) {
-          const distanceToCity = getDistance(latitude, longitude, targetCityLat, targetCityLng);
-          if (distanceToCity > 500000) {
-            return NextResponse.json({ error: `🚨 MISMATCH: You are ${(distanceToCity / 1000).toFixed(1)}km away from the area.` }, { status: 403 });
+        // 🚨 APPLY 20KM SHIELD ONLY IF GPS IS ALREADY SAVED IN DB
+        if (savedLat && savedLng) {
+          const distanceToShop = getDistance(latitude, longitude, Number(savedLat), Number(savedLng));
+          
+          if (distanceToShop > 20000) { // 20,000 meters = 20km
+            return NextResponse.json({ 
+              error: `🚨 MISMATCH: You are ${(distanceToShop / 1000).toFixed(1)}km away from the shop's official location.` 
+            }, { status: 403 });
           }
         }
       }
 
-      // Update the Medical Shop with GPS and Image IF it's not verified yet!
-      await db.update(medicalShops)
-        .set({ 
-          latitude: String(latitude), 
-          longitude: String(longitude),
-          photoUrl: photoUrl || null 
-        })
-        .where(
-          and(
-            eq(medicalShops.id, cleanTargetId),
-            or(
-              eq(medicalShops.isVerified, false),
-              isNull(medicalShops.isVerified)
-            )
-          )
-        );
+      // Update the Medical Shop with new GPS and Image IF it's not verified yet!
+      await db.execute(sql`
+        UPDATE medical_shops 
+        SET latitude = ${String(latitude)}, 
+            longitude = ${String(longitude)}, 
+            photo_url = ${photoUrl || null}
+        WHERE id = ${cleanTargetId} 
+          AND (is_verified IS NULL OR is_verified = false)
+      `);
     }
 
     return NextResponse.json({ 
       success: true, 
-      visitId: newVisit[0].id,
-      commission: 0,
+      visitId: newVisitId,
+      Collection: 0,
       time: new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })
     }, { status: 200 });
 

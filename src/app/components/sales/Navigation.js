@@ -3,7 +3,7 @@
 export function TopHeader({ mobileNav, handleLogout }) {
   const titles = {
     'route': { title: 'My Territory', sub: 'Your permanently assigned medical shops' },
-    'deals': { title: 'Commission Ledger', sub: 'Track your monthly earnings' },
+    'deals': { title: 'CollectionLedger', sub: 'Track your monthly earnings' },
     'add-shop': { title: 'Register Shop', sub: 'Add a new prospect to the database' }
   };
 

@@ -11,7 +11,7 @@
 //   const titles = {
 //     'route': { title: 'My Territory', sub: 'Your permanently assigned medical shops' },
 //     'radar': { title: 'Area Radar', sub: 'Scan for nearby medical shops' },
-//     'deals': { title: 'Commission Ledger', sub: 'Track your monthly earnings' }
+//     'deals': { title: 'Collection Ledger', sub: 'Track your monthly earnings' }
 //   };
 
 //   return (
@@ -90,7 +90,7 @@
 //   const [dealError, setDealError] = useState('');
 
 //   // Derived Stats
-//   const totalCommission = targets.reduce((sum, t) => sum + (t.commission || 0), 0);
+//   const totalCollection = targets.reduce((sum, t) => sum + (t.Collection || 0), 0);
 //   const totalPipeline = targets.reduce((sum, t) => sum + (t.orderValue || 0), 0);
 //   const completedCount = targets.filter(t => t.status === 'COMPLETED').length;
 //   const completedDeals = targets.filter(t => t.status === 'COMPLETED').reverse();
@@ -223,11 +223,11 @@
 
 //       setTargets(prev => {
 //         if (!prev.find(t => t.id === activeTarget.id)) {
-//            return [...prev, { ...activeTarget, status: 'COMPLETED', time: data.time, commission: data.commission, orderValue: Number(dealData.orderValue) }];
+//            return [...prev, { ...activeTarget, status: 'COMPLETED', time: data.time, Collection: data.Collection, orderValue: Number(dealData.orderValue) }];
 //         }
 //         return prev.map(t => 
 //           t.id === activeTarget.id ? { 
-//             ...t, status: 'COMPLETED', time: data.time, commission: data.commission, orderValue: Number(dealData.orderValue)
+//             ...t, status: 'COMPLETED', time: data.time, Collection: data.Collection, orderValue: Number(dealData.orderValue)
 //           } : t
 //         );
 //       });
@@ -313,8 +313,8 @@
 //                   <p className="text-lg md:text-2xl font-semibold text-slate-800 tracking-tight leading-none">{targets.length}</p>
 //                 </div>
 //                 <div className="relative overflow-hidden p-4 md:p-5 rounded-2xl bg-white" style={{ border: '1px solid #e9edf2', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-//                   <p className="text-[10px] md:text-[11px] font-semibold tracking-wide mb-1" style={{ color: '#97c22a' }}>Daily commission</p>
-//                   <p className="text-lg md:text-2xl font-semibold text-slate-800 tracking-tight leading-none">₹{totalCommission.toLocaleString('en-IN')}</p>
+//                   <p className="text-[10px] md:text-[11px] font-semibold tracking-wide mb-1" style={{ color: '#97c22a' }}>Daily Collection</p>
+//                   <p className="text-lg md:text-2xl font-semibold text-slate-800 tracking-tight leading-none">₹{totalCollection.toLocaleString('en-IN')}</p>
 //                   <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-b-2xl" style={{ background: '#97c22a' }} />
 //                 </div>
 //               </div>
@@ -471,8 +471,8 @@
                   
 //                   <div className="mt-6 flex items-center gap-4 border-t border-white/10 pt-5">
 //                     <div>
-//                       <p className="text-[10px] font-medium text-slate-400 mb-0.5">Commission Earned</p>
-//                       <p className="text-lg font-semibold" style={{ color: '#97c22a' }}>₹{totalCommission.toLocaleString('en-IN')}</p>
+//                       <p className="text-[10px] font-medium text-slate-400 mb-0.5">Collection Earned</p>
+//                       <p className="text-lg font-semibold" style={{ color: '#97c22a' }}>₹{totalCollection.toLocaleString('en-IN')}</p>
 //                     </div>
 //                     <div className="w-px h-8 bg-white/10"></div>
 //                     <div>
@@ -507,7 +507,7 @@
 //                           </div>
 //                         </div>
 //                         <div className="text-right">
-//                           <p className="text-[13px] font-semibold" style={{ color: '#97c22a' }}>+ ₹{deal.commission?.toLocaleString('en-IN') || 0}</p>
+//                           <p className="text-[13px] font-semibold" style={{ color: '#97c22a' }}>+ ₹{deal.Collection?.toLocaleString('en-IN') || 0}</p>
 //                           <p className="text-[9px] font-medium text-slate-400 mt-1">{deal.time}</p>
 //                         </div>
 //                       </div>
@@ -654,7 +654,7 @@
 //   const [isSubmittingDeal, setIsSubmittingDeal] = useState(false);
 
 //   // Derived Stats
-//   const totalCommission = targets.reduce((sum, t) => sum + (Number(t.commission) || 0), 0);
+//   const totalCollection = targets.reduce((sum, t) => sum + (Number(t.Collection) || 0), 0);
 //   const totalPipeline = targets.reduce((sum, t) => sum + (Number(t.orderAmount) || 0), 0);
 //   const completedCount = targets.filter(t => t.status === 'COMPLETED').length;
 //   const completedDeals = targets.filter(t => t.status === 'COMPLETED').reverse();
@@ -752,7 +752,7 @@
 //               status: 'COMPLETED', 
 //               time: data.time, 
 //               lastVisited: `Visited just now at ${data.time}`,
-//               commission: data.commission, 
+//               Collection: data.Collection, 
 //               orderAmount: Number(dealData.orderAmount) 
 //             };
 //           }
@@ -794,7 +794,7 @@
 //             initiateCheckIn={initiateCheckIn} 
 //             setIsDealModalOpen={setIsDealModalOpen} 
 //             onRefreshData={fetchInitialData}
-//             totalCommission={totalCommission} 
+//             totalCollection={totalCollection} 
 //             setPhotoUri={setPhotoUri}
 //           />
 //         )}
@@ -812,7 +812,7 @@
 //         {mobileNav === 'deals' && (
 //           <DealsTab 
 //             totalPipeline={totalPipeline} 
-//             totalCommission={totalCommission} 
+//             totalCollection={totalCollection} 
 //             completedCount={completedCount} 
 //             completedDeals={completedDeals} 
 //           />
@@ -870,7 +870,7 @@ export default function SalesDashboard() {
   const [isLoadingRoute, setIsLoadingRoute] = useState(true);
 
   // Derived Stats for UI
-  const totalCommission = targets.reduce((sum, t) => sum + (Number(t.commission) || 0), 0);
+  const totalCollection = targets.reduce((sum, t) => sum + (Number(t.Collection) || 0), 0);
   const totalPipeline = targets.reduce((sum, t) => sum + (Number(t.orderAmount) || 0), 0);
   const completedCount = targets.filter(t => t.status === 'COMPLETED').length;
   const completedDeals = targets.filter(t => t.status === 'COMPLETED').reverse();
@@ -939,7 +939,7 @@ export default function SalesDashboard() {
             targets={targets} 
             masterTerritories={masterTerritories} 
             isLoadingRoute={isLoadingRoute} 
-            totalCommission={totalCommission}
+            totalCollection={totalCollection}
             onRefreshData={fetchInitialData} // 👈 Tells TerritoryTab to refresh this dashboard when done!
           />
         )}
@@ -955,12 +955,14 @@ export default function SalesDashboard() {
 
         {/* ── 3. DEALS / LEDGER TAB ── */}
         {mobileNav === 'deals' && (
-          <DealsTab 
-            totalPipeline={totalPipeline} 
-            totalCommission={totalCommission} 
-            completedCount={completedCount} 
-            completedDeals={completedDeals} 
-          />
+          // <DealsTab 
+          //   totalPipeline={totalPipeline} 
+          //   totalCollection={totalCollection} 
+          //   completedCount={completedCount} 
+          //   completedDeals={completedDeals} 
+          // />
+
+          <DealsTab targets={targets} />
         )}
 
         <BottomNav mobileNav={mobileNav} setMobileNav={setMobileNav} />
