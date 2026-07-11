@@ -128,3 +128,22 @@ export async function DELETE(request) {
     return NextResponse.json({ error: 'Deletion failed due to a database error.' }, { status: 500 });
   }
 }
+
+export async function PATCH(request) {
+  try {
+    const body = await request.json();
+    const { type, id, isVerified } = body; // isVerified is now a boolean (true or false)
+
+    if (type === 'medical' && id !== undefined) {
+      await db.update(medicalShops)
+        .set({ isVerified: !!isVerified }) // Forces the boolean value
+        .where(eq(medicalShops.id, id));
+        
+      return NextResponse.json({ success: true }, { status: 200 });
+    }
+    
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+  } catch (error) {
+    return NextResponse.json({ error: 'Database update failed' }, { status: 500 });
+  }
+}

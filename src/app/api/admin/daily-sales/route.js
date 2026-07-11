@@ -11,50 +11,73 @@ import { eq, and, gte, lte } from 'drizzle-orm';
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const dateParam = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const dateParam = searchParams.get('date') || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    const [year, month] = dateParam.split('-');
 
-    const targetDate = new Date(dateParam);
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    // ── STRICT IST TIMEZONE BOUNDARIES ──
+    const startOfDay = new Date(`${dateParam}T00:00:00+05:30`);
+    const endOfDay = new Date(`${dateParam}T23:59:59.999+05:30`);
 
-    // 1. Fetch all AGENTS from the database
+    // Fetch the whole month to calculate "Till Date" metrics
+    const lastDay = new Date(Number(year), Number(month), 0).getDate();
+    const startOfMonth = new Date(`${year}-${month}-01T00:00:00+05:30`);
+    const endOfMonth = new Date(`${year}-${month}-${lastDay}T23:59:59.999+05:30`);
+
+    // 1. Fetch all AGENTS
     const agents = await db.select({
-      employeeId: users.employeeId,
+      id: users.id,                 
+      employeeId: users.employeeId, 
       name: users.name
     })
     .from(users)
     .where(eq(users.role, 'AGENT'));
 
-    // 2. Fetch ALL visits for the selected day
-    const todaysVisits = await db.select()
+    // 2. 🚨 Fetch ALL visits for the ENTIRE MONTH in IST
+    const monthlyVisits = await db.select()
       .from(visits)
       .where(
         and(
-          gte(visits.createdAt, startOfDay),
-          lte(visits.createdAt, endOfDay)
+          gte(visits.createdAt, startOfMonth),
+          lte(visits.createdAt, endOfMonth)
         )
       );
 
     // 3. Map visits to their respective agents
     const report = agents.map(agent => {
-      // Find visits belonging to this specific agent
-      const agentVisits = todaysVisits.filter(v => v.agentId === agent.employeeId);
       
-      const totalOrder = agentVisits.reduce((sum, v) => sum + (Number(v.orderAmount) || 0), 0);
-      const totalCollection = agentVisits.reduce((sum, v) => sum + (Number(v.collectionAmount) || 0), 0);
+      // Get this agent's visits for the whole month
+      const agentMonthlyVisits = monthlyVisits.filter(v => 
+        String(v.agentId) === String(agent.employeeId) || 
+        String(v.agentId) === String(agent.id)
+      );
+
+      // Filter out ONLY today's visits from the monthly pool
+      const agentDailyVisits = agentMonthlyVisits.filter(v => {
+        const vDate = new Date(v.createdAt);
+        return vDate >= startOfDay && vDate <= endOfDay;
+      });
+      
+      // Calculate Daily Totals
+      const dailyOrder = agentDailyVisits.reduce((sum, v) => sum + (Number(v.orderAmount) || 0), 0);
+      const dailyCollection = agentDailyVisits.reduce((sum, v) => sum + (Number(v.collectionAmount) || 0), 0);
+      
+      // Calculate Monthly Totals
+      const monthlyOrder = agentMonthlyVisits.reduce((sum, v) => sum + (Number(v.orderAmount) || 0), 0);
+      const monthlyCollection = agentMonthlyVisits.reduce((sum, v) => sum + (Number(v.collectionAmount) || 0), 0);
       
       return {
-        id: agent.employeeId,
+        id: agent.employeeId || String(agent.id),
         name: agent.name,
-        visitCount: agentVisits.length,
-        orderVolume: totalOrder,
-        collectionVolume: totalCollection
+        visitCount: agentDailyVisits.length, // Today's visits
+        orderVolume: dailyOrder,             // Today's orders
+        collectionVolume: dailyCollection,   // Today's cash
+        monthlyVisitCount: agentMonthlyVisits.length,
+        monthlyOrderVolume: monthlyOrder,    // 🚨 NEW: Monthly Orders
+        monthlyCollectionVolume: monthlyCollection // 🚨 NEW: Monthly Cash
       };
     });
 
-    // 4. Sort leaderboard by highest order volume first
+    // 4. Sort leaderboard by highest DAILY order volume first (You can change this to b.monthlyOrderVolume if you prefer)
     report.sort((a, b) => b.orderVolume - a.orderVolume);
 
     return NextResponse.json(report, {

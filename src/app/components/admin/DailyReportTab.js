@@ -89,7 +89,7 @@ export default function DailyReportTab({ team }) {
               </div>
             </div>
 
-            {/* ── NEW: MONTHLY ATTENDANCE & PERFORMANCE BOARD ── */}
+            {/* ── MONTHLY ATTENDANCE & PERFORMANCE BOARD ── */}
             <div className="bg-[#0a0f1a] rounded-2xl p-5 md:p-6 text-white relative overflow-hidden" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
               <div className="absolute top-0 right-0 w-32 h-32 bg-[#97c22a] rounded-full blur-[80px] opacity-20 pointer-events-none -mr-10 -mt-10"></div>
               
@@ -110,14 +110,14 @@ export default function DailyReportTab({ team }) {
                   <p className="text-[9px] text-slate-500 mt-1">&lt; 10 visits logged</p>
                 </div>
                 <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
-                  <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-1">Monthly Volume</p>
+                  <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-1">Monthly Orders</p>
                   <p className="text-xl font-bold text-white">₹{(reportData.monthlySummary?.totalOrderValue || 0).toLocaleString('en-IN')}</p>
                   <p className="text-[9px] text-slate-500 mt-1">Total Pipeline</p>
                 </div>
                 <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
-                  <p className="text-[9px] uppercase tracking-widest text-[#97c22a] mb-1">Monthly Comm.</p>
-                  <p className="text-xl font-bold text-white">₹{(reportData.monthlySummary?.commissionEarned || 0).toLocaleString('en-IN')}</p>
-                  <p className="text-[9px] text-slate-500 mt-1">Total Earned</p>
+                  <p className="text-[9px] uppercase tracking-widest text-[#97c22a] mb-1">Monthly Collection</p>
+                  <p className="text-xl font-bold text-white">₹{(reportData.monthlySummary?.totalCollection || 0).toLocaleString('en-IN')}</p>
+                  <p className="text-[9px] text-slate-500 mt-1">Total Cash Picked</p>
                 </div>
               </div>
             </div>
@@ -130,12 +130,12 @@ export default function DailyReportTab({ team }) {
                 <p className="text-xl font-semibold text-slate-800">{reportData.summary?.completedVisits || 0}</p>
               </div>
               <div className="bg-white p-4 rounded-2xl" style={{ border: '1px solid #e9edf2', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-                <p className="text-[10px] font-semibold tracking-wide text-slate-400 mb-1">Daily Volume</p>
+                <p className="text-[10px] font-semibold tracking-wide text-slate-400 mb-1">Daily Orders</p>
                 <p className="text-xl font-semibold text-slate-800">₹{(reportData.summary?.totalOrderValue || 0).toLocaleString('en-IN')}</p>
               </div>
               <div className="bg-white p-4 rounded-2xl border-b-2" style={{ border: '1px solid #e9edf2', borderBottomColor: '#97c22a', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-                <p className="text-[10px] font-semibold tracking-wide text-[#97c22a] mb-1">Daily Comm.</p>
-                <p className="text-xl font-semibold text-slate-800">₹{(reportData.summary?.commissionEarned || 0).toLocaleString('en-IN')}</p>
+                <p className="text-[10px] font-semibold tracking-wide text-[#97c22a] mb-1">Daily Collection</p>
+                <p className="text-xl font-semibold text-slate-800">₹{(reportData.summary?.totalCollection || 0).toLocaleString('en-IN')}</p>
               </div>
               <div className="bg-white p-4 rounded-2xl border-b-2" style={{ border: '1px solid #e9edf2', borderBottomColor: reportData.summary?.deviations > 0 ? '#e73e43' : '#e9edf2', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
                 <p className="text-[10px] font-semibold tracking-wide text-slate-400 mb-1">Protocol Deviations</p>
@@ -180,14 +180,23 @@ export default function DailyReportTab({ team }) {
                           <div className="mt-3 pt-3 border-t border-slate-200">
                             <div className="flex justify-between items-center text-[10px] font-semibold mb-2">
                               <span className="text-slate-500">Method: <span className="text-slate-700">{stop.details.paymentMethod}</span></span>
-                              {stop.details.order > 0 ? (
-                                <span style={{ color: '#97c22a' }}>Order: ₹{(stop.details.order || 0).toLocaleString('en-IN')}</span>
-                              ) : (
-                                <span className="text-slate-400">No order placed</span>
-                              )}
+                              
+                              <div className="flex gap-4">
+                                {stop.details.order > 0 ? (
+                                  <span style={{ color: '#97c22a' }}>Ord: ₹{(stop.details.order || 0).toLocaleString('en-IN')}</span>
+                                ) : (
+                                  <span className="text-slate-400">No Ord.</span>
+                                )}
+                                
+                                {stop.details.collection > 0 ? (
+                                  <span style={{ color: '#3b82f6' }}>Col: ₹{(stop.details.collection || 0).toLocaleString('en-IN')}</span>
+                                ) : (
+                                  <span className="text-slate-400">No Col.</span>
+                                )}
+                              </div>
                             </div>
                             {stop.details.note && (
-                              <p className="text-[10px] text-slate-500 italic">"{stop.details.note}"</p>
+                              <p className="text-[10px] text-slate-500 italic mt-1">"{stop.details.note}"</p>
                             )}
                           </div>
                         )}

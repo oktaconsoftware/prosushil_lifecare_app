@@ -12,10 +12,13 @@ export default function TerritorySetupTab() {
   const [selectedPlace, setSelectedPlace] = useState(null);
 
   // Modal States
-  const [modalMode, setModalMode] = useState(null); // 'add' | 'edit' | 'delete' | null
-  const [modalType, setModalType] = useState(null); // 'area' | 'place' | 'medical'
+  const [modalMode, setModalMode] = useState(null); 
+  const [modalType, setModalType] = useState(null); 
   const [formData, setFormData] = useState({ id: null, name: '', address: '', parentId: null });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Lightbox State for Full Image
+  const [fullImage, setFullImage] = useState(null);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -24,7 +27,7 @@ export default function TerritorySetupTab() {
       const json = await res.json();
       setData(json);
       
-      // Maintain selection state after refresh
+      // Preserve selection after refreshing data
       if (selectedArea) {
         const updatedArea = json.find(a => a.id === selectedArea.id);
         setSelectedArea(updatedArea || null);
@@ -38,25 +41,18 @@ export default function TerritorySetupTab() {
 
   useEffect(() => { fetchData(); }, []);
 
-  // ── GENERATE & DOWNLOAD EXCEL TEMPLATE ──
   const downloadTemplate = () => {
-    // Define headers and some dummy sample data
     const ws_data = [
-      ["Area", "Place", "ShopName", "Address"], // Exact column headers
+      ["Area", "Place", "ShopName", "Address"], 
       ["Kolhapur", "Rajarampuri", "Apollo Pharmacy", "Main Road, Near Bank"],
       ["Sangli", "Vishrambag", "Wellness Medicos", "Station Road"]
     ];
-    
-    // Create Excel workbook and sheet
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Territories");
-    
-    // Trigger file download
     XLSX.writeFile(wb, "Territory_Upload_Template.xlsx");
   };
 
-  // ── EXCEL UPLOAD HANDLER ──
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -72,19 +68,17 @@ export default function TerritorySetupTab() {
           const ws = wb.Sheets[wsname];
           const rawData = XLSX.utils.sheet_to_json(ws);
 
-          // Map Excel columns safely
           const formatted = rawData.map(row => ({
             area: row.Area || row.area,
             place: row.Place || row.place,
             shopName: row.ShopName || row.shopName || row['Shop Name'],
             address: row.Address || row.address || ''
-          })).filter(row => row.area && row.place && row.shopName); // Skip empty rows
+          })).filter(row => row.area && row.place && row.shopName); 
 
           if (formatted.length === 0) {
             throw new Error("No valid data found. Ensure your columns are named exactly: Area, Place, ShopName");
           }
 
-          // Send to the backend API you created
           const res = await fetch('/api/admin/territories/upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -97,12 +91,12 @@ export default function TerritorySetupTab() {
           }
 
           alert(`Successfully uploaded ${formatted.length} shops!`);
-          await fetchData(); // Refresh the list
+          await fetchData(); 
         } catch (err) {
           alert("Error processing Excel: " + err.message);
         } finally {
           setIsUploading(false);
-          e.target.value = null; // Reset input
+          e.target.value = null; 
         }
       };
       reader.readAsBinaryString(file);
@@ -113,7 +107,21 @@ export default function TerritorySetupTab() {
     }
   };
 
-  // Action Handlers
+  // ── VERIFY TOGGLE HANDLER ──
+  const handleVerify = async (medicalId, newStatus) => {
+    try {
+      const res = await fetch('/api/admin/territories', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'medical', id: medicalId, isVerified: newStatus })
+      });
+      if (!res.ok) throw new Error("Failed to update verification status.");
+      await fetchData(); 
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   const openAddModal = (type) => {
     setModalMode('add'); setModalType(type);
     setFormData({ id: null, name: '', address: '', parentId: type === 'place' ? selectedArea?.id : type === 'medical' ? selectedPlace?.id : null });
@@ -159,16 +167,53 @@ export default function TerritorySetupTab() {
   const ListItem = ({ item, isSelected, onClick, type }) => (
     <div 
       onClick={onClick}
-      className={`w-full text-left p-3 rounded-xl border transition-all flex justify-between items-center group cursor-pointer ${isSelected ? 'border-[#97c22a] bg-[#f7fceb]' : 'border-[#f1f5f9] bg-white hover:border-[#97c22a]/30'}`}
+      className={`w-full text-left p-3 rounded-xl border transition-all flex justify-between items-start group cursor-pointer ${isSelected ? 'border-[#97c22a] bg-[#f7fceb]' : 'border-[#f1f5f9] bg-white hover:border-[#97c22a]/30'}`}
     >
-      <div>
+      <div className="flex-1">
         <p className="text-[13px] font-semibold text-slate-800">{item.name}</p>
+        
         {type === 'area' && <p className="text-[10px] text-slate-500 mt-0.5">{item.places?.length || 0} Places</p>}
         {type === 'place' && <p className="text-[10px] text-slate-500 mt-0.5">{item.medicals?.length || 0} Medical Shops</p>}
-        {type === 'medical' && <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">{item.address}</p>}
+        
+        {/* MEDICAL SHOP DETAILS: Address, Photo, Verify Toggle */}
+        {type === 'medical' && (
+          <div className="mt-1">
+            <p className="text-[10px] text-slate-500 leading-tight mb-3">{item.address}</p>
+            
+            <div className="flex items-center gap-3">
+              {item.photoUrl ? (
+                <img 
+                  src={item.photoUrl} 
+                  alt="Shop" 
+                  onClick={(e) => { e.stopPropagation(); setFullImage(item.photoUrl); }}
+                  className="w-12 h-12 rounded-lg object-cover border border-slate-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-200 text-[9px] text-slate-400 font-medium text-center leading-tight">
+                  No<br/>Photo
+                </div>
+              )}
+
+              {/* Verify Toggle */}
+              <div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleVerify(item.id, !item.isVerified); }}
+                  className={`text-[10px] font-bold px-3 py-1.5 rounded-md shadow-sm transition-all active:scale-95 ${
+                    item.isVerified 
+                      ? 'bg-[#97C22A] text-white hover:bg-[#85ab25]' 
+                      : 'bg-amber-500 text-white hover:bg-amber-600'
+                  }`}
+                >
+                  {item.isVerified ? 'Verified ✓' : 'Verify Now'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Edit/Delete Actions */}
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-3">
         <button onClick={(e) => { e.stopPropagation(); openEditModal(type, item); }} className="w-6 h-6 rounded bg-blue-50 text-blue-500 flex items-center justify-center hover:bg-blue-500 hover:text-white transition-colors">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
         </button>
@@ -190,7 +235,6 @@ export default function TerritorySetupTab() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* ── DOWNLOAD TEMPLATE BUTTON ── */}
             <button 
               onClick={downloadTemplate}
               className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[12px] font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 hover:text-slate-800 transition-all shadow-sm active:scale-95"
@@ -199,7 +243,6 @@ export default function TerritorySetupTab() {
               Download Template
             </button>
 
-            {/* ── UPLOAD EXCEL BUTTON ── */}
             <label className={`cursor-pointer inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[12px] font-bold text-white transition-all shadow-sm ${isUploading ? 'bg-slate-400 cursor-not-allowed' : 'bg-[#0A0F1A] hover:bg-[#97C22A] hover:text-[#0A0F1A] active:scale-95'}`}>
               {isUploading ? (
                 <>
@@ -276,7 +319,23 @@ export default function TerritorySetupTab() {
         </div>
       </div>
 
-      {/* MODAL SYSTEM */}
+      {/* FULL-SCREEN LIGHTBOX OVERLAY */}
+      {fullImage && (
+        <div 
+          className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 animate-in fade-in duration-200" 
+          onClick={() => setFullImage(null)}
+        >
+          <img src={fullImage} className="max-w-full max-h-[90vh] rounded-lg shadow-2xl" alt="Shop Full View" />
+          <button 
+            className="absolute top-5 right-5 text-white bg-white/20 hover:bg-white/40 p-2.5 rounded-full transition-colors"
+            onClick={() => setFullImage(null)}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+      )}
+
+      {/* MODAL SYSTEM (Add/Edit/Delete) */}
       {modalMode && (
         <div className="absolute inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4" style={{ background: 'rgba(10,15,26,0.65)', backdropFilter: 'blur(6px)' }}>
           <div className="w-full sm:max-w-md bg-white overflow-hidden rounded-t-2xl sm:rounded-2xl shadow-2xl">
@@ -290,7 +349,6 @@ export default function TerritorySetupTab() {
             
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
               
-              {/* DELETE MODE */}
               {modalMode === 'delete' ? (
                 <div className="text-center pb-2">
                   <div className="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-3">
@@ -305,7 +363,6 @@ export default function TerritorySetupTab() {
                 </div>
               ) : (
                 
-              /* ADD/EDIT MODE */
               <>
                 {modalType === 'place' && modalMode === 'add' && <p className="text-[11px] text-slate-500 mb-2">Area: <b>{selectedArea.name}</b></p>}
                 {modalType === 'medical' && modalMode === 'add' && <p className="text-[11px] text-slate-500 mb-2">Place: <b>{selectedPlace.name}</b></p>}
