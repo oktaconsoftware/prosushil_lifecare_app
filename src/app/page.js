@@ -207,34 +207,35 @@ export default function LoginPage() {
       {/* ─── MOBILE VIEW ─── */}
       <div className="md:hidden flex flex-col w-full h-full relative overflow-hidden">
 
-        {/* Ambient top blobs */}
-        <div className="absolute top-0 left-0 w-64 h-64 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(151,194,42,0.12) 0%, transparent 70%)', transform: 'translate(-30%, -30%)' }} />
-        <div className="absolute top-0 right-0 w-48 h-48 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(231,62,67,0.08) 0%, transparent 70%)', transform: 'translate(30%, -20%)' }} />
 
-        {/* Header strip */}
-        <div className="shrink-0 flex items-center justify-between px-5 pt-8 pb-4 relative z-10">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(151,194,42,0.15)', border: '1px solid rgba(151,194,42,0.25)' }}>
-              <svg className="w-3.5 h-3.5" style={{ color: '#97c22a' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold text-white leading-none">Prosushil Lifecare</p>
-              <p className="text-[9px] font-medium mt-0.5" style={{ color: '#97c22a' }}>Enterprise Platform</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-full" style={{ background: 'rgba(151,194,42,0.08)', border: '1px solid rgba(151,194,42,0.18)' }}>
-            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#97c22a' }} />
-            <span className="text-[9px] font-medium" style={{ color: '#a8d44a' }}>v2.4 live</span>
+      {/* Header strip */}
+      <div className="shrink-0 flex items-center justify-between px-5 relative z-1">
+        
+        {/* Simplified Transparent Logo */}
+        <div className="flex items-center">
+          <div className="w-40 h-40 flex items-center justify-center shrink-0">
+            <img 
+              src="/logo.png" 
+              alt="Logo" 
+              className="w-full h-full object-contain drop-shadow-md"
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
           </div>
         </div>
+        
+   
+        
+      </div>
 
         {/* Hero info area */}
-        <div className="pb-10 px-5 pt-3 relative z-10 min-h-0">
-          <h1 className="text-[22px] font-semibold text-white leading-tight tracking-tight">
+        <div className="pb-10 px-5  relative z-10 ">
+          <h1 className="text-[32px] font-semibold text-white leading-tight tracking-tight">
             Field intelligence<br />
             <span style={{ color: '#97c22a' }}>at your fingertips</span>
           </h1>
-          <p className="text-[11px] font-medium mt-2 leading-relaxed" style={{ color: '#8896aa' }}>
+          <p className="text-[14px] font-medium mt-2 leading-relaxed" style={{ color: '#8896aa' }}>
             Real-time territory management, geospatial tracking, and sales telemetry — all in one platform.
           </p>
 
@@ -272,7 +273,7 @@ export default function LoginPage() {
 
             <form onSubmit={handleLogin} className="space-y-3">
               <div>
-                <label className="block text-[10px] font-semibold text-slate-300 mb-1.5 tracking-wide">Employee ID</label>
+                <label className="block text-[12px] font-medium text-slate-300 mb-1.5 tracking-wide">Employee ID</label>
                 <input
                   type="text"
                   required
@@ -287,7 +288,7 @@ export default function LoginPage() {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-semibold text-slate-300 mb-1.5 tracking-wide">Password</label>
+                <label className="block text-[12px] font-medium text-slate-300 mb-1.5 tracking-wide">Password</label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -314,15 +315,15 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 rounded-xl text-[13px] font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2 mt-1"
-                style={{ background: loading ? '#7aaa1f' : '#97c22a', boxShadow: '0 4px 16px rgba(151,194,42,0.28)' }}
+                className="w-full py-3 rounded-xl text-[14px] font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2 mt-1"
+                style={{ background: loading ? '#7aaa1f' : '#97c22a' }}
               >
                 {loading ? (
                   <><svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>Verifying identity...</>
                 ) : 'Sign in'}
               </button>
             </form>
-            <p className="text-[9px] font-medium text-center mt-3" style={{ color: '#94a3b8' }}>Secured by Oktacon Softwares · All access logged</p>
+            <p className="text-[9px] font-base text-center mt-3" style={{ color: '#94a3b8' }}>Secured by Oktacon Softwares · All access logged</p>
           </div>
         </div>
       </div>
@@ -337,30 +338,40 @@ export default function LoginPage() {
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#97c22a]/10 rounded-full blur-[120px] pointer-events-none -translate-y-1/2 translate-x-1/4"></div>
           <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#e73e43]/5 rounded-full blur-[100px] pointer-events-none translate-y-1/3 -translate-x-1/3"></div>
 
-          <div className="relative z-10">
-            <div className="inline-flex items-center space-x-2 bg-white/5 border border-white/10 backdrop-blur-md px-3 py-1.5 rounded-full mb-8 shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-[#97c22a] animate-pulse shadow-[0_0_10px_#97c22a]"></span>
-              <span className="text-xs font-medium text-slate-300 tracking-wide">System Online • v2.4.0</span>
+         <div className="relative z-10">
+            
+            {/* Replaced Text Heading with Logo Image */}
+            <div className="mb-6">
+              <img 
+                src="/logo.png" 
+                alt="Logo" 
+                className="h-20 lg:h-30 w-auto object-contain drop-shadow-md"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
+              />
             </div>
             
-            <h1 className="text-4xl lg:text-5xl xl:text-6xl font-semibold text-white tracking-tight leading-[1.1]">
-              Prosushil <br/>
-              <span className="text-[#97c22a]">Lifecare LLP</span>
-            </h1>
-            <p className="text-slate-400 font-medium text-base lg:text-lg mt-5 max-w-lg leading-relaxed">
+            <p className="text-slate-400 font-medium text-[15px] lg:text-[17px] max-w-lg leading-relaxed">
               Centralized intelligence platform for field operations, dynamic territory management, and real-time sales telemetry.
             </p>
 
-            <div className="flex flex-wrap items-center gap-4 mt-8">
-              <div className="flex items-center space-x-2 text-slate-400 bg-slate-800/50 px-3 py-1.5 rounded-md border border-slate-700/50">
-                <svg className="w-4 h-4 text-[#97c22a]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-                <span className="text-xs font-medium">End-to-End Encrypted</span>
+            <div className="flex flex-wrap items-center gap-3 mt-8">
+              <div className="flex items-center gap-2 text-slate-400 bg-slate-800/50 px-3.5 py-2 rounded-xl border border-slate-700/50">
+                <svg className="w-4 h-4 text-[#97C22A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                </svg>
+                <span className="text-[13px] font-medium">End-to-end encrypted</span>
               </div>
-              <div className="flex items-center space-x-2 text-slate-400 bg-slate-800/50 px-3 py-1.5 rounded-md border border-slate-700/50">
-                <svg className="w-4 h-4 text-[#97c22a]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                <span className="text-xs font-medium">99.9% Uptime</span>
+              
+              <div className="flex items-center gap-2 text-slate-400 bg-slate-800/50 px-3.5 py-2 rounded-xl border border-slate-700/50">
+                <svg className="w-4 h-4 text-[#97C22A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+                <span className="text-[13px] font-medium">99.9% uptime</span>
               </div>
             </div>
+            
           </div>
 
           <div className="relative z-10 mt-12 w-full max-w-xl">
