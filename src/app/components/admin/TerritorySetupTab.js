@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx'; 
 
 export default function TerritorySetupTab() {
@@ -164,69 +164,187 @@ export default function TerritorySetupTab() {
     }
   };
 
-  const ListItem = ({ item, isSelected, onClick, type }) => (
-    <div 
-      onClick={onClick}
-      className={`w-full text-left p-3 rounded-xl border transition-all flex justify-between items-start group cursor-pointer ${isSelected ? 'border-[#97c22a] bg-[#f7fceb]' : 'border-[#f1f5f9] bg-white hover:border-[#97c22a]/30'}`}
-    >
-      <div className="flex-1">
-        <p className="text-[13px] font-semibold text-slate-800">{item.name}</p>
-        
-        {type === 'area' && <p className="text-[10px] text-slate-500 mt-0.5">{item.places?.length || 0} Places</p>}
-        {type === 'place' && <p className="text-[10px] text-slate-500 mt-0.5">{item.medicals?.length || 0} Medical Shops</p>}
-        
-        {/* MEDICAL SHOP DETAILS: Address, Photo, Verify Toggle */}
-        {type === 'medical' && (
-          <div className="mt-1">
-            <p className="text-[10px] text-slate-500 leading-tight mb-3">{item.address}</p>
-            
-            <div className="flex items-center gap-3">
-              {item.photoUrl ? (
-                <img 
-                  src={item.photoUrl} 
-                  alt="Shop" 
-                  onClick={(e) => { e.stopPropagation(); setFullImage(item.photoUrl); }}
-                  className="w-12 h-12 rounded-lg object-cover border border-slate-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
-                />
-              ) : (
-                <div className="w-12 h-12 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-200 text-[9px] text-slate-400 font-medium text-center leading-tight">
-                  No<br/>Photo
-                </div>
-              )}
+// ── UPDATED LIST ITEM COMPONENT ──
+  const ListItem = ({ item, isSelected, onClick, type }) => {
+    // Check if this is an unverified medical shop
+    const isPending = type === 'medical' && !item.isVerified;
 
-              {/* Verify Toggle */}
-              <div>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleVerify(item.id, !item.isVerified); }}
-                  className={`text-[10px] font-bold px-3 py-1.5 rounded-md shadow-sm transition-all active:scale-95 ${
-                    item.isVerified 
-                      ? 'bg-[#97C22A] text-white hover:bg-[#85ab25]' 
-                      : 'bg-amber-500 text-white hover:bg-amber-600'
-                  }`}
-                >
-                  {item.isVerified ? 'Verified ✓' : 'Verify Now'}
-                </button>
+    return (
+      <div 
+        onClick={onClick}
+        className={`w-full text-left p-3 rounded-xl border transition-all flex justify-between items-start group cursor-pointer 
+          ${isSelected ? 'border-[#97c22a] bg-[#f7fceb]' : 
+            isPending ? 'border-amber-400 bg-amber-50' : // 👈 Highlights unverified shops in yellow
+            'border-[#f1f5f9] bg-white hover:border-[#97c22a]/30'}`}
+      >
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <p className="text-[13px] font-semibold text-slate-800">{item.name}</p>
+            {/* Show a pending badge next to the name */}
+            {isPending && (
+              <span className="bg-amber-400 text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
+                Pending
+              </span>
+            )}
+          </div>
+          
+          {type === 'area' && <p className="text-[10px] text-slate-500 mt-0.5">{item.places?.length || 0} Places</p>}
+          {type === 'place' && <p className="text-[10px] text-slate-500 mt-0.5">{item.medicals?.length || 0} Medical Shops</p>}
+          
+          {/* MEDICAL SHOP DETAILS */}
+          {type === 'medical' && (
+            <div className="mt-1">
+              <p className="text-[10px] text-slate-500 leading-tight mb-3">{item.address}</p>
+              
+              <div className="flex items-center gap-3">
+                {item.photoUrl ? (
+                  <img 
+                    src={item.photoUrl} 
+                    alt="Shop" 
+                    onClick={(e) => { e.stopPropagation(); setFullImage(item.photoUrl); }}
+                    className="w-12 h-12 rounded-lg object-cover border border-slate-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-200 text-[9px] text-slate-400 font-medium text-center leading-tight">
+                    No<br/>Photo
+                  </div>
+                )}
+
+                {/* Verify Toggle */}
+                <div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleVerify(item.id, !item.isVerified); }}
+                    className={`text-[10px] font-bold px-3 py-1.5 rounded-md shadow-sm transition-all active:scale-95 ${
+                      item.isVerified 
+                        ? 'bg-[#97C22A] text-white hover:bg-[#85ab25]' 
+                        : 'bg-amber-500 text-white hover:bg-amber-600 animate-pulse' // 👈 Added a pulse animation to draw admin's attention
+                    }`}
+                  >
+                    {item.isVerified ? 'Verified ✓' : 'Verify & Approve'}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+        
+        {/* Edit/Delete Actions */}
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-3">
+          <button onClick={(e) => { e.stopPropagation(); openEditModal(type, item); }} className="w-6 h-6 rounded bg-blue-50 text-blue-500 flex items-center justify-center hover:bg-blue-500 hover:text-white transition-colors">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); openDeleteModal(type, item); }} className="w-6 h-6 rounded bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+          </button>
+        </div>
       </div>
-      
-      {/* Edit/Delete Actions */}
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-3">
-        <button onClick={(e) => { e.stopPropagation(); openEditModal(type, item); }} className="w-6 h-6 rounded bg-blue-50 text-blue-500 flex items-center justify-center hover:bg-blue-500 hover:text-white transition-colors">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-        </button>
-        <button onClick={(e) => { e.stopPropagation(); openDeleteModal(type, item); }} className="w-6 h-6 rounded bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-        </button>
-      </div>
-    </div>
-  );
+    );
+  };
+
+
+  // State to track shops hidden from the top banner
+  const [dismissedPending, setDismissedPending] = useState([]);
+
+  // 1. Load the dismissed list from Local Storage when the page loads
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('dismissedPendingShops');
+      if (saved) {
+        setDismissedPending(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error("Failed to load dismissed shops from local storage");
+    }
+  }, []);
+
+  // ── EXTRACT PENDING SHOPS GLOBALLY ──
+  const pendingShops = useMemo(() => {
+    let pending = [];
+    data.forEach(area => {
+      area.places?.forEach(place => {
+        place.medicals?.forEach(med => {
+          // Add to pending ONLY if it is unverified AND not dismissed
+          if (!med.isVerified && !dismissedPending.includes(med.id)) {
+            pending.push({ ...med, areaName: area.name, placeName: place.name });
+          }
+        });
+      });
+    });
+    return pending;
+  }, [data, dismissedPending]); // 👈 Added dismissedPending to dependencies
+
+
+  // Function to hide a shop from the top banner and save to local storage
+  const handleDismiss = (shopId) => {
+    setDismissedPending(prev => {
+      const updatedList = [...prev, shopId];
+      try {
+        localStorage.setItem('dismissedPendingShops', JSON.stringify(updatedList));
+      } catch (e) {
+        console.error("Failed to save dismissed shop to local storage");
+      }
+      return updatedList;
+    });
+  };
 
   return (
     <div className="flex-1 overflow-y-auto animate-in fade-in duration-200">
       <div className="p-4 md:p-8 lg:p-10 pb-24 md:pb-10 max-w-7xl mx-auto w-full h-full flex flex-col">
+
+     {/* 🚨 NEW PENDING APPROVALS SECTION TOP BANNER 🚨 */}
+        {pendingShops.length > 0 && (
+          <div className="mb-8 p-5 bg-amber-50 border border-amber-200 rounded-2xl shadow-sm animate-in fade-in slide-in-from-top-4">
+            <h3 className="text-[14px] font-bold text-amber-800 mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+              Pending Approvals ({pendingShops.length})
+            </h3>
+            
+            {/* Scrollable grid for pending shops */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {pendingShops.map(shop => (
+                <div key={shop.id} className="bg-white p-4 rounded-xl border border-amber-100 flex justify-between items-start shadow-sm transition-all hover:border-amber-300">
+                  <div className="flex-1 pr-3">
+                    <p className="text-[14px] font-bold text-slate-800 leading-tight">{shop.name}</p>
+                    <p className="text-[11px] font-semibold text-[#97C22A] mt-1 uppercase tracking-wider">
+                      {shop.areaName} <span className="text-slate-300">›</span> {shop.placeName}
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{shop.address}</p>
+                  </div>
+                  
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    {shop.photoUrl ? (
+                      <img 
+                        src={shop.photoUrl} 
+                        alt="Shop" 
+                        onClick={() => setFullImage(shop.photoUrl)}
+                        className="w-10 h-10 rounded-lg object-cover border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity" 
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-[8px] text-slate-400 font-medium">No Image</div>
+                    )}
+                    
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <button
+                        onClick={() => handleDismiss(shop.id)}
+                        className="text-[10px] font-bold px-3 py-1.5 bg-slate-100 text-slate-500 rounded-md hover:bg-slate-200 hover:text-slate-700 transition-all active:scale-95 whitespace-nowrap"
+                      >
+                        Later ⏱
+                      </button>
+                      <button
+                        onClick={() => handleVerify(shop.id, true)}
+                        className="text-[10px] font-bold px-3 py-1.5 bg-[#97C22A] text-white rounded-md hover:bg-[#85ab25] transition-all shadow-sm active:scale-95 whitespace-nowrap"
+                      >
+                        Approve ✓
+                      </button>
+                    </div>
+
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         
         <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
           <div>
@@ -300,7 +418,7 @@ export default function TerritorySetupTab() {
             </div>
           </div>
 
-          {/* COLUMN 3: MEDICAL SHOPS */}
+{/* COLUMN 3: MEDICAL SHOPS */}
           <div className="flex-[1.5] bg-white rounded-2xl flex flex-col overflow-hidden transition-opacity" style={{ border: '1px solid #e9edf2', opacity: selectedPlace ? 1 : 0.4, pointerEvents: selectedPlace ? 'auto' : 'none' }}>
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <h4 className="text-[12px] font-semibold text-slate-800">3. Medical Shops</h4>
@@ -311,7 +429,14 @@ export default function TerritorySetupTab() {
             <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/30">
               {!selectedPlace ? <p className="text-[11px] text-slate-400 text-center py-4">Select a Place first.</p> : 
                selectedPlace.medicals.length === 0 ? <p className="text-[11px] text-slate-400 text-center py-4">No shops registered.</p> :
-               selectedPlace.medicals.map(med => <ListItem key={med.id} type="medical" item={med} isSelected={false} onClick={() => {}} />)
+               
+               // 👈 THIS SORT FUNCTION PINS UNVERIFIED SHOPS TO THE TOP
+               [...selectedPlace.medicals]
+                .sort((a, b) => {
+                  if (a.isVerified === b.isVerified) return 0;
+                  return a.isVerified ? 1 : -1; // False (unverified) comes before True (verified)
+                })
+                .map(med => <ListItem key={med.id} type="medical" item={med} isSelected={false} onClick={() => {}} />)
               }
             </div>
           </div>

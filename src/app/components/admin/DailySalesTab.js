@@ -170,7 +170,7 @@ export default function DailySalesTab() {
         </div>
 
         {/* ── EMPLOYEE FILTER (DARK HERO CARD) ── */}
-        <div className="bg-[#0a0f1a] rounded-[24px] md:rounded-[32px] p-6 md:p-8 relative overflow-hidden shadow-xl">
+        <div className="bg-[#0a0f1a] rounded-xl p-6 md:p-8 relative overflow-hidden shadow-xl">
           <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-[#97c22a]/20 rounded-full blur-[60px] -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
           
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">

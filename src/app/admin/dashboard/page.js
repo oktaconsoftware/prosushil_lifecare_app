@@ -25,7 +25,7 @@ const inputBlur  = (e) => { e.target.style.borderColor = '#e2e8f0'; e.target.sty
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const [adminNav, setAdminNav] = useState('command'); // 'command' | 'ledger' | 'reports'
+  const [adminNav, setAdminNav] = useState('sales'); // 'command' | 'ledger' | 'reports'
   
   const [team, setTeam] = useState([]);
   const [isLoadingTeam, setIsLoadingTeam] = useState(true);

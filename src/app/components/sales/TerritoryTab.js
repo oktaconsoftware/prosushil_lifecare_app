@@ -107,7 +107,7 @@
 //           ========================================= */}
 //           <div className="w-full lg:w-[340px] xl:w-[380px] shrink-0 flex flex-col lg:sticky lg:top-6 z-20">
             
-//             <div className="bg-[#0A0F1A] px-5 pt-6 pb-8 relative overflow-hidden rounded-none rounded-b-lg lg:rounded-xl shadow-lg">
+//             <div className="bg-[#0A0F1A] px-5 pt-6 pb-8 relative overflow-hidden rounded-none rounded-b-lg lg:rounded-2xl shadow-lg">
 //               <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(151,194,42,0.18) 0%, transparent 70%)' }} />
               
 //               <p className="text-[11px] font-bold tracking-[0.1em] uppercase text-slate-400 mb-4 relative z-10">Shift Overview</p>
@@ -143,14 +143,14 @@
 //           <div className="flex-1 min-w-0 w-full px-4 md:px-6 lg:px-0 pt-4 lg:pt-0">
 
 //             {isLoadingRoute ? (
-//               <div className="flex flex-col items-center justify-center py-32 bg-white rounded-xl border border-slate-200 gap-3">
+//               <div className="flex flex-col items-center justify-center py-32 bg-white rounded-2xl border border-slate-200 gap-3">
 //                 <div className="w-8 h-8 rounded-full border-2 border-[#97C22A] border-t-transparent animate-spin" />
 //                 <p className="text-sm font-semibold text-slate-400">Loading your territory…</p>
 //               </div>
 //             ) : step === 'camera' ? (
               
 //               /* ── STEP 1: CAMERA LOCK ── */
-//               <div className="bg-white rounded-xl border border-slate-200 p-8 md:p-16 text-center shadow-sm flex flex-col items-center justify-center animate-in zoom-in-95 duration-300">
+//               <div className="bg-white rounded-2xl border border-slate-200 p-8 md:p-16 text-center shadow-sm flex flex-col items-center justify-center animate-in zoom-in-95 duration-300">
 //                 <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6 relative">
 //                   <div className="absolute inset-0 border-2 border-blue-500 rounded-full animate-ping opacity-20"></div>
 //                   <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
@@ -161,7 +161,7 @@
 //                 </p>
 //                 <button 
 //                   onClick={() => fileInputRef.current?.click()}
-//                   className="w-full max-w-[260px] bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-3.5 font-bold text-[14px] shadow-lg shadow-blue-600/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+//                   className="w-full max-w-[260px] bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-3.5 font-bold text-[14px] shadow-lg shadow-blue-600/20 active:scale-95 transition-all flex items-center justify-center gap-2"
 //                 >
 //                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
 //                   Open Camera
@@ -174,7 +174,7 @@
 //               <div className="animate-in fade-in slide-in-from-bottom-4 duration-400 space-y-4">
                 
 //                 {/* Search & Verification Header */}
-//                 <div className="bg-[#0A0F1A] p-5 rounded-xl shadow-md relative z-10">
+//                 <div className="bg-[#0A0F1A] p-5 rounded-2xl shadow-md relative z-10">
 //                   <div className="flex items-center justify-between mb-4">
 //                     <div>
 //                       <p className="text-[10px] font-bold tracking-widest uppercase text-slate-400">Live GPS Radar</p>
@@ -205,7 +205,7 @@
 //                 </div>
 
 //                 {/* Shop List */}
-//                 <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+//                 <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
                   
 //                   <div className="bg-slate-50 px-5 py-3 border-b border-slate-100 flex items-center justify-between">
 //                     <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
@@ -465,21 +465,21 @@
 //               {/* Stats grid */}
 //               <div className="grid grid-cols-3 gap-2 relative z-10">
 //                 <div
-//                   className="rounded-xl p-3 text-center"
+//                   className="rounded-2xl p-3 text-center"
 //                   style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
 //                 >
 //                   <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Target</p>
 //                   <p className="text-2xl font-bold text-white leading-none">{totalCount}</p>
 //                 </div>
 //                 <div
-//                   className="rounded-xl p-3 text-center"
+//                   className="rounded-2xl p-3 text-center"
 //                   style={{ background: 'rgba(151,194,42,0.10)', border: '1px solid rgba(151,194,42,0.2)' }}
 //                 >
 //                   <p className="text-[9px] font-bold tracking-widest uppercase mb-1" style={{ color: 'rgba(151,194,42,0.7)' }}>Done</p>
 //                   <p className="text-2xl font-bold leading-none" style={{ color: '#97C22A' }}>{visitedCount}</p>
 //                 </div>
 //                 <div
-//                   className="rounded-xl p-3 text-center"
+//                   className="rounded-2xl p-3 text-center"
 //                   style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
 //                 >
 //                   <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Left</p>
@@ -502,7 +502,7 @@
 //                 </p>
 //               </div>
 //               <div
-//                 className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+//                 className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
 //                 style={{ background: 'rgba(151,194,42,0.10)', border: '1px solid rgba(151,194,42,0.2)' }}
 //               >
 //                 <svg className="w-4 h-4" style={{ color: '#97C22A' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -558,7 +558,7 @@
 
 //                 <button
 //                   onClick={() => fileInputRef.current?.click()}
-//                   className="inline-flex items-center gap-2 rounded-xl px-6 py-3 text-[12px] font-bold text-white active:scale-95 transition-all"
+//                   className="inline-flex items-center gap-2 rounded-2xl px-6 py-3 text-[12px] font-bold text-white active:scale-95 transition-all"
 //                   style={{ background: '#0A0F1A' }}
 //                 >
 //                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -613,7 +613,7 @@
 //                       placeholder="Search shop name or address…"
 //                       value={searchQuery}
 //                       onChange={(e) => setSearchQuery(e.target.value)}
-//                       className="w-full rounded-xl pl-9 pr-9 py-2.5 text-[12px] font-bold text-white placeholder-slate-600 focus:outline-none transition-colors"
+//                       className="w-full rounded-2xl pl-9 pr-9 py-2.5 text-[12px] font-bold text-white placeholder-slate-600 focus:outline-none transition-colors"
 //                       style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
 //                     />
 //                     {searchQuery && (
@@ -656,7 +656,7 @@
 //                   ) : sortedAndFilteredShops.length === 0 ? (
 //                     <div className="py-14 text-center px-6">
 //                       <div
-//                         className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3"
+//                         className="w-10 h-10 rounded-2xl flex items-center justify-center mx-auto mb-3"
 //                         style={{ background: '#F0F2F5', border: '1px solid #E2E8F0' }}
 //                       >
 //                         <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -776,7 +776,7 @@
 //         ) : (
 //           <button
 //             onClick={onLogVisit}
-//             className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold text-white active:scale-95 transition-all"
+//             className="inline-flex items-center gap-1.5 rounded-2xl px-3 py-2 text-[11px] font-bold text-white active:scale-95 transition-all"
 //             style={{ background: '#0A0F1A' }}
 //             onMouseEnter={e => {
 //               e.currentTarget.style.background = '#97C22A';
@@ -1082,15 +1082,15 @@
 //               </div>
 
 //               <div className="grid grid-cols-3 gap-2 relative z-10">
-//                 <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+//                 <div className="rounded-2xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
 //                   <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Target</p>
 //                   <p className="text-2xl font-bold text-white leading-none">{totalCount}</p>
 //                 </div>
-//                 <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(151,194,42,0.10)', border: '1px solid rgba(151,194,42,0.2)' }}>
+//                 <div className="rounded-2xl p-3 text-center" style={{ background: 'rgba(151,194,42,0.10)', border: '1px solid rgba(151,194,42,0.2)' }}>
 //                   <p className="text-[9px] font-bold tracking-widest uppercase mb-1" style={{ color: 'rgba(151,194,42,0.7)' }}>Done</p>
 //                   <p className="text-2xl font-bold leading-none" style={{ color: '#97C22A' }}>{visitedCount}</p>
 //                 </div>
-//                 <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+//                 <div className="rounded-2xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
 //                   <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Left</p>
 //                   <p className="text-2xl font-bold text-slate-300 leading-none">{totalCount - visitedCount}</p>
 //                 </div>
@@ -1104,7 +1104,7 @@
 //                   ₹{safeCollection>= 1000 ? (safeCollection/ 1000).toFixed(1) + 'k' : safeCollection.toLocaleString('en-IN')}
 //                 </p>
 //               </div>
-//               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(151,194,42,0.10)', border: '1px solid rgba(151,194,42,0.2)' }}>
+//               <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(151,194,42,0.10)', border: '1px solid rgba(151,194,42,0.2)' }}>
 //                 <svg className="w-4 h-4" style={{ color: '#97C22A' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
 //                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 //                 </svg>
@@ -1154,7 +1154,7 @@
 //                 <button
 //                   onClick={() => fileInputRef.current?.click()}
 //                   disabled={isLocating || selectedAreas.length === 0}
-//                   className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-[12px] font-bold text-white active:scale-95 transition-all shadow-md disabled:opacity-50"
+//                   className="inline-flex items-center gap-2 rounded-2xl px-8 py-3.5 text-[12px] font-bold text-white active:scale-95 transition-all shadow-md disabled:opacity-50"
 //                   style={{ background: '#0A0F1A' }}
 //                 >
 //                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1193,7 +1193,7 @@
 //                       placeholder="Search within selected areas…"
 //                       value={searchQuery}
 //                       onChange={(e) => setSearchQuery(e.target.value)}
-//                       className="w-full rounded-xl pl-9 pr-9 py-2.5 text-[12px] font-bold text-white placeholder-slate-600 focus:outline-none transition-colors"
+//                       className="w-full rounded-2xl pl-9 pr-9 py-2.5 text-[12px] font-bold text-white placeholder-slate-600 focus:outline-none transition-colors"
 //                       style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
 //                     />
 //                     {searchQuery && (
@@ -1216,7 +1216,7 @@
 
 //                   {sortedAndFilteredShops.length === 0 ? (
 //                     <div className="py-14 text-center px-6">
-//                       <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style={{ background: '#F0F2F5', border: '1px solid #E2E8F0' }}>
+//                       <div className="w-10 h-10 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: '#F0F2F5', border: '1px solid #E2E8F0' }}>
 //                         <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
 //                       </div>
 //                       <p className="text-[13px] font-bold text-[#1E293B]">No shops found</p>
@@ -1273,7 +1273,7 @@
 //             <button
 //               key={area}
 //               onClick={() => onToggleArea(area)}
-//               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-bold transition-all active:scale-95 border ${
+//               className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-[12px] font-bold transition-all active:scale-95 border ${
 //                 isSelected 
 //                   ? 'bg-[#97C22A]/10 border-[#97C22A]/30 text-[#97C22A]' 
 //                   : 'bg-[#F0F2F5] border-transparent text-[#1E293B] hover:bg-[#E2E8F0]'
@@ -1289,7 +1289,7 @@
 //       <button
 //         onClick={onConfirm}
 //         disabled={selectedAreas.length === 0}
-//         className="w-full max-w-[260px] mx-auto bg-[#0A0F1A] text-white hover:bg-[#97C22A] hover:text-[#0A0F1A] disabled:opacity-50 disabled:pointer-events-none rounded-xl py-3.5 font-bold text-[13px] uppercase tracking-wider transition-all shadow-sm"
+//         className="w-full max-w-[260px] mx-auto bg-[#0A0F1A] text-white hover:bg-[#97C22A] hover:text-[#0A0F1A] disabled:opacity-50 disabled:pointer-events-none rounded-2xl py-3.5 font-bold text-[13px] uppercase tracking-wider transition-all shadow-sm"
 //       >
 //         Confirm & Continue
 //       </button>
@@ -1350,7 +1350,7 @@
 //         ) : (
 //           <button
 //             onClick={onLogVisit}
-//             className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold text-white active:scale-95 transition-all shadow-sm"
+//             className="inline-flex items-center gap-1.5 rounded-2xl px-3 py-2 text-[11px] font-bold text-white active:scale-95 transition-all shadow-sm"
 //             style={{ background: '#0A0F1A' }}
 //             onMouseEnter={e => { e.currentTarget.style.background = '#97C22A'; e.currentTarget.style.color = '#0A0F1A'; }}
 //             onMouseLeave={e => { e.currentTarget.style.background = '#0A0F1A'; e.currentTarget.style.color = 'white'; }}
@@ -2428,6 +2428,504 @@
 //   );
 // }
 
+// 'use client';
+// import { useState, useRef, useMemo, useEffect } from 'react';
+
+// function getDistance(lat1, lon1, lat2, lon2) {
+//   if (!lat1 || !lon1 || !lat2 || !lon2) return 999999;
+//   const R = 6371e3;
+//   const p1 = (lat1 * Math.PI) / 180;
+//   const p2 = (lat2 * Math.PI) / 180;
+//   const dp = ((lat2 - lat1) * Math.PI) / 180;
+//   const dl = ((lon2 - lon1) * Math.PI) / 180;
+//   const a =
+//     Math.sin(dp / 2) * Math.sin(dp / 2) +
+//     Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+//   return Math.round(R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))));
+// }
+
+// // ━━━ DESIGN TOKENS ━━━
+// const C = {
+//   dark: '#0A0F1A',
+//   green: '#97C22A',
+//   greenSoft: 'rgba(151,194,42,0.10)',
+//   greenSoftBorder: 'rgba(151,194,42,0.30)',
+//   surface: '#F0F2F5',
+//   card: '#FFFFFF',
+//   border: '#E2E8F0',
+//   muted: '#94A3B8',
+//   text: '#1E293B',
+// };
+
+// export default function TerritoryTab({
+//   targets,
+//   masterTerritories,
+//   masterAreas,
+//   isLoadingRoute,
+//   totalCollection,
+//   setPhotoUri,
+//   onRefreshData
+// }) {
+//   const [step, setStep] = useState('camera');
+//   const [selectedArea, setSelectedArea] = useState(''); 
+//   const [isAreaDropdownOpen, setIsAreaDropdownOpen] = useState(false);
+//   const [localPhoto, setLocalPhoto] = useState(null);
+//   const [location, setLocation] = useState(null);
+//   const [isLocating, setIsLocating] = useState(false);
+//   const [isSubmitting, setIsSubmitting] = useState(false);
+//   const [isMounted, setIsMounted] = useState(false);
+
+//   const [nearbyShops, setNearbyShops] = useState([]);
+//   const [selectedShopId, setSelectedShopId] = useState('');
+//   const [formData, setFormData] = useState({
+//     orderAmount: '',
+//     collectionAmount: '',
+//     paymentMethod: 'Cash',
+//     remark: ''
+//   });
+
+//   const fileInputRef = useRef(null);
+//   const dropdownRef = useRef(null);
+//   const GEOFENCE_RADIUS_METERS = 1000;
+
+//   const uniqueAreas = useMemo(() => {
+//     const fromMasterTerritories = Array.isArray(masterTerritories) ? masterTerritories.map(a => a.name) : [];
+//     const fromMasterAreas = Array.isArray(masterAreas) ? masterAreas.map(a => a.name) : [];
+//     const fromTargets = Array.isArray(targets) ? targets.map(t => t.areaName) : [];
+
+//     return [...new Set([...fromMasterTerritories, ...fromMasterAreas, ...fromTargets]
+//       .filter(Boolean)
+//       .filter(name => name !== 'Unassigned Area')
+//     )].sort();
+//   }, [targets, masterTerritories, masterAreas]);
+
+//   useEffect(() => {
+//     setIsMounted(true);
+//     const saved = localStorage.getItem('assignedSalesArea');
+//     if (saved) setSelectedArea(saved);
+//   }, []);
+
+//   useEffect(() => {
+//     const handler = (e) => {
+//       if (dropdownRef.current && !dropdownRef.current.contains(e.target))
+//         setIsAreaDropdownOpen(false);
+//     };
+//     document.addEventListener('mousedown', handler);
+//     return () => document.removeEventListener('mousedown', handler);
+//   }, []);
+
+//   const toggleArea = (area) => {
+//     setSelectedArea(area);
+//     localStorage.setItem('assignedSalesArea', area);
+//     setIsAreaDropdownOpen(false);
+//     setStep('camera');
+//     setLocalPhoto(null);
+//     setLocation(null);
+//     if (setPhotoUri) setPhotoUri(null);
+//   };
+
+//   const activeTargets = useMemo(() => {
+//     if (!selectedArea) return [];
+//     return targets?.filter((t) => t.areaName === selectedArea) || [];
+//   }, [targets, selectedArea]);
+
+//   const visitedCount = activeTargets.filter((t) => t.status === 'COMPLETED').length || 0;
+//   const totalCount = activeTargets.length || 0;
+//   const safeCollection= totalCollection|| 0;
+//   const progress = totalCount > 0 ? Math.round((visitedCount / totalCount) * 100) : 0;
+
+//   const handleCapture = (e) => {
+//     const file = e.target.files[0];
+//     if (!file) return;
+    
+//     setIsLocating(true);
+//     const reader = new FileReader();
+    
+//     reader.onload = (event) => {
+//       const img = new Image();
+//       img.onload = () => {
+//         const MAX_WIDTH = 800;
+//         const MAX_HEIGHT = 800;
+//         let width = img.width;
+//         let height = img.height;
+
+//         if (width > height) {
+//           if (width > MAX_WIDTH) { height *= Math.round(MAX_WIDTH / width); width = MAX_WIDTH; }
+//         } else {
+//           if (height > MAX_HEIGHT) { width *= Math.round(MAX_HEIGHT / height); height = MAX_HEIGHT; }
+//         }
+
+//         const canvas = document.createElement('canvas');
+//         canvas.width = width; canvas.height = height;
+//         const ctx = canvas.getContext('2d');
+//         ctx.drawImage(img, 0, 0, width, height);
+
+//         const compressedPhoto = canvas.toDataURL('image/jpeg', 0.7);
+//         setLocalPhoto(compressedPhoto);
+//         if (setPhotoUri) setPhotoUri(compressedPhoto);
+        
+//         verifyGeofence();
+//       };
+//       img.src = event.target.result;
+//     };
+//     reader.readAsDataURL(file);
+//   };
+
+//   const verifyGeofence = () => {
+//     if (!navigator.geolocation) {
+//       alert('Geolocation is not supported.');
+//       setIsLocating(false);
+//       return;
+//     }
+    
+//     navigator.geolocation.getCurrentPosition(
+//       (pos) => {
+//         const lat = pos.coords.latitude;
+//         const lng = pos.coords.longitude;
+//         const shopsWithGps = activeTargets.filter(s => s.latitude && s.longitude);
+        
+//         let closestShop = null;
+//         let minDistance = Infinity;
+
+//         shopsWithGps.forEach((s) => {
+//           const d = getDistance(lat, lng, Number(s.latitude), Number(s.longitude));
+//           if (d < minDistance) { minDistance = d; closestShop = s; }
+//         });
+
+//         let availableOptions = activeTargets.map(s => {
+//           const hasGps = s.latitude && s.longitude;
+//           let dist = hasGps ? getDistance(lat, lng, Number(s.latitude), Number(s.longitude)) : undefined;
+//           return {
+//             ...s,
+//             isNewAnchor: !hasGps,
+//             distance: dist
+//           };
+//         });
+        
+//         let autoSelectId = "";
+//         if (closestShop && minDistance <= GEOFENCE_RADIUS_METERS) {
+//           autoSelectId = closestShop.id.toString();
+//         }
+
+//         availableOptions.sort((a, b) => {
+//            if (autoSelectId) {
+//              if (a.id.toString() === autoSelectId) return -1;
+//              if (b.id.toString() === autoSelectId) return 1;
+//            }
+//            if (a.isNewAnchor && !b.isNewAnchor) return -1;
+//            if (!a.isNewAnchor && b.isNewAnchor) return 1;
+//            if (!a.isNewAnchor && !b.isNewAnchor) return a.distance - b.distance;
+//            return 0;
+//         });
+
+//         setLocation({ lat, lng });
+//         setNearbyShops(availableOptions);
+//         setSelectedShopId(autoSelectId);
+//         setIsLocating(false);
+//         setStep('form');
+//       },
+//       () => {
+//         alert('Could not get location. Enable Location Services and try again.');
+//         setIsLocating(false);
+//         setLocalPhoto(null);
+//         if (setPhotoUri) setPhotoUri(null);
+//       },
+//       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+//     );
+//   };
+
+//   const handleSubmitVisit = async (e) => {
+//     e.preventDefault();
+//     if (!selectedShopId) return alert("Please select a medical shop.");
+
+//     setIsSubmitting(true);
+//     try {
+//       const agentId = localStorage.getItem('employeeId') || 'Unknown';
+
+//       // 🚨 CRASH-PROOF PAYLOAD: Forcing strict fallbacks so we never send 'undefined'
+//       const payload = {
+//         agentId: agentId,
+//         targetId: selectedShopId,
+//         latitude: location?.lat || null,
+//         longitude: location?.lng || null,
+//         photoUrl: localPhoto || null,
+//         orderAmount: parseFloat(formData.orderAmount) || 0,
+//         collectionAmount: parseFloat(formData.collectionAmount) || 0,
+//         paymentMethod: formData.paymentMethod || 'Cash',
+//         remark: formData.remark || ''
+//       };
+
+//       const response = await fetch('/api/sales/visits', {
+//         method: 'POST',
+//         headers: { 'Content-Type': 'application/json' },
+//         body: JSON.stringify(payload),
+//       });
+
+//       const data = await response.json();
+//       if (!response.ok) throw new Error(data.error || "Failed to log visit.");
+
+//       setStep('camera');
+//       setLocalPhoto(null);
+//       setLocation(null);
+//       setFormData({ orderAmount: '', collectionAmount: '', paymentMethod: 'Cash', remark: '' });
+
+//       if (onRefreshData) onRefreshData();
+//       else window.location.reload();
+
+//     } catch (err) {
+//       console.error("Submission Error:", err);
+//       alert(`Error: ${err.message}`);
+//     } finally {
+//       setIsSubmitting(false);
+//     }
+//   };
+
+//   if (!isMounted) return null;
+
+//   return (
+//     <div style={{ flex: 1, overflowY: 'auto', background: C.surface, WebkitOverflowScrolling: 'touch' }}>
+//       <input type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handleCapture} style={{ display: 'none' }} />
+
+//       <div ref={dropdownRef} style={{ position: 'sticky', top: 0, zIndex: 30, background: C.dark }}>
+//         <div style={{ padding: '12px 16px 10px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+//           <div style={{ flex: 1, minWidth: 0 }}>
+//             <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', margin: '0 0 6px' }}>
+//               Operating Territory
+//             </p>
+//             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 5 }}>
+//               {selectedArea ? (
+//                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: C.green, background: C.greenSoft, border: `1px solid ${C.greenSoftBorder}`, borderRadius: 20, padding: '3px 7px 3px 9px' }}>
+//                   {selectedArea}
+//                 </span>
+//               ) : (
+//                 <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>No area selected</span>
+//               )}
+              
+//               <button
+//                 onClick={() => setIsAreaDropdownOpen((p) => !p)}
+//                 style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: isAreaDropdownOpen ? C.dark : C.green, background: isAreaDropdownOpen ? C.green : C.greenSoft, border: `1px solid ${C.greenSoftBorder}`, borderRadius: 20, padding: '3px 9px' }}
+//               >
+//                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
+//                   {isAreaDropdownOpen ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M12 4v16M4 12h16" />}
+//                 </svg>
+//                 {selectedArea ? (isAreaDropdownOpen ? 'Close' : 'Change Area') : 'Select Area'}
+//               </button>
+//             </div>
+//           </div>
+
+//           <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 20, background: step === 'form' ? C.greenSoft : 'rgba(255,255,255,0.06)', border: `1px solid ${step === 'form' ? C.greenSoftBorder : 'rgba(255,255,255,0.1)'}`, flexShrink: 0, marginTop: 2 }}>
+//             <span style={{ width: 5, height: 5, borderRadius: '50%', background: step === 'form' ? C.green : 'rgba(255,255,255,0.3)', display: 'inline-block' }} />
+//             <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: step === 'form' ? C.green : 'rgba(255,255,255,0.5)' }}>
+//               {step === 'camera' ? 'Locked' : 'Verified'}
+//             </span>
+//             {step === 'form' && localPhoto && (
+//               <img src={localPhoto} alt="" style={{ width: 16, height: 16, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.greenSoftBorder}`, marginLeft: 2 }} />
+//             )}
+//           </div>
+//         </div>
+
+//         {isAreaDropdownOpen && (
+//           <div style={{ margin: '0 12px 12px', background: C.card, borderRadius: 14, overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
+//             {uniqueAreas.length === 0 ? (
+//               <p style={{ padding: '14px 16px', fontSize: 12, color: C.muted, margin: 0 }}>No territories in data.</p>
+//             ) : (
+//               <div style={{ padding: '10px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+//                 {uniqueAreas.map((area) => {
+//                   const sel = area === selectedArea;
+//                   return (
+//                     <button
+//                       key={area}
+//                       onClick={() => toggleArea(area)}
+//                       style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, padding: '7px 12px', borderRadius: 8, border: sel ? `1px solid ${C.greenSoftBorder}` : `1px solid ${C.border}`, background: sel ? C.greenSoft : C.surface, color: sel ? '#5C7A1A' : C.text, cursor: 'pointer' }}
+//                     >
+//                       {sel && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#5C7A1A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>}
+//                       {area}
+//                     </button>
+//                   );
+//                 })}
+//               </div>
+//             )}
+//           </div>
+//         )}
+//       </div>
+
+//       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '14px 14px 70px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+//         {selectedArea && (
+//           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+//             <div style={{ background: C.card, borderRadius: 16, padding: '14px 16px', gridColumn: 'span 2', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+//               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+//                 <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted }}>Daily progress ({selectedArea})</span>
+//                 <span style={{ fontSize: 12, fontWeight: 700, color: '#5C7A1A' }}>{progress}%</span>
+//               </div>
+//               <div style={{ height: 4, background: '#EEF1F4', borderRadius: 99, overflow: 'hidden', marginBottom: 14 }}>
+//                 <div style={{ height: '100%', width: `${progress}%`, background: C.green, borderRadius: 99, transition: 'width 0.6s ease' }} />
+//               </div>
+//               <div className="divide-x divide-slate-100" style={{ display: 'flex' }}>
+//                 {[
+//                   { label: 'Total', val: totalCount },
+//                   { label: 'Done', val: visitedCount },
+//                   { label: 'Left', val: totalCount - visitedCount },
+//                 ].map(({ label, val }) => (
+//                   <div key={label} style={{ flex: 1, textAlign: 'center' }}>
+//                     <p style={{ fontSize: 22, fontWeight: 700, color: C.text, margin: 0, lineHeight: 1 }}>{val}</p>
+//                     <p style={{ fontSize: 9, fontWeight: 600, color: C.muted, letterSpacing: '0.08em', textTransform: 'uppercase', margin: '5px 0 0' }}>{label}</p>
+//                   </div>
+//                 ))}
+//               </div>
+//             </div>
+//             <div style={{ background: C.card, borderRadius: 16, padding: '14px 16px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+//               <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, display: 'block', marginBottom: 8 }}>Earned today</span>
+//               <p style={{ fontSize: 22, fontWeight: 700, color: C.text, margin: 0 }}>
+//                 ₹{safeCollection>= 1000 ? (safeCollection/ 1000).toFixed(1) + 'k' : safeCollection.toLocaleString('en-IN')}
+//               </p>
+//             </div>
+//           </div>
+//         )}
+
+//         {isLoadingRoute ? (
+//           <div style={{ background: C.card, borderRadius: 16, padding: '46px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+//             <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2.5px solid ${C.greenSoftBorder}`, borderTopColor: C.green, animation: 'spin 0.8s linear infinite' }} />
+//             <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>Loading territory…</p>
+//             <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+//           </div>
+//         ) : !selectedArea ? (
+//           <div style={{ background: C.card, borderRadius: 16, padding: '48px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+//             <div style={{ width: 48, height: 48, borderRadius: 14, background: C.greenSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+//               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5C7A1A" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
+//             </div>
+//             <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: '0 0 8px' }}>Select your working area</h2>
+//             <p style={{ fontSize: 12, color: C.muted, maxWidth: 250, lineHeight: 1.6, margin: '0 0 22px' }}>Tap <span style={{ fontWeight: 600, color: C.text }}>Select Area</span> in the header to choose which territory you are working in today.</p>
+//             <button onClick={() => setIsAreaDropdownOpen(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: C.green, background: C.dark, border: 'none', borderRadius: 10, padding: '10px 20px', cursor: 'pointer' }}>
+//               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 4v16M4 12h16" /></svg> Select Area
+//             </button>
+//           </div>
+//         ) : step === 'camera' ? (
+//           <div style={{ background: C.card, borderRadius: 16, padding: '46px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+//             <div style={{ width: 52, height: 52, borderRadius: 14, background: C.greenSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, padding: 10 }}>
+//               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5C7A1A" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" /><circle cx="12" cy="13" r="4" /></svg>
+//             </div>
+//             <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, margin: '0 0 6px' }}>Security check</p>
+//             <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: '0 0 10px' }}>Field Check-In</h2>
+//             <p style={{ fontSize: 12, color: C.muted, maxWidth: 280, lineHeight: 1.6, margin: '0 0 24px' }}>
+//               Take a photo of the shop in {selectedArea}. We'll use your GPS to auto-detect which shop you are at.
+//             </p>
+//             <button onClick={() => fileInputRef.current?.click()} disabled={isLocating} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: isLocating ? '#fff' : C.green, background: C.dark, border: 'none', borderRadius: 12, padding: '12px 26px', cursor: isLocating ? 'not-allowed' : 'pointer', opacity: isLocating ? 0.7 : 1 }}>
+//               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" /><circle cx="12" cy="13" r="4" /></svg>
+//               {isLocating ? 'Analyzing GPS...' : 'Take Photo to Unlock'}
+//             </button>
+//           </div>
+//         ) : (
+//           <div className="animate-in slide-in-from-bottom-4 duration-300">
+//             <div style={{ background: C.card, padding: 12, borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.08)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 14 }}>
+//               <img src={localPhoto} alt="Captured" style={{ width: 52, height: 52, borderRadius: 10, objectFit: 'cover', border: `1px solid ${C.border}` }} />
+//               <div style={{ flex: 1 }}>
+//                 <p style={{ fontSize: 9, fontWeight: 700, color: '#5C7A1A', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 4, margin: 0 }}>
+//                   <svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"></path></svg> GPS Verified
+//                 </p>
+//                 <button onClick={() => setStep('camera')} style={{ fontSize: 11, fontWeight: 600, color: C.muted, textDecoration: 'underline', background: 'none', border: 'none', padding: 0, marginTop: 4, cursor: 'pointer' }}>Retake photo</button>
+//               </div>
+//             </div>
+
+//             <form onSubmit={handleSubmitVisit} style={{ background: C.card, borderRadius: 18, padding: '18px 16px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+//               <div style={{ marginBottom: 18 }}>
+//                 <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Selected medical shop</label>
+//                 <select
+//                   value={selectedShopId}
+//                   onChange={(e) => setSelectedShopId(e.target.value)}
+//                   required
+//                   style={{ width: '100%', padding: '11px 14px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 13, fontWeight: 600, color: C.text, outline: 'none' }}
+//                 >
+//                   <option value="" disabled>Select a shop in {selectedArea}...</option>
+//                   {nearbyShops.map((shop) => (
+//                     <option key={shop.id} value={shop.id}>
+//                       {shop.isNewAnchor ? '🆕 (First Visit) ' : '📍 '}
+//                       {shop.name} {shop.distance !== undefined && shop.distance < 999999 ? `- ${(shop.distance / 1000).toFixed(1)}km` : ''}
+//                     </option>
+//                   ))}
+//                 </select>
+//                 {selectedShopId && nearbyShops.find(s => s.id.toString() === selectedShopId)?.isNewAnchor && (
+//                   <p style={{ fontSize: 10, color: C.green, marginTop: 6, fontWeight: 600 }}>
+//                     * First visit to this shop. Submitting will permanently lock its GPS coordinates here.
+//                   </p>
+//                 )}
+//               </div>
+
+//               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
+//                 <div>
+//                   <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Order vol (₹)</label>
+//                   <input
+//                     type="number"
+//                     value={formData.orderAmount}
+//                     onChange={(e) => setFormData({...formData, orderAmount: e.target.value})}
+//                     placeholder="0"
+//                     style={{ width: '100%', padding: '11px 14px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 13, fontWeight: 600, color: C.text, outline: 'none' }}
+//                   />
+//                 </div>
+//                 <div>
+//                   <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#5C7A1A', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Collection (₹)</label>
+//                   <input
+//                     type="number"
+//                     value={formData.collectionAmount}
+//                     onChange={(e) => setFormData({...formData, collectionAmount: e.target.value})}
+//                     placeholder="0"
+//                     style={{ width: '100%', padding: '11px 14px', background: C.greenSoft, border: `1px solid ${C.greenSoftBorder}`, borderRadius: 10, fontSize: 13, fontWeight: 600, color: C.text, outline: 'none' }}
+//                   />
+//                 </div>
+//               </div>
+
+//               <div style={{ marginBottom: 18 }}>
+//                 <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Payment method</label>
+//                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 7 }}>
+//                   {['Cash', 'UPI', 'Cheque', 'Credit'].map((method) => {
+//                     const active = formData.paymentMethod === method;
+//                     return (
+//                       <button
+//                         key={method}
+//                         type="button"
+//                         onClick={() => setFormData({...formData, paymentMethod: method})}
+//                         style={{ padding: '9px 0', fontSize: 11, fontWeight: 600, borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s', border: active ? `1px solid ${C.dark}` : `1px solid ${C.border}`, background: active ? C.dark : C.surface, color: active ? C.green : C.muted }}
+//                       >
+//                         {method}
+//                       </button>
+//                     );
+//                   })}
+//                 </div>
+//               </div>
+
+//               <div style={{ marginBottom: 20 }}>
+//                 <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Remark / note</label>
+//                 <textarea
+//                   value={formData.remark}
+//                   onChange={(e) => setFormData({...formData, remark: e.target.value})}
+//                   placeholder="Optional notes regarding this visit..."
+//                   rows="2"
+//                   style={{ width: '100%', padding: '11px 14px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 12, fontWeight: 500, color: C.text, outline: 'none', resize: 'none' }}
+//                 ></textarea>
+//               </div>
+
+//               <div style={{ paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
+//                 <button
+//                   type="submit"
+//                   disabled={isSubmitting}
+//                   style={{ width: '100%', padding: '13px', borderRadius: 12, color: C.dark, fontWeight: 700, fontSize: 13, background: C.green, border: 'none', cursor: isSubmitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: isSubmitting ? 0.7 : 1 }}
+//                 >
+//                   {isSubmitting ? 'Submitting...' : 'Log this visit'}
+//                 </button>
+//               </div>
+//             </form>
+//           </div>
+//         )}
+//       </div>
+//     </div>
+//   );
+// }
+
+
+
+
+
+
+
 'use client';
 import { useState, useRef, useMemo, useEffect } from 'react';
 
@@ -2444,19 +2942,6 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return Math.round(R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))));
 }
 
-// ━━━ DESIGN TOKENS ━━━
-const C = {
-  dark: '#0A0F1A',
-  green: '#97C22A',
-  greenSoft: 'rgba(151,194,42,0.10)',
-  greenSoftBorder: 'rgba(151,194,42,0.30)',
-  surface: '#F0F2F5',
-  card: '#FFFFFF',
-  border: '#E2E8F0',
-  muted: '#94A3B8',
-  text: '#1E293B',
-};
-
 export default function TerritoryTab({
   targets,
   masterTerritories,
@@ -2469,6 +2954,7 @@ export default function TerritoryTab({
   const [step, setStep] = useState('camera');
   const [selectedArea, setSelectedArea] = useState(''); 
   const [isAreaDropdownOpen, setIsAreaDropdownOpen] = useState(false);
+  const [areaSearchQuery, setAreaSearchQuery] = useState(''); // NEW: Search state
   const [localPhoto, setLocalPhoto] = useState(null);
   const [location, setLocation] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
@@ -2499,6 +2985,14 @@ export default function TerritoryTab({
     )].sort();
   }, [targets, masterTerritories, masterAreas]);
 
+  // NEW: Filter areas based on search query
+  const filteredAreas = useMemo(() => {
+    if (!areaSearchQuery) return uniqueAreas;
+    return uniqueAreas.filter(area => 
+      area.toLowerCase().includes(areaSearchQuery.toLowerCase())
+    );
+  }, [uniqueAreas, areaSearchQuery]);
+
   useEffect(() => {
     setIsMounted(true);
     const saved = localStorage.getItem('assignedSalesArea');
@@ -2507,8 +3001,9 @@ export default function TerritoryTab({
 
   useEffect(() => {
     const handler = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target))
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setIsAreaDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -2518,6 +3013,7 @@ export default function TerritoryTab({
     setSelectedArea(area);
     localStorage.setItem('assignedSalesArea', area);
     setIsAreaDropdownOpen(false);
+    setAreaSearchQuery(''); // Reset search when selected
     setStep('camera');
     setLocalPhoto(null);
     setLocation(null);
@@ -2531,7 +3027,7 @@ export default function TerritoryTab({
 
   const visitedCount = activeTargets.filter((t) => t.status === 'COMPLETED').length || 0;
   const totalCount = activeTargets.length || 0;
-  const safeCollection= totalCollection|| 0;
+  const safeCollection = totalCollection || 0;
   const progress = totalCount > 0 ? Math.round((visitedCount / totalCount) * 100) : 0;
 
   const handleCapture = (e) => {
@@ -2642,7 +3138,6 @@ export default function TerritoryTab({
     try {
       const agentId = localStorage.getItem('employeeId') || 'Unknown';
 
-      // 🚨 CRASH-PROOF PAYLOAD: Forcing strict fallbacks so we never send 'undefined'
       const payload = {
         agentId: agentId,
         targetId: selectedShopId,
@@ -2683,62 +3178,99 @@ export default function TerritoryTab({
   if (!isMounted) return null;
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', background: C.surface, WebkitOverflowScrolling: 'touch' }}>
-      <input type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handleCapture} style={{ display: 'none' }} />
+    <div className="flex-1 overflow-y-auto bg-slate-50 relative pb-24" style={{ WebkitOverflowScrolling: 'touch' }}>
+      
+      <input type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handleCapture} className="hidden" />
 
-      <div ref={dropdownRef} style={{ position: 'sticky', top: 0, zIndex: 30, background: C.dark }}>
-        <div style={{ padding: '12px 16px 10px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', margin: '0 0 6px' }}>
-              Operating Territory
+      {/* Floating Header Component */}
+      <div ref={dropdownRef} className="sticky top-0 z-30 bg-[#0a0f1c] px-5 pt-4 pb-5 rounded-b-xl shadow-md border-b border-white/5 transition-all">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] font-semibold text-slate-400 mb-1.5">
+              Operating territory
             </p>
-            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 5 }}>
+            <div className="flex items-center flex-wrap gap-2.5">
               {selectedArea ? (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: C.green, background: C.greenSoft, border: `1px solid ${C.greenSoftBorder}`, borderRadius: 20, padding: '3px 7px 3px 9px' }}>
+                <span className="inline-flex items-center gap-1.5 text-[13px] font-bold text-[#97C22A] bg-[#97C22A]/10 border border-[#97C22A]/20 rounded-2xl px-3 py-1">
                   {selectedArea}
                 </span>
               ) : (
-                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>No area selected</span>
+                <span className="text-[13px] text-slate-500 font-medium">No area selected</span>
               )}
               
               <button
                 onClick={() => setIsAreaDropdownOpen((p) => !p)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: isAreaDropdownOpen ? C.dark : C.green, background: isAreaDropdownOpen ? C.green : C.greenSoft, border: `1px solid ${C.greenSoftBorder}`, borderRadius: 20, padding: '3px 9px' }}
+                className={`inline-flex items-center gap-1.5 text-[12px] font-bold rounded-2xl px-3 py-1 transition-colors ${
+                  isAreaDropdownOpen 
+                    ? 'bg-[#97C22A] text-[#0a0f1c]' 
+                    : 'bg-[#97C22A]/10 text-[#97C22A] hover:bg-[#97C22A]/20'
+                }`}
               >
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
-                  {isAreaDropdownOpen ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M12 4v16M4 12h16" />}
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {isAreaDropdownOpen ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 15l7-7 7 7" /> : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />}
                 </svg>
-                {selectedArea ? (isAreaDropdownOpen ? 'Close' : 'Change Area') : 'Select Area'}
+                {selectedArea ? (isAreaDropdownOpen ? 'Close' : 'Change') : 'Select'}
               </button>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 20, background: step === 'form' ? C.greenSoft : 'rgba(255,255,255,0.06)', border: `1px solid ${step === 'form' ? C.greenSoftBorder : 'rgba(255,255,255,0.1)'}`, flexShrink: 0, marginTop: 2 }}>
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: step === 'form' ? C.green : 'rgba(255,255,255,0.3)', display: 'inline-block' }} />
-            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: step === 'form' ? C.green : 'rgba(255,255,255,0.5)' }}>
+          {/* Status Indicator */}
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl border shrink-0 mt-1 ${
+            step === 'form' ? 'bg-[#97C22A]/10 border-[#97C22A]/20' : 'bg-white/5 border-white/10'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${step === 'form' ? 'bg-[#97C22A]' : 'bg-slate-500'}`} />
+            <span className={`text-[11px] font-bold ${step === 'form' ? 'text-[#97C22A]' : 'text-slate-400'}`}>
               {step === 'camera' ? 'Locked' : 'Verified'}
             </span>
-            {step === 'form' && localPhoto && (
-              <img src={localPhoto} alt="" style={{ width: 16, height: 16, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.greenSoftBorder}`, marginLeft: 2 }} />
-            )}
           </div>
         </div>
 
+        {/* MODIFIED: Searchable Horizontal Chips Dropdown */}
         {isAreaDropdownOpen && (
-          <div style={{ margin: '0 12px 12px', background: C.card, borderRadius: 14, overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
-            {uniqueAreas.length === 0 ? (
-              <p style={{ padding: '14px 16px', fontSize: 12, color: C.muted, margin: 0 }}>No territories in data.</p>
+          <div className="absolute top-[100%] left-4 right-4 mt-2 bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-top-2 z-40">
+            
+            {/* Search Bar */}
+            <div className="p-3 border-b border-slate-100 bg-slate-50/50">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search area..."
+                  value={areaSearchQuery}
+                  onChange={(e) => setAreaSearchQuery(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-2xl pl-9 pr-4 py-2.5 text-[14px] font-medium text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Horizontal Flowing Chips */}
+            {filteredAreas.length === 0 ? (
+              <div className="p-6 text-center">
+                <p className="text-[13px] text-slate-500 font-medium m-0">No areas found</p>
+              </div>
             ) : (
-              <div style={{ padding: '10px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {uniqueAreas.map((area) => {
+              <div className="p-3 flex flex-wrap gap-2 max-h-[35vh] overflow-y-auto">
+                {filteredAreas.map((area) => {
                   const sel = area === selectedArea;
                   return (
                     <button
                       key={area}
                       onClick={() => toggleArea(area)}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, padding: '7px 12px', borderRadius: 8, border: sel ? `1px solid ${C.greenSoftBorder}` : `1px solid ${C.border}`, background: sel ? C.greenSoft : C.surface, color: sel ? '#5C7A1A' : C.text, cursor: 'pointer' }}
+                      className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-[13px] font-semibold transition-all ${
+                        sel 
+                          ? 'bg-[#97C22A] text-[#0a0f1c] shadow-sm' 
+                          : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                      }`}
                     >
-                      {sel && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#5C7A1A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>}
+                      {sel && (
+                        <svg className="w-3.5 h-3.5 text-[#0a0f1c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
                       {area}
                     </button>
                   );
@@ -2749,133 +3281,172 @@ export default function TerritoryTab({
         )}
       </div>
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '14px 14px 70px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="px-4 pt-5 flex flex-col gap-4 max-w-lg mx-auto">
+        
+        {/* Progress Cards */}
         {selectedArea && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
-            <div style={{ background: C.card, borderRadius: 16, padding: '14px 16px', gridColumn: 'span 2', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted }}>Daily progress ({selectedArea})</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#5C7A1A' }}>{progress}%</span>
+          <div className="flex flex-col gap-3">
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-[12px] font-semibold text-slate-500">Daily progress</span>
+                <span className="text-[14px] font-bold text-[#5C7A1A]">{progress}%</span>
               </div>
-              <div style={{ height: 4, background: '#EEF1F4', borderRadius: 99, overflow: 'hidden', marginBottom: 14 }}>
-                <div style={{ height: '100%', width: `${progress}%`, background: C.green, borderRadius: 99, transition: 'width 0.6s ease' }} />
+              <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-4">
+                <div className="h-full bg-[#97C22A] rounded-full transition-all duration-700 ease-out" style={{ width: `${progress}%` }} />
               </div>
-              <div className="divide-x divide-slate-100" style={{ display: 'flex' }}>
+              <div className="flex divide-x divide-slate-100">
                 {[
                   { label: 'Total', val: totalCount },
                   { label: 'Done', val: visitedCount },
                   { label: 'Left', val: totalCount - visitedCount },
                 ].map(({ label, val }) => (
-                  <div key={label} style={{ flex: 1, textAlign: 'center' }}>
-                    <p style={{ fontSize: 22, fontWeight: 700, color: C.text, margin: 0, lineHeight: 1 }}>{val}</p>
-                    <p style={{ fontSize: 9, fontWeight: 600, color: C.muted, letterSpacing: '0.08em', textTransform: 'uppercase', margin: '5px 0 0' }}>{label}</p>
+                  <div key={label} className="flex-1 text-center">
+                    <p className="text-[20px] font-bold text-slate-800 leading-none m-0">{val}</p>
+                    <p className="text-[11px] font-semibold text-slate-400 mt-1.5">{label}</p>
                   </div>
                 ))}
               </div>
             </div>
-            <div style={{ background: C.card, borderRadius: 16, padding: '14px 16px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
-              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, display: 'block', marginBottom: 8 }}>Earned today</span>
-              <p style={{ fontSize: 22, fontWeight: 700, color: C.text, margin: 0 }}>
-                ₹{safeCollection>= 1000 ? (safeCollection/ 1000).toFixed(1) + 'k' : safeCollection.toLocaleString('en-IN')}
+
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex justify-between items-center">
+              <span className="text-[13px] font-semibold text-slate-500">Earned today</span>
+              <p className="text-[20px] font-bold text-slate-900 m-0">
+                ₹{safeCollection >= 1000 ? (safeCollection / 1000).toFixed(1) + 'k' : safeCollection.toLocaleString('en-IN')}
               </p>
             </div>
           </div>
         )}
 
+        {/* Dynamic Views */}
         {isLoadingRoute ? (
-          <div style={{ background: C.card, borderRadius: 16, padding: '46px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
-            <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2.5px solid ${C.greenSoftBorder}`, borderTopColor: C.green, animation: 'spin 0.8s linear infinite' }} />
-            <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>Loading territory…</p>
-            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+          <div className="bg-white rounded-2xl p-10 flex flex-col items-center gap-4 shadow-sm border border-slate-100 mt-2">
+            <svg className="w-8 h-8 text-[#97C22A] animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-100" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p className="text-[13px] font-medium text-slate-500 m-0">Loading territory data...</p>
           </div>
         ) : !selectedArea ? (
-          <div style={{ background: C.card, borderRadius: 16, padding: '48px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
-            <div style={{ width: 48, height: 48, borderRadius: 14, background: C.greenSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5C7A1A" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
+          <div className="bg-white rounded-2xl p-10 flex flex-col items-center text-center shadow-sm border border-slate-100 mt-2">
+            <div className="w-14 h-14 rounded-2xl bg-[#97C22A]/10 flex items-center justify-center mb-5 border border-[#97C22A]/20">
+              <svg className="w-6 h-6 text-[#5C7A1A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                <circle cx="12" cy="10" r="3" strokeWidth="2" />
+              </svg>
             </div>
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: '0 0 8px' }}>Select your working area</h2>
-            <p style={{ fontSize: 12, color: C.muted, maxWidth: 250, lineHeight: 1.6, margin: '0 0 22px' }}>Tap <span style={{ fontWeight: 600, color: C.text }}>Select Area</span> in the header to choose which territory you are working in today.</p>
-            <button onClick={() => setIsAreaDropdownOpen(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: C.green, background: C.dark, border: 'none', borderRadius: 10, padding: '10px 20px', cursor: 'pointer' }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 4v16M4 12h16" /></svg> Select Area
+            <h2 className="text-[17px] font-bold text-slate-900 mb-2">Select working area</h2>
+            <p className="text-[13px] text-slate-500 leading-relaxed mb-6">
+              Choose your territory from the header to view your targets and start logging visits.
+            </p>
+            <button 
+              onClick={() => setIsAreaDropdownOpen(true)} 
+              className="bg-[#0a0f1c] text-white text-[14px] font-bold rounded-2xl px-6 py-3.5 flex items-center gap-2 active:scale-95 transition-transform shadow-sm"
+            >
+              Select area
             </button>
           </div>
         ) : step === 'camera' ? (
-          <div style={{ background: C.card, borderRadius: 16, padding: '46px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
-            <div style={{ width: 52, height: 52, borderRadius: 14, background: C.greenSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, padding: 10 }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5C7A1A" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" /><circle cx="12" cy="13" r="4" /></svg>
+          <div className="bg-white rounded-2xl p-8 flex flex-col items-center text-center shadow-sm border border-slate-100 mt-2">
+            <div className="w-16 h-16 rounded-3xl bg-[#97C22A]/10 flex items-center justify-center mb-5 border border-[#97C22A]/20 relative">
+              {isLocating && <div className="absolute inset-0 border-2 border-[#97C22A] rounded-3xl animate-ping opacity-30" />}
+              <svg className="w-7 h-7 text-[#5C7A1A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+              </svg>
             </div>
-            <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, margin: '0 0 6px' }}>Security check</p>
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: '0 0 10px' }}>Field Check-In</h2>
-            <p style={{ fontSize: 12, color: C.muted, maxWidth: 280, lineHeight: 1.6, margin: '0 0 24px' }}>
-              Take a photo of the shop in {selectedArea}. We'll use your GPS to auto-detect which shop you are at.
+            <p className="text-[12px] font-bold text-[#97C22A] mb-1.5">Security check</p>
+            <h2 className="text-[18px] font-bold text-slate-900 mb-2">Field check-in</h2>
+            <p className="text-[13.5px] text-slate-500 leading-relaxed mb-7 max-w-[260px]">
+              Take a photo of the shop in {selectedArea}. GPS will auto-detect your location.
             </p>
-            <button onClick={() => fileInputRef.current?.click()} disabled={isLocating} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: isLocating ? '#fff' : C.green, background: C.dark, border: 'none', borderRadius: 12, padding: '12px 26px', cursor: isLocating ? 'not-allowed' : 'pointer', opacity: isLocating ? 0.7 : 1 }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" /><circle cx="12" cy="13" r="4" /></svg>
-              {isLocating ? 'Analyzing GPS...' : 'Take Photo to Unlock'}
+            <button 
+              onClick={() => fileInputRef.current?.click()} 
+              disabled={isLocating} 
+              className={`w-full py-4 rounded-2xl text-[15px] font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${
+                isLocating ? 'bg-slate-800 text-white/50 cursor-not-allowed' : 'bg-[#0a0f1c] text-white active:scale-[0.98]'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+              </svg>
+              {isLocating ? 'Analyzing GPS...' : 'Take photo to unlock'}
             </button>
           </div>
         ) : (
-          <div className="animate-in slide-in-from-bottom-4 duration-300">
-            <div style={{ background: C.card, padding: 12, borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.08)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 14 }}>
-              <img src={localPhoto} alt="Captured" style={{ width: 52, height: 52, borderRadius: 10, objectFit: 'cover', border: `1px solid ${C.border}` }} />
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize: 9, fontWeight: 700, color: '#5C7A1A', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 4, margin: 0 }}>
-                  <svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"></path></svg> GPS Verified
+          <div className="animate-in slide-in-from-bottom-4 duration-300 mt-2 flex flex-col gap-4">
+            
+            {/* Verified Photo Card */}
+            <div className="bg-white p-3.5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+              <img src={localPhoto} alt="Captured" className="w-14 h-14 rounded-2xl object-cover border border-slate-200 shadow-sm" />
+              <div className="flex-1">
+                <p className="text-[12px] font-bold text-[#5C7A1A] flex items-center gap-1.5 m-0">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg> 
+                  GPS Verified
                 </p>
-                <button onClick={() => setStep('camera')} style={{ fontSize: 11, fontWeight: 600, color: C.muted, textDecoration: 'underline', background: 'none', border: 'none', padding: 0, marginTop: 4, cursor: 'pointer' }}>Retake photo</button>
+                <button 
+                  onClick={() => setStep('camera')} 
+                  className="text-[12px] font-semibold text-slate-400 mt-1 underline underline-offset-2 active:text-slate-600 transition-colors"
+                >
+                  Retake photo
+                </button>
               </div>
             </div>
 
-            <form onSubmit={handleSubmitVisit} style={{ background: C.card, borderRadius: 18, padding: '18px 16px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
-              <div style={{ marginBottom: 18 }}>
-                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Selected medical shop</label>
-                <select
-                  value={selectedShopId}
-                  onChange={(e) => setSelectedShopId(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '11px 14px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 13, fontWeight: 600, color: C.text, outline: 'none' }}
-                >
-                  <option value="" disabled>Select a shop in {selectedArea}...</option>
-                  {nearbyShops.map((shop) => (
-                    <option key={shop.id} value={shop.id}>
-                      {shop.isNewAnchor ? '🆕 (First Visit) ' : '📍 '}
-                      {shop.name} {shop.distance !== undefined && shop.distance < 999999 ? `- ${(shop.distance / 1000).toFixed(1)}km` : ''}
-                    </option>
-                  ))}
-                </select>
+            {/* Visit Form */}
+            <form onSubmit={handleSubmitVisit} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+              
+              <div className="mb-5">
+                <label className="block text-[12px] font-semibold text-slate-500 mb-2">Selected medical shop</label>
+                <div className="relative">
+                  <select
+                    value={selectedShopId}
+                    onChange={(e) => setSelectedShopId(e.target.value)}
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 text-[14px] font-semibold text-slate-800 appearance-none outline-none focus:border-slate-400 focus:bg-white transition-colors"
+                  >
+                    <option value="" disabled>Select a shop in {selectedArea}...</option>
+                    {nearbyShops.map((shop) => (
+                      <option key={shop.id} value={shop.id}>
+                        {shop.isNewAnchor ? 'First Visit - ' : ''}{shop.name} {shop.distance !== undefined && shop.distance < 999999 ? `(${ (shop.distance / 1000).toFixed(1) }km)` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                  </div>
+                </div>
                 {selectedShopId && nearbyShops.find(s => s.id.toString() === selectedShopId)?.isNewAnchor && (
-                  <p style={{ fontSize: 10, color: C.green, marginTop: 6, fontWeight: 600 }}>
-                    * First visit to this shop. Submitting will permanently lock its GPS coordinates here.
+                  <p className="text-[11px] text-[#5C7A1A] mt-2 font-medium bg-[#97C22A]/10 p-2 rounded-2xl border border-[#97C22A]/20">
+                    First visit: Submitting will lock its GPS coordinates here.
                   </p>
                 )}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
+              <div className="grid grid-cols-2 gap-3 mb-5">
                 <div>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Order vol (₹)</label>
+                  <label className="block text-[12px] font-semibold text-slate-500 mb-2">Order vol (₹)</label>
                   <input
                     type="number"
                     value={formData.orderAmount}
                     onChange={(e) => setFormData({...formData, orderAmount: e.target.value})}
                     placeholder="0"
-                    style={{ width: '100%', padding: '11px 14px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 13, fontWeight: 600, color: C.text, outline: 'none' }}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 text-[15px] font-bold text-slate-800 outline-none focus:border-slate-400 focus:bg-white transition-colors"
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#5C7A1A', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Collection (₹)</label>
+                  <label className="block text-[12px] font-semibold text-[#5C7A1A] mb-2">Collection (₹)</label>
                   <input
                     type="number"
                     value={formData.collectionAmount}
                     onChange={(e) => setFormData({...formData, collectionAmount: e.target.value})}
                     placeholder="0"
-                    style={{ width: '100%', padding: '11px 14px', background: C.greenSoft, border: `1px solid ${C.greenSoftBorder}`, borderRadius: 10, fontSize: 13, fontWeight: 600, color: C.text, outline: 'none' }}
+                    className="w-full bg-[#97C22A]/10 border border-[#97C22A]/30 rounded-2xl px-4 py-3.5 text-[15px] font-bold text-slate-900 outline-none focus:bg-[#97C22A]/20 transition-colors"
                   />
                 </div>
               </div>
 
-              <div style={{ marginBottom: 18 }}>
-                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Payment method</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 7 }}>
+              <div className="mb-5">
+                <label className="block text-[12px] font-semibold text-slate-500 mb-2">Payment method</label>
+                <div className="grid grid-cols-4 gap-2">
                   {['Cash', 'UPI', 'Cheque', 'Credit'].map((method) => {
                     const active = formData.paymentMethod === method;
                     return (
@@ -2883,7 +3454,11 @@ export default function TerritoryTab({
                         key={method}
                         type="button"
                         onClick={() => setFormData({...formData, paymentMethod: method})}
-                        style={{ padding: '9px 0', fontSize: 11, fontWeight: 600, borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s', border: active ? `1px solid ${C.dark}` : `1px solid ${C.border}`, background: active ? C.dark : C.surface, color: active ? C.green : C.muted }}
+                        className={`py-2.5 text-[12px] font-semibold rounded-2xl transition-all border ${
+                          active 
+                            ? 'bg-[#0a0f1c] text-[#97C22A] border-[#0a0f1c] shadow-sm' 
+                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                        }`}
                       >
                         {method}
                       </button>
@@ -2892,26 +3467,36 @@ export default function TerritoryTab({
                 </div>
               </div>
 
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Remark / note</label>
+              <div className="mb-6">
+                <label className="block text-[12px] font-semibold text-slate-500 mb-2">Remark / note</label>
                 <textarea
                   value={formData.remark}
                   onChange={(e) => setFormData({...formData, remark: e.target.value})}
                   placeholder="Optional notes regarding this visit..."
                   rows="2"
-                  style={{ width: '100%', padding: '11px 14px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 12, fontWeight: 500, color: C.text, outline: 'none', resize: 'none' }}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-[14px] font-medium text-slate-800 outline-none focus:border-slate-400 focus:bg-white transition-colors resize-none"
                 ></textarea>
               </div>
 
-              <div style={{ paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  style={{ width: '100%', padding: '13px', borderRadius: 12, color: C.dark, fontWeight: 700, fontSize: 13, background: C.green, border: 'none', cursor: isSubmitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: isSubmitting ? 0.7 : 1 }}
-                >
-                  {isSubmitting ? 'Submitting...' : 'Log this visit'}
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className={`w-full py-4 rounded-2xl text-[#0a0f1c] font-bold text-[15px] flex items-center justify-center gap-2 transition-all shadow-sm ${
+                  isSubmitting ? 'bg-[#97C22A]/70 cursor-not-allowed' : 'bg-[#97C22A] active:scale-[0.98]'
+                }`}
+              >
+                {isSubmitting ? (
+                  <>
+                    <svg className="w-5 h-5 animate-spin text-[#0a0f1c]" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Submitting...
+                  </>
+                ) : (
+                  'Log this visit'
+                )}
+              </button>
             </form>
           </div>
         )}
