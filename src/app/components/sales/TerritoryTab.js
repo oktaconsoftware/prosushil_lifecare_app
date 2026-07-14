@@ -3183,27 +3183,27 @@ export default function TerritoryTab({
       <input type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handleCapture} className="hidden" />
 
       {/* Floating Header Component */}
-      <div ref={dropdownRef} className="sticky top-0 z-30 bg-[#0a0f1c] px-5 pt-4 pb-5 rounded-b-xl shadow-md border-b border-white/5 transition-all">
+      <div ref={dropdownRef} className="sticky top-0 z-30 bg-slate-100 px-5 pt-4 pb-5 rounded-b-xl shadow-md border-b border-white/5 transition-all">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <p className="text-[11px] font-semibold text-slate-400 mb-1.5">
-              Operating territory
+              Choose your working area for today
             </p>
             <div className="flex items-center flex-wrap gap-2.5">
               {selectedArea ? (
-                <span className="inline-flex items-center gap-1.5 text-[13px] font-bold text-[#97C22A] bg-[#97C22A]/10 border border-[#97C22A]/20 rounded-2xl px-3 py-1">
+                <span className="inline-flex items-center gap-1.5 text-[16px] font-semibold text-[#97C22A] bg-[#97C22A]/10 border border-[#97C22A]/20 rounded-2xl px-3 py-1">
                   {selectedArea}
                 </span>
               ) : (
-                <span className="text-[13px] text-slate-500 font-medium">No area selected</span>
+                <span className="text-[14px] text-slate-500 font-medium">No area selected</span>
               )}
               
               <button
                 onClick={() => setIsAreaDropdownOpen((p) => !p)}
-                className={`inline-flex items-center gap-1.5 text-[12px] font-bold rounded-2xl px-3 py-1 transition-colors ${
+                className={`inline-flex items-center gap-1.5 text-[14px] font-semibold rounded-2xl px-3 py-1 transition-colors ${
                   isAreaDropdownOpen 
-                    ? 'bg-[#97C22A] text-[#0a0f1c]' 
-                    : 'bg-[#97C22A]/10 text-[#97C22A] hover:bg-[#97C22A]/20'
+                    ? 'bg-slate-200 text-red-500 hover:bg-red-500/20' 
+                    : 'bg-slate-200 text-blue-500 hover:bg-blue-500/20'
                 }`}
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3218,9 +3218,9 @@ export default function TerritoryTab({
           <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl border shrink-0 mt-1 ${
             step === 'form' ? 'bg-[#97C22A]/10 border-[#97C22A]/20' : 'bg-white/5 border-white/10'
           }`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${step === 'form' ? 'bg-[#97C22A]' : 'bg-slate-500'}`} />
-            <span className={`text-[11px] font-bold ${step === 'form' ? 'text-[#97C22A]' : 'text-slate-400'}`}>
-              {step === 'camera' ? 'Locked' : 'Verified'}
+            <span className={` ${step === 'form' ? 'bg-[#97C22A]' : 'bg-slate-500'}`} />
+            <span className={`text-[12px] font-semibold ${step === 'form' ? 'text-slate-700' : 'text-slate-400'}`}>
+              {step === 'camera' ? '🔒 Locked' : '✅ Verified'}
             </span>
           </div>
         </div>

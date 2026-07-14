@@ -532,20 +532,20 @@ export default function DealsTab({ targets }) {
     <div className="flex-1 overflow-y-auto bg-[#F0F2F5]" style={{ WebkitOverflowScrolling: 'touch' }}>
 
       {/* ── STICKY HEADER ── */}
-      <div className="sticky top-0 z-30 bg-[#0A0F1A] px-4 lg:px-6 py-3 flex items-center justify-between shadow-md">
+      <div className="sticky top-0 z-30 bg-slate-100 px-6 lg:px-6 py-3 flex items-center justify-between shadow-md">
         <div>
           {/* 🚨 ADDED DATE HERE! 🚨 */}
-          <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500">
+          <p className="text-[14px] font-base  text-slate-500">
             {selectedArea || 'Field Sales'} • {todayDate}
           </p>
-          <p className="text-[15px] font-bold text-white mt-0.5">Today's Route</p>
+          <p className="text-[18px] font-semibold text-slate-800 mt-0.5">Today's Route</p>
         </div>
         <div
           className="flex items-center gap-1.5 rounded-full px-3 py-1.5"
           style={{ background: 'rgba(151,194,42,0.10)', border: '1px solid rgba(151,194,42,0.2)' }}
         >
           <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#97C22A' }} />
-          <span className="text-[9px] font-bold tracking-widest uppercase" style={{ color: '#97C22A' }}>
+          <span className="text-[12px] font-base" style={{ color: '#d65703' }}>
             Live
           </span>
         </div>
@@ -558,16 +558,12 @@ export default function DealsTab({ targets }) {
           className="bg-[#0A0F1A] rounded-2xl p-5 relative overflow-hidden"
           style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.18)' }}
         >
-          <div
-            className="absolute -top-10 -right-10 w-40 h-40 rounded-full pointer-events-none"
-            style={{ background: 'radial-gradient(circle, rgba(151,194,42,0.14) 0%, transparent 70%)' }}
-          />
+       
           <div
             className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full pointer-events-none"
             style={{ background: 'radial-gradient(circle, rgba(96,165,250,0.10) 0%, transparent 70%)' }}
           />
-          <div className="absolute left-0 top-0 bottom-0 w-1 rounded-r-full" style={{ background: '#97C22A' }} />
-
+        
           <div className="relative z-10 pl-2">
             <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Total Pipeline</p>
             <p className="text-2xl font-bold text-white leading-none">

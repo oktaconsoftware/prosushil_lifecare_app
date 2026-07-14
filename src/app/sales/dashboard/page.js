@@ -925,7 +925,7 @@ export default function SalesDashboard() {
   };
 
   return (
-    <div className="flex h-[100dvh] w-full overflow-hidden font-sans" style={{ background: '#f1f5f9' }}>
+    <div className="flex h-[100dvh] w-full top-0 overflow-hidden font-sans" style={{ background: '#f1f5f9' }}>
       
       <Sidebar mobileNav={mobileNav} setMobileNav={setMobileNav} handleLogout={handleLogout} />
 
