@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/db';
-import { medicalShops, places, areas } from '@/db/schema';
+import { db } from '../../../../db';
+import { medicalShops, places, areas } from '../../../../db/schema';
 import { eq } from 'drizzle-orm';
 
 // Haversine distance calculator for the server
