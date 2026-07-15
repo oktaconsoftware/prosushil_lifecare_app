@@ -1,0 +1,31 @@
+name: Automated Daily Database Backup
+
+on:
+  schedule:
+    - cron: '0 20 * * *' # Runs daily at 1:30 AM IST (20:00 UTC)
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install PostgreSQL Client
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y postgresql-client
+
+    - name: Run Database Dump
+      run: |
+        mkdir -p backups
+        pg_dump "${{ secrets.SUPABASE_DB_URL }}" -v -F c -f backups/nightly_backup.sql
+
+    - name: Upload Backup File as Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: supabase-database-backup
+        path: backups/nightly_backup.sql
+        retention-days: 7
