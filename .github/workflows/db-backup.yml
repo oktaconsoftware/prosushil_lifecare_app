@@ -19,9 +19,11 @@ jobs:
         sudo apt-get install -y postgresql-client
 
     - name: Run Database Dump
+      env:
+        DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
       run: |
         mkdir -p backups
-        pg_dump "${{ secrets.SUPABASE_DB_URL }}" -v -F c -f backups/nightly_backup.sql
+        pg_dump "$DATABASE_URL" -v -F c -f backups/nightly_backup.sql
 
     - name: Upload Backup File as Artifact
       uses: actions/upload-artifact@v4
