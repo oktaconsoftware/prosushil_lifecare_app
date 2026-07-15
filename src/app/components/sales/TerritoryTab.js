@@ -174,66 +174,87 @@ const handleCapture = (e) => {
     // NEW: Clear the input so the salesman can take another photo if needed
     e.target.value = ''; 
   };
-  const verifyGeofence = () => {
+const verifyGeofence = () => {
+    // 1. SECURITY CHECK: Production GPS only works on HTTPS
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+      alert("🚨 GPS requires a secure connection. Please make sure your URL starts with https://");
+      setIsLocating(false);
+      setStep('camera');
+      return;
+    }
+
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported.');
+      alert('Geolocation is not supported by your browser.');
       setIsLocating(false);
       return;
     }
-    
+
+    // This is the success logic that runs when either GPS method works
+    const handleLocationSuccess = (pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      const shopsWithGps = activeTargets.filter(s => s.latitude && s.longitude);
+      
+      let closestShop = null;
+      let minDistance = Infinity;
+
+      shopsWithGps.forEach((s) => {
+        const d = getDistance(lat, lng, Number(s.latitude), Number(s.longitude));
+        if (d < minDistance) { minDistance = d; closestShop = s; }
+      });
+
+      let availableOptions = activeTargets.map(s => {
+        const hasGps = s.latitude && s.longitude;
+        let dist = hasGps ? getDistance(lat, lng, Number(s.latitude), Number(s.longitude)) : undefined;
+        return {
+          ...s,
+          isNewAnchor: !hasGps,
+          distance: dist
+        };
+      });
+      
+      let autoSelectId = "";
+      if (closestShop && minDistance <= GEOFENCE_RADIUS_METERS) {
+        autoSelectId = closestShop.id.toString();
+      }
+
+      availableOptions.sort((a, b) => {
+         if (autoSelectId) {
+           if (a.id.toString() === autoSelectId) return -1;
+           if (b.id.toString() === autoSelectId) return 1;
+         }
+         if (a.isNewAnchor && !b.isNewAnchor) return -1;
+         if (!a.isNewAnchor && b.isNewAnchor) return 1;
+         if (!a.isNewAnchor && !b.isNewAnchor) return a.distance - b.distance;
+         return 0;
+      });
+
+      setLocation({ lat, lng });
+      setNearbyShops(availableOptions);
+      setSelectedShopId(autoSelectId);
+      setIsLocating(false);
+      setStep('form');
+    };
+
+    // 2. TRY HIGH ACCURACY FIRST (10-second timeout)
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const shopsWithGps = activeTargets.filter(s => s.latitude && s.longitude);
+      handleLocationSuccess,
+      (error) => {
+        console.warn("High accuracy failed, trying basic accuracy...", error);
         
-        let closestShop = null;
-        let minDistance = Infinity;
-
-        shopsWithGps.forEach((s) => {
-          const d = getDistance(lat, lng, Number(s.latitude), Number(s.longitude));
-          if (d < minDistance) { minDistance = d; closestShop = s; }
-        });
-
-        let availableOptions = activeTargets.map(s => {
-          const hasGps = s.latitude && s.longitude;
-          let dist = hasGps ? getDistance(lat, lng, Number(s.latitude), Number(s.longitude)) : undefined;
-          return {
-            ...s,
-            isNewAnchor: !hasGps,
-            distance: dist
-          };
-        });
-        
-        let autoSelectId = "";
-        if (closestShop && minDistance <= GEOFENCE_RADIUS_METERS) {
-          autoSelectId = closestShop.id.toString();
-        }
-
-        availableOptions.sort((a, b) => {
-           if (autoSelectId) {
-             if (a.id.toString() === autoSelectId) return -1;
-             if (b.id.toString() === autoSelectId) return 1;
-           }
-           if (a.isNewAnchor && !b.isNewAnchor) return -1;
-           if (!a.isNewAnchor && b.isNewAnchor) return 1;
-           if (!a.isNewAnchor && !b.isNewAnchor) return a.distance - b.distance;
-           return 0;
-        });
-
-        setLocation({ lat, lng });
-        setNearbyShops(availableOptions);
-        setSelectedShopId(autoSelectId);
-        setIsLocating(false);
-        setStep('form');
+        // 3. INDOOR FALLBACK: Instantly use low-accuracy cell-towers if satellites fail
+        navigator.geolocation.getCurrentPosition(
+          handleLocationSuccess,
+          (fallbackErr) => {
+            alert('Could not get location. Enable Location Services and try again.');
+            setIsLocating(false);
+            setLocalPhoto(null);
+            if (setPhotoUri) setPhotoUri(null);
+          },
+          { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
+        );
       },
-      () => {
-        alert('Could not get location. Enable Location Services and try again.');
-        setIsLocating(false);
-        setLocalPhoto(null);
-        if (setPhotoUri) setPhotoUri(null);
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 
