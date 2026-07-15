@@ -26,18 +26,14 @@ export default function TerritoryTab({
   const [step, setStep] = useState('camera');
   const [selectedArea, setSelectedArea] = useState(''); 
   const [isAreaDropdownOpen, setIsAreaDropdownOpen] = useState(false);
-  const [areaSearchQuery, setAreaSearchQuery] = useState('');
+  const [areaSearchQuery, setAreaSearchQuery] = useState(''); // NEW: Search state
   const [localPhoto, setLocalPhoto] = useState(null);
   const [location, setLocation] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(true);
-
-  // 🚨 NEW: GPS-First States
-  const [cachedLocation, setCachedLocation] = useState(null);
-  const [gpsStatus, setGpsStatus] = useState('searching'); // 'searching', 'ready', 'error'
-
+const [cachedLocation, setCachedLocation] = useState(null);
   const [nearbyShops, setNearbyShops] = useState([]);
   const [selectedShopId, setSelectedShopId] = useState('');
   const [formData, setFormData] = useState({
@@ -62,6 +58,7 @@ export default function TerritoryTab({
     )].sort();
   }, [targets, masterTerritories, masterAreas]);
 
+  // NEW: Filter areas based on search query
   const filteredAreas = useMemo(() => {
     if (!areaSearchQuery) return uniqueAreas;
     return uniqueAreas.filter(area => 
@@ -85,11 +82,28 @@ export default function TerritoryTab({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+// 🚨 BACKGROUND GPS TRACKER
+  // Silently tracks location while the dashboard is open, bypassing the Android camera-pause bug.
   useEffect(() => {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      const watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          setCachedLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        },
+        (err) => console.warn("Background GPS waiting for permission..."),
+        { enableHighAccuracy: false, maximumAge: 10000, timeout: 10000 }
+      );
+      return () => navigator.geolocation.clearWatch(watchId);
+    }
+  }, []);
+  useEffect(() => {
+    // 🚨 DEVELOPER BYPASS: Always allow if testing locally on your computer
     if (window.location.hostname === 'localhost') {
       setIsMobile(true);
       return;
     }
+
+    // Standard security check for production
     const userAgent = navigator.userAgent || navigator.vendor || window.opera;
     if (/android/i.test(userAgent) || /iPad|iPhone|iPod/.test(userAgent)) {
       setIsMobile(true);
@@ -98,43 +112,11 @@ export default function TerritoryTab({
     }
   }, []);
 
-  // 🚨 NEW: Bulletproof Background GPS Tracker
-  // This locks the GPS *before* the camera is opened to bypass the iPhone suspension bug.
-  useEffect(() => {
-    if (typeof window !== 'undefined' && navigator.geolocation) {
-      setGpsStatus('searching');
-      
-      const updateLocation = (pos) => {
-        setCachedLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setGpsStatus('ready');
-      };
-
-      const handleGpsError = (err) => {
-         console.warn("GPS tracking error:", err);
-         setGpsStatus((prev) => prev === 'ready' ? 'ready' : 'error');
-      };
-
-      // Try for an instant, low-accuracy lock to unblock the button immediately
-      navigator.geolocation.getCurrentPosition(updateLocation, handleGpsError, { 
-        enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 
-      });
-
-      // Keep watching it securely in the background
-      const watchId = navigator.geolocation.watchPosition(updateLocation, handleGpsError, { 
-        enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 
-      });
-
-      return () => navigator.geolocation.clearWatch(watchId);
-    } else {
-      setGpsStatus('error');
-    }
-  }, []);
-
   const toggleArea = (area) => {
     setSelectedArea(area);
     localStorage.setItem('assignedSalesArea', area);
     setIsAreaDropdownOpen(false);
-    setAreaSearchQuery(''); 
+    setAreaSearchQuery(''); // Reset search when selected
     setStep('camera');
     setLocalPhoto(null);
     setLocation(null);
@@ -151,112 +133,164 @@ export default function TerritoryTab({
   const safeCollection = totalCollection || 0;
   const progress = totalCount > 0 ? Math.round((visitedCount / totalCount) * 100) : 0;
 
-  const handleCapture = (e) => {
+const handleCapture = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     
     setIsLocating(true);
-    const reader = new FileReader();
     
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const MAX_WIDTH = 600; 
-        const MAX_HEIGHT = 600;
-        let width = img.width;
-        let height = img.height;
+    // 🚨 FIX: Use Object URL instead of FileReader (Prevents iPhone memory crash)
+    const img = new Image();
+    
+    img.onload = () => {
+      const MAX_WIDTH = 600; 
+      const MAX_HEIGHT = 600;
+      let width = img.width;
+      let height = img.height;
 
-        if (width > height) {
-          if (width > MAX_WIDTH) { 
-            height *= Math.round(MAX_WIDTH / width); 
-            width = MAX_WIDTH; 
-          }
-        } else {
-          if (height > MAX_HEIGHT) { 
-            width *= Math.round(MAX_HEIGHT / height); 
-            height = MAX_HEIGHT; 
-          }
+      // Smart scaling to keep the image sharp but small
+      if (width > height) {
+        if (width > MAX_WIDTH) { 
+          height = Math.round((height * MAX_WIDTH) / width); 
+          width = MAX_WIDTH; 
         }
+      } else {
+        if (height > MAX_HEIGHT) { 
+          width = Math.round((width * MAX_HEIGHT) / height); 
+          height = MAX_HEIGHT; 
+        }
+      }
 
-        const canvas = document.createElement('canvas');
-        canvas.width = width; 
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, width, height);
-        ctx.drawImage(img, 0, 0, width, height);
+      const canvas = document.createElement('canvas');
+      canvas.width = width; 
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      
+      // Ensure white background
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
 
-        const compressedPhoto = canvas.toDataURL('image/jpeg', 0.5);
-        
-        setLocalPhoto(compressedPhoto);
-        if (setPhotoUri) setPhotoUri(compressedPhoto);
-        
-        // Calls the new INSTANT geofence function
-        verifyGeofence();
-      };
-      img.src = event.target.result;
+      // Compress to JPEG
+      const compressedPhoto = canvas.toDataURL('image/jpeg', 0.5);
+      
+      // Set the state so the image shows up!
+      setLocalPhoto(compressedPhoto);
+      if (setPhotoUri) setPhotoUri(compressedPhoto);
+      
+      // Free up the iPhone's memory instantly
+      URL.revokeObjectURL(img.src);
+      if (fileInputRef.current) fileInputRef.current.value = ''; 
+      
+      // Proceed to the GPS check
+      verifyGeofence();
+    };
+
+    img.onerror = () => {
+      alert("⚠️ Error processing the photo. Please try taking it again.");
+      setIsLocating(false);
+      if (fileInputRef.current) fileInputRef.current.value = ''; 
     };
     
-    reader.readAsDataURL(file);
-    e.target.value = ''; 
+    // Load the file instantly
+    img.src = URL.createObjectURL(file);
   };
-
-  // 🚨 NEW: INSTANT Geofence
-  // Because we locked GPS before the camera opened, we don't have to wait for the phone anymore.
-  const verifyGeofence = () => {
-    if (!cachedLocation) {
-      alert("GPS location is not locked yet. Please ensure your location is on and wait a moment.");
+  
+const verifyGeofence = () => {
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+      alert("🚨 GPS requires a secure HTTPS connection.");
       setIsLocating(false);
       setStep('camera');
       return;
     }
-    
-    const lat = cachedLocation.lat;
-    const lng = cachedLocation.lng;
-    const shopsWithGps = activeTargets.filter(s => s.latitude && s.longitude);
-    
-    let closestShop = null;
-    let minDistance = Infinity;
 
-    shopsWithGps.forEach((s) => {
-      const d = getDistance(lat, lng, Number(s.latitude), Number(s.longitude));
-      if (d < minDistance) { minDistance = d; closestShop = s; }
-    });
+    // 1. HELPER: The logic that actually sorts the shops
+    const processLocation = (lat, lng) => {
+      const shopsWithGps = activeTargets.filter(s => s.latitude && s.longitude);
+      let closestShop = null;
+      let minDistance = Infinity;
 
-    let availableOptions = activeTargets.map(s => {
-      const hasGps = s.latitude && s.longitude;
-      let dist = hasGps ? getDistance(lat, lng, Number(s.latitude), Number(s.longitude)) : undefined;
-      return {
-        ...s,
-        isNewAnchor: !hasGps,
-        distance: dist
-      };
-    });
-    
-    let autoSelectId = "";
-    if (closestShop && minDistance <= GEOFENCE_RADIUS_METERS) {
-      autoSelectId = closestShop.id.toString();
+      shopsWithGps.forEach((s) => {
+        const d = getDistance(lat, lng, Number(s.latitude), Number(s.longitude));
+        if (d < minDistance) { minDistance = d; closestShop = s; }
+      });
+
+      let availableOptions = activeTargets.map(s => {
+        const hasGps = s.latitude && s.longitude;
+        let dist = hasGps ? getDistance(lat, lng, Number(s.latitude), Number(s.longitude)) : undefined;
+        return { ...s, isNewAnchor: !hasGps, distance: dist };
+      });
+      
+      let autoSelectId = "";
+      if (closestShop && minDistance <= GEOFENCE_RADIUS_METERS) {
+        autoSelectId = closestShop.id.toString();
+      }
+
+      availableOptions.sort((a, b) => {
+         if (autoSelectId) {
+           if (a.id.toString() === autoSelectId) return -1;
+           if (b.id.toString() === autoSelectId) return 1;
+         }
+         if (a.isNewAnchor && !b.isNewAnchor) return -1;
+         if (!a.isNewAnchor && b.isNewAnchor) return 1;
+         if (!a.isNewAnchor && !b.isNewAnchor) return a.distance - b.distance;
+         return 0;
+      });
+
+      setLocation({ lat, lng });
+      setNearbyShops(availableOptions);
+      setSelectedShopId(autoSelectId);
+      setIsLocating(false);
+      setStep('form');
+    };
+
+    // 🚨 2. INSTANT CACHE BYPASS 🚨
+    // If the background tracker caught their location before they opened the camera, use it instantly!
+    if (cachedLocation) {
+      processLocation(cachedLocation.lat, cachedLocation.lng);
+      return; 
     }
 
-    availableOptions.sort((a, b) => {
-        if (autoSelectId) {
-          if (a.id.toString() === autoSelectId) return -1;
-          if (b.id.toString() === autoSelectId) return 1;
-        }
-        if (a.isNewAnchor && !b.isNewAnchor) return -1;
-        if (!a.isNewAnchor && b.isNewAnchor) return 1;
-        if (!a.isNewAnchor && !b.isNewAnchor) return a.distance - b.distance;
-        return 0;
-    });
+    // 3. FALLBACK: Only if they took the photo faster than the background tracker could load
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      setIsLocating(false);
+      return;
+    }
 
-    setLocation({ lat, lng });
-    setNearbyShops(availableOptions);
-    setSelectedShopId(autoSelectId);
-    
-    // Instantly jump to the form!
-    setIsLocating(false);
-    setStep('form');
+    let isResolved = false;
+    const killSwitchTimer = setTimeout(() => {
+      if (!isResolved) {
+        isResolved = true;
+        alert("⚠️ GPS is completely unresponsive.\n\nPlease check your phone settings:\n1. Ensure 'Location' is turned ON.\n2. Ensure your browser has permission to use Location.");
+        setIsLocating(false);
+        setStep('camera');
+      }
+    }, 8000); // Reduced to 8 seconds so they don't wait as long
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (isResolved) return;
+        isResolved = true;
+        clearTimeout(killSwitchTimer);
+        processLocation(pos.coords.latitude, pos.coords.longitude);
+      },
+      (error) => {
+        if (isResolved) return;
+        isResolved = true;
+        clearTimeout(killSwitchTimer);
+        
+        if (error.code === 1) alert("🔒 Permission Denied! Please click the lock icon 🔒 next to the web address and Allow Location.");
+        else if (error.code === 2) alert("📡 GPS is OFF! Please turn ON 'Location' in your phone settings.");
+        else alert("⏱️ Signal Lost! Please step outside or near a window.");
+        
+        setIsLocating(false);
+        setLocalPhoto(null);
+        if (setPhotoUri) setPhotoUri(null);
+        setStep('camera');
+      },
+      { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 }
+    );
   };
 
   const handleSubmitVisit = async (e) => {
@@ -309,15 +343,14 @@ export default function TerritoryTab({
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 relative pb-24" style={{ WebkitOverflowScrolling: 'touch' }}>
 
-      <input 
-        type="file" 
-        accept="image/jpeg, image/png, image/jpg" 
-        capture="environment" 
-        ref={fileInputRef} 
-        onChange={handleCapture} 
-        className="hidden" 
-      />
-      
+  <input 
+    type="file" 
+    accept="image/jpeg, image/png, image/jpg" 
+    capture="environment" 
+    ref={fileInputRef} 
+    onChange={handleCapture} 
+    className="hidden" 
+  />
       {/* Floating Header Component */}
       <div ref={dropdownRef} className="sticky top-0 z-30 bg-slate-100 px-5 pt-4 pb-5 rounded-b-xl shadow-md border-b border-white/5 transition-all">
         <div className="flex items-start justify-between gap-3">
@@ -361,10 +394,11 @@ export default function TerritoryTab({
           </div>
         </div>
 
-        {/* Searchable Horizontal Chips Dropdown */}
+        {/* MODIFIED: Searchable Horizontal Chips Dropdown */}
         {isAreaDropdownOpen && (
           <div className="absolute top-[100%] left-4 right-4 mt-2 bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-top-2 z-40">
             
+            {/* Search Bar */}
             <div className="p-3 border-b border-slate-100 bg-slate-50/50">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -382,6 +416,7 @@ export default function TerritoryTab({
               </div>
             </div>
 
+            {/* Horizontal Flowing Chips */}
             {filteredAreas.length === 0 ? (
               <div className="p-6 text-center">
                 <p className="text-[13px] text-slate-500 font-medium m-0">No areas found</p>
@@ -415,7 +450,7 @@ export default function TerritoryTab({
         )}
       </div>
 
-      <div className="px-4 pt-5 flex flex-col gap-4 max-w-lg mx-auto">
+     <div className="px-4 pt-5 flex flex-col gap-4 max-w-lg mx-auto">
         
         {/* Progress Cards */}
         {selectedArea && (
@@ -482,7 +517,7 @@ export default function TerritoryTab({
         ) : step === 'camera' ? (
           <div className="bg-white rounded-2xl p-8 flex flex-col items-center text-center shadow-sm border border-slate-100 mt-2">
             <div className="w-16 h-16 rounded-3xl bg-[#97C22A]/10 flex items-center justify-center mb-5 border border-[#97C22A]/20 relative">
-              {(isLocating || gpsStatus === 'searching') && <div className="absolute inset-0 border-2 border-[#97C22A] rounded-3xl animate-ping opacity-30" />}
+              {isLocating && <div className="absolute inset-0 border-2 border-[#97C22A] rounded-3xl animate-ping opacity-30" />}
               <svg className="w-7 h-7 text-[#5C7A1A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
               </svg>
@@ -493,28 +528,19 @@ export default function TerritoryTab({
               Take a photo of the shop in {selectedArea}. GPS will auto-detect your location.
             </p>
             
-            {/* 🚨 NEW: Smart Button disabled until GPS is locked 🚨 */}
+            {/* 🚨 DESKTOP BLOCKER CONDITIONAL BUTTON 🚨 */}
             {isMobile ? (
               <button 
-                onClick={() => {
-                  if (gpsStatus === 'ready') fileInputRef.current?.click();
-                  else if (gpsStatus === 'error') alert("GPS blocked! Please go to your phone settings and Allow Location for this browser.");
-                }} 
-                disabled={isLocating || gpsStatus === 'searching'} 
+                onClick={() => fileInputRef.current?.click()} 
+                disabled={isLocating} 
                 className={`w-full py-4 rounded-2xl text-[15px] font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${
-                  isLocating || gpsStatus === 'searching' 
-                    ? 'bg-slate-800 text-white/50 cursor-not-allowed' 
-                    : 'bg-[#0a0f1c] text-white active:scale-[0.98]'
+                  isLocating ? 'bg-slate-800 text-white/50 cursor-not-allowed' : 'bg-[#0a0f1c] text-white active:scale-[0.98]'
                 }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
                 </svg>
-                {isLocating 
-                  ? 'Analyzing image...' 
-                  : gpsStatus === 'searching' 
-                    ? 'Acquiring GPS lock...' 
-                    : 'Take photo to unlock'}
+                {isLocating ? 'Analyzing GPS...' : 'Take photo to unlock'}
               </button>
             ) : (
               <div className="w-full py-4 rounded-2xl bg-red-50 border border-red-100 text-red-600 text-[14px] font-bold flex items-center justify-center gap-2">
