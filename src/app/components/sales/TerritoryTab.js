@@ -270,6 +270,25 @@ const verifyGeofence = () => {
     );
   };
 
+  // 🚨 NEW: AUTO-WARMUP GPS 🚨
+  // This automatically asks for permissions and wakes up the GPS antenna 
+  // as soon as the page loads, so it is instantly ready when they take a photo.
+  useEffect(() => {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          // Silently store the location early so the antenna stays active
+          setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          console.log("GPS successfully pre-warmed");
+        },
+        (err) => {
+          console.warn("GPS pre-warm failed. User will be prompted later.");
+        },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+      );
+    }
+  }, []);
+
   const handleSubmitVisit = async (e) => {
     e.preventDefault();
     if (!selectedShopId) return alert("Please select a medical shop.");
