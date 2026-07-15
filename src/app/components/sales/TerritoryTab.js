@@ -33,7 +33,7 @@ export default function TerritoryTab({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(true);
-
+const [cachedLocation, setCachedLocation] = useState(null);
   const [nearbyShops, setNearbyShops] = useState([]);
   const [selectedShopId, setSelectedShopId] = useState('');
   const [formData, setFormData] = useState({
@@ -82,7 +82,20 @@ export default function TerritoryTab({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-
+// 🚨 BACKGROUND GPS TRACKER
+  // Silently tracks location while the dashboard is open, bypassing the Android camera-pause bug.
+  useEffect(() => {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      const watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          setCachedLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        },
+        (err) => console.warn("Background GPS waiting for permission..."),
+        { enableHighAccuracy: false, maximumAge: 10000, timeout: 10000 }
+      );
+      return () => navigator.geolocation.clearWatch(watchId);
+    }
+  }, []);
   useEffect(() => {
     // 🚨 DEVELOPER BYPASS: Always allow if testing locally on your computer
     if (window.location.hostname === 'localhost') {
@@ -175,7 +188,6 @@ const handleCapture = (e) => {
     e.target.value = ''; 
   };
 const verifyGeofence = () => {
-    // 1. HTTPS Security Check
     if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
       alert("🚨 GPS requires a secure HTTPS connection.");
       setIsLocating(false);
@@ -183,32 +195,9 @@ const verifyGeofence = () => {
       return;
     }
 
-    if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
-      setIsLocating(false);
-      return;
-    }
-
-    // 🚨 THE KILL SWITCH: Force-stop everything after 12 seconds
-    let isResolved = false;
-    const killSwitchTimer = setTimeout(() => {
-      if (!isResolved) {
-        isResolved = true; // Mark as done so late GPS responses are ignored
-        alert("⚠️ GPS is completely unresponsive.\n\nPlease check your phone settings:\n1. Ensure 'Location' is turned ON.\n2. Ensure your browser has permission to use Location.");
-        setIsLocating(false);
-        setStep('camera');
-      }
-    }, 12000); 
-
-    const handleLocationSuccess = (pos) => {
-      if (isResolved) return; // Prevent running if kill switch already fired
-      isResolved = true;
-      clearTimeout(killSwitchTimer); // Turn off the kill switch
-
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
+    // 1. HELPER: The logic that actually sorts the shops
+    const processLocation = (lat, lng) => {
       const shopsWithGps = activeTargets.filter(s => s.latitude && s.longitude);
-      
       let closestShop = null;
       let minDistance = Infinity;
 
@@ -220,11 +209,7 @@ const verifyGeofence = () => {
       let availableOptions = activeTargets.map(s => {
         const hasGps = s.latitude && s.longitude;
         let dist = hasGps ? getDistance(lat, lng, Number(s.latitude), Number(s.longitude)) : undefined;
-        return {
-          ...s,
-          isNewAnchor: !hasGps,
-          distance: dist
-        };
+        return { ...s, isNewAnchor: !hasGps, distance: dist };
       });
       
       let autoSelectId = "";
@@ -250,44 +235,55 @@ const verifyGeofence = () => {
       setStep('form');
     };
 
-    const handleLocationError = (error) => {
-      if (isResolved) return;
-      isResolved = true;
-      clearTimeout(killSwitchTimer);
-      
-      alert('Could not get location. Please enable Location permissions for this browser. Error: ' + error.message);
-      setIsLocating(false);
-      setLocalPhoto(null);
-      if (setPhotoUri) setPhotoUri(null);
-      setStep('camera');
-    };
+    // 🚨 2. INSTANT CACHE BYPASS 🚨
+    // If the background tracker caught their location before they opened the camera, use it instantly!
+    if (cachedLocation) {
+      processLocation(cachedLocation.lat, cachedLocation.lng);
+      return; 
+    }
 
-    // 🚨 FAST MODE: Use basic cell-tower triangulation instantly instead of waiting for satellites
+    // 3. FALLBACK: Only if they took the photo faster than the background tracker could load
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      setIsLocating(false);
+      return;
+    }
+
+    let isResolved = false;
+    const killSwitchTimer = setTimeout(() => {
+      if (!isResolved) {
+        isResolved = true;
+        alert("⚠️ GPS is completely unresponsive.\n\nPlease check your phone settings:\n1. Ensure 'Location' is turned ON.\n2. Ensure your browser has permission to use Location.");
+        setIsLocating(false);
+        setStep('camera');
+      }
+    }, 8000); // Reduced to 8 seconds so they don't wait as long
+
     navigator.geolocation.getCurrentPosition(
-      handleLocationSuccess,
-      handleLocationError,
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+      (pos) => {
+        if (isResolved) return;
+        isResolved = true;
+        clearTimeout(killSwitchTimer);
+        processLocation(pos.coords.latitude, pos.coords.longitude);
+      },
+      (error) => {
+        if (isResolved) return;
+        isResolved = true;
+        clearTimeout(killSwitchTimer);
+        
+        if (error.code === 1) alert("🔒 Permission Denied! Please click the lock icon 🔒 next to the web address and Allow Location.");
+        else if (error.code === 2) alert("📡 GPS is OFF! Please turn ON 'Location' in your phone settings.");
+        else alert("⏱️ Signal Lost! Please step outside or near a window.");
+        
+        setIsLocating(false);
+        setLocalPhoto(null);
+        if (setPhotoUri) setPhotoUri(null);
+        setStep('camera');
+      },
+      { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 }
     );
   };
 
-  // 🚨 NEW: AUTO-WARMUP GPS 🚨
-  // This automatically asks for permissions and wakes up the GPS antenna 
-  // as soon as the page loads, so it is instantly ready when they take a photo.
-  useEffect(() => {
-    if (typeof window !== 'undefined' && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          // Silently store the location early so the antenna stays active
-          setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-          console.log("GPS successfully pre-warmed");
-        },
-        (err) => {
-          console.warn("GPS pre-warm failed. User will be prompted later.");
-        },
-        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
-      );
-    }
-  }, []);
 
   const handleSubmitVisit = async (e) => {
     e.preventDefault();
