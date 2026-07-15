@@ -6,9 +6,8 @@ import 'dotenv/config'; // Loads .env.local automatically
 // Define the root admin credentials
 const ROOT_ADMIN = {
   name: 'System Administrator',
-  employeeId: 'PL-ADMIN', // This will be the login username
-  password: 'AdminPassword123!', // You should change this immediately after logging in
-  role: 'ADMIN',
+  employeeId: 'PL-ADMIN', 
+  password: 'AdminPassword123!', 
 };
 
 // Standard Web Crypto Hashing Function

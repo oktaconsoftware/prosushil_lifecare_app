@@ -40,3 +40,6 @@ CollectionRemove
 
 
 commision   -> collection Repalce
+
+
+radable Arti : pg_restore -f readable_backup.sql nightly_backup.sql

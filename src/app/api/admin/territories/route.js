@@ -63,18 +63,61 @@ export async function POST(request) {
   }
 }
 
+// // PUT: Edit existing record
+// export async function PUT(request) {
+//   try {
+//     const { type, id, name, address } = await request.json();
+//     const cleanName = toTitleCase(name);
+    
+//     if (type === 'area') await db.update(areas).set({ name: cleanName }).where(eq(areas.id, id));
+//     else if (type === 'place') await db.update(places).set({ name: cleanName }).where(eq(places.id, id));
+//     else if (type === 'medical') await db.update(medicalShops).set({ name: cleanName, address }).where(eq(medicalShops.id, id));
+
+//     return NextResponse.json({ success: true });
+//   } catch (error) {
+//     return NextResponse.json({ error: 'Update failed' }, { status: 500 });
+//   }
+// }
+
+
 // PUT: Edit existing record
 export async function PUT(request) {
   try {
-    const { type, id, name, address } = await request.json();
+    // 1. Extract removeGps from the request body
+    const { type, id, name, address, removeGps } = await request.json();
     const cleanName = toTitleCase(name);
     
-    if (type === 'area') await db.update(areas).set({ name: cleanName }).where(eq(areas.id, id));
-    else if (type === 'place') await db.update(places).set({ name: cleanName }).where(eq(places.id, id));
-    else if (type === 'medical') await db.update(medicalShops).set({ name: cleanName, address }).where(eq(medicalShops.id, id));
+    if (type === 'area') {
+      await db.update(areas).set({ name: cleanName }).where(eq(areas.id, id));
+    } 
+    else if (type === 'place') {
+      await db.update(places).set({ name: cleanName }).where(eq(places.id, id));
+    } 
+    else if (type === 'medical') {
+      
+      // 2. Check if the admin checked the "Clear GPS" box
+      if (removeGps) {
+        await db.update(medicalShops)
+          .set({ 
+            name: cleanName, 
+            address: address,
+            latitude: null,       // Wipe latitude
+            longitude: null,      // Wipe longitude
+            photoUrl: null,       // Remove the old photo
+            isVerified: false     // Force them to re-verify
+          })
+          .where(eq(medicalShops.id, id));
+      } else {
+        // Standard edit: just update the name and address
+        await db.update(medicalShops)
+          .set({ name: cleanName, address: address })
+          .where(eq(medicalShops.id, id));
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error("Update Error:", error);
     return NextResponse.json({ error: 'Update failed' }, { status: 500 });
   }
 }
