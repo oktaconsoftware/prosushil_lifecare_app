@@ -175,9 +175,9 @@ const handleCapture = (e) => {
     e.target.value = ''; 
   };
 const verifyGeofence = () => {
-    // 1. SECURITY CHECK: Production GPS only works on HTTPS
+    // 1. HTTPS Security Check
     if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-      alert("🚨 GPS requires a secure connection. Please make sure your URL starts with https://");
+      alert("🚨 GPS requires a secure HTTPS connection.");
       setIsLocating(false);
       setStep('camera');
       return;
@@ -189,8 +189,22 @@ const verifyGeofence = () => {
       return;
     }
 
-    // This is the success logic that runs when either GPS method works
+    // 🚨 THE KILL SWITCH: Force-stop everything after 12 seconds
+    let isResolved = false;
+    const killSwitchTimer = setTimeout(() => {
+      if (!isResolved) {
+        isResolved = true; // Mark as done so late GPS responses are ignored
+        alert("⚠️ GPS is completely unresponsive.\n\nPlease check your phone settings:\n1. Ensure 'Location' is turned ON.\n2. Ensure your browser has permission to use Location.");
+        setIsLocating(false);
+        setStep('camera');
+      }
+    }, 12000); 
+
     const handleLocationSuccess = (pos) => {
+      if (isResolved) return; // Prevent running if kill switch already fired
+      isResolved = true;
+      clearTimeout(killSwitchTimer); // Turn off the kill switch
+
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
       const shopsWithGps = activeTargets.filter(s => s.latitude && s.longitude);
@@ -236,25 +250,23 @@ const verifyGeofence = () => {
       setStep('form');
     };
 
-    // 2. TRY HIGH ACCURACY FIRST (10-second timeout)
+    const handleLocationError = (error) => {
+      if (isResolved) return;
+      isResolved = true;
+      clearTimeout(killSwitchTimer);
+      
+      alert('Could not get location. Please enable Location permissions for this browser. Error: ' + error.message);
+      setIsLocating(false);
+      setLocalPhoto(null);
+      if (setPhotoUri) setPhotoUri(null);
+      setStep('camera');
+    };
+
+    // 🚨 FAST MODE: Use basic cell-tower triangulation instantly instead of waiting for satellites
     navigator.geolocation.getCurrentPosition(
       handleLocationSuccess,
-      (error) => {
-        console.warn("High accuracy failed, trying basic accuracy...", error);
-        
-        // 3. INDOOR FALLBACK: Instantly use low-accuracy cell-towers if satellites fail
-        navigator.geolocation.getCurrentPosition(
-          handleLocationSuccess,
-          (fallbackErr) => {
-            alert('Could not get location. Enable Location Services and try again.');
-            setIsLocating(false);
-            setLocalPhoto(null);
-            if (setPhotoUri) setPhotoUri(null);
-          },
-          { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
-        );
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      handleLocationError,
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
     );
   };
 
