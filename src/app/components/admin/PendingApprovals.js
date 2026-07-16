@@ -82,7 +82,7 @@ export default function PendingApprovals() {
 
   return (
     <>
-      <div className="flex flex-col min-h-screen max-w-7xl mx-auto w-full font-sans p-4 md:p-8" style={{ background: '#f1f5f9' }}>
+      <div className="flex flex-col w-full font-sans p-4 md:p-8" style={{ background: '#f1f5f9' }}>
         
         {/* Header section with Search */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
@@ -136,7 +136,7 @@ export default function PendingApprovals() {
                   <th className="border-b border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+            <tbody>
                 {filteredShops.length > 0 ? (
                   filteredShops.map(shop => (
                     <tr key={shop.id} className="hover:bg-slate-50/80 transition-colors group">
@@ -159,23 +159,26 @@ export default function PendingApprovals() {
                         </div>
                       </td>
 
-                      {/* Shop Name Column */}
+                      {/* Shop Name Column (Now strictly constrained) */}
                       <td className="border-b border-r border-slate-200 px-4 py-2 align-middle">
-                        <p className="text-base font-semibold text-slate-900 truncate max-w-[200px] xl:max-w-[300px]" title={shop.name}>
+                        <p className="text-base font-semibold text-slate-900 truncate max-w-[120px] sm:max-w-[160px] md:max-w-[200px] lg:max-w-[250px]" title={shop.name}>
                           {shop.name}
                         </p>
                       </td>
 
-                      {/* Territory Column */}
+                      {/* Territory Column (🚨 FIX: Added truncation and max-width) */}
                       <td className="border-b border-r border-slate-200 px-4 py-2 align-middle">
-                        <p className="text-sm font-semibold text-[#97C22A] tracking-wide">
+                        <p 
+                          className="text-sm font-semibold text-[#97C22A] tracking-wide truncate max-w-[120px] sm:max-w-[160px] md:max-w-[200px] lg:max-w-[250px]" 
+                          title={`${shop.areaName} › ${shop.placeName}`}
+                        >
                           {shop.areaName} <span className="text-slate-300 mx-1.5 font-normal">›</span> {shop.placeName}
                         </p>
                       </td>
 
-                      {/* Address Column */}
+                      {/* Address Column (Now strictly constrained) */}
                       <td className="border-b border-r border-slate-200 px-4 py-2 align-middle">
-                        <p className="text-sm text-slate-500 truncate max-w-[200px] xl:max-w-[350px]" title={shop.address}>
+                        <p className="text-sm text-slate-500 truncate max-w-[140px] sm:max-w-[180px] md:max-w-[250px] lg:max-w-[320px]" title={shop.address}>
                           {shop.address || '-'}
                         </p>
                       </td>
@@ -187,13 +190,13 @@ export default function PendingApprovals() {
                           {/* Later Button */}
                           <button
                             onClick={() => handleDismiss(shop.id)}
-                            className="text-sm font-semibold text-slate-400 hover:text-slate-700 transition-colors px-2 py-1 rounded-md hover:bg-slate-100"
+                            className="text-sm font-semibold text-slate-400 hover:text-slate-700 transition-colors px-2 py-1 rounded-md hover:bg-slate-100 shrink-0"
                           >
                             Later
                           </button>
                           
                           {/* Modern Toggle Switch */}
-                          <label className="relative inline-flex items-center cursor-pointer group/toggle">
+                          <label className="relative inline-flex items-center cursor-pointer group/toggle shrink-0">
                             <input 
                               type="checkbox" 
                               className="sr-only peer" 
