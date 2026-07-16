@@ -360,7 +360,9 @@ const verifyGeofence = () => {
             </p>
             <div className="flex items-center flex-wrap gap-2.5">
               {selectedArea ? (
-                <span className="inline-flex items-center gap-1.5 text-[16px] font-semibold text-[#97C22A] bg-[#97C22A]/10 border border-[#97C22A]/20 rounded-2xl px-3 py-1">
+                <span className="inline-flex items-center gap-1.5 text-[12px] 
+                font-semibold text-[#0b2900] bg-[#97C22A]/10 border
+                 border-[#97C22A]/20 rounded-2xl px-3 py-1">
                   {selectedArea}
                 </span>
               ) : (
@@ -369,14 +371,18 @@ const verifyGeofence = () => {
               
               <button
                 onClick={() => setIsAreaDropdownOpen((p) => !p)}
-                className={`inline-flex items-center gap-1.5 text-[14px] font-semibold rounded-2xl px-3 py-1 transition-colors ${
+                className={`inline-flex items-center gap-1.5 text-[12px] font-medium rounded-2xl px-3 py-1 transition-colors ${
                   isAreaDropdownOpen 
                     ? 'bg-slate-200 text-red-500 hover:bg-red-500/20' 
                     : 'bg-slate-200 text-blue-500 hover:bg-blue-500/20'
                 }`}
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  {isAreaDropdownOpen ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 15l7-7 7 7" /> : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />}
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor"
+                 viewBox="0 0 24 24">
+                  {isAreaDropdownOpen ? <path strokeLinecap="round" 
+                  strokeLinejoin="round" strokeWidth="2.5" d="M5 15l7-7 7 7" /> :
+                   <path strokeLinecap="round" strokeLinejoin="round"
+                    strokeWidth="2.5" d="M19 9l-7 7-7-7" />}
                 </svg>
                 {selectedArea ? (isAreaDropdownOpen ? 'Close' : 'Change') : 'Select'}
               </button>
@@ -398,7 +404,7 @@ const verifyGeofence = () => {
         {isAreaDropdownOpen && (
           <div className="absolute top-[100%] left-4 right-4 mt-2 bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-top-2 z-40">
             
-            {/* Search Bar */}
+       {/* Search Bar */}
             <div className="p-3 border-b border-slate-100 bg-slate-50/50">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -411,7 +417,8 @@ const verifyGeofence = () => {
                   placeholder="Search area..."
                   value={areaSearchQuery}
                   onChange={(e) => setAreaSearchQuery(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-2xl pl-9 pr-4 py-2.5 text-[14px] font-medium text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all"
+                  // 🚨 FIX: Changed text-[14px] to text-[16px] to prevent iPhone auto-zoom!
+                  className="w-full bg-white border border-slate-200 rounded-2xl pl-9 pr-4 py-2.5 text-[16px] font-medium text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all"
                 />
               </div>
             </div>

@@ -1,21 +1,39 @@
+// import './globals.css';
+// // 1. Add this import
+// import { defineCustomElements } from '@ionic/pwa-elements/loader';
+
+// export const metadata = {
+//   title: 'Prosushil Field Tracker',
+//   description: 'Field Force Management',
+// };
+
+// export default function RootLayout({ children }) {
+//   // 2. Initialize the web camera elements safely on the client side
+//   if (typeof window !== 'undefined') {
+//     defineCustomElements(window);
+//   }
+
+//   return (
+//     <html lang="en">
+//       <body>{children}</body>
+//     </html>
+//   );
+// }
 import './globals.css';
-// 1. Add this import
-import { defineCustomElements } from '@ionic/pwa-elements/loader';
+import PwaInit from './PwaInit';
 
 export const metadata = {
-  title: 'Prosushil Field Tracker',
-  description: 'Field Force Management',
+  title: 'Prosushil Lifecare | Field Force Tracker',
+  description: 'Official Field Force Management and GPS Tracking system for Prosushil Lifecare.',
 };
 
 export default function RootLayout({ children }) {
-  // 2. Initialize the web camera elements safely on the client side
-  if (typeof window !== 'undefined') {
-    defineCustomElements(window);
-  }
-
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className="antialiased bg-slate-50">
+        <PwaInit />
+        {children}
+      </body>
     </html>
   );
 }

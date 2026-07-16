@@ -145,7 +145,7 @@ export function BottomNav({ mobileNav, setMobileNav }) {
   ];
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-100 shadow-[0_-10px_40px_rgba(0,0,0,0.04)] pb-[env(safe-area-inset-bottom)]">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-xl border-t border-slate-100 shadow-[0_-10px_40px_rgba(0,0,0,0.04)] pb-[env(safe-area-inset-bottom)] transform-gpu will-change-transform">
       <div className="flex items-center justify-around h-[72px] px-2">
         {items.map((n) => {
           const isActive = mobileNav === n.id;
@@ -154,7 +154,7 @@ export function BottomNav({ mobileNav, setMobileNav }) {
             <button 
               key={n.id} 
               onClick={() => setMobileNav(n.id)} 
-              className="relative flex flex-col items-center justify-center flex-1 h-full gap-1 active:scale-95 transition-transform duration-200"
+              className="relative flex flex-col items-center justify-center flex-1 h-full gap-1 active:scale-95 transition-transform duration-200 outline-none"
             >
               {/* Active Top Bar Indicator */}
               {isActive && (

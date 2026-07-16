@@ -186,15 +186,22 @@ export default function LoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ employeeId: username, password }),
       });
-// Inside handleLogin after successful fetch:
+
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Authentication failed');
       
-      // 👉 ADD THIS LINE: Save the agent's ID so the dashboard knows who they are
+      // Keep localStorage for your frontend components to use
       localStorage.setItem('employeeId', username); 
+      localStorage.setItem('userRole', data.role);
+      
+      // 🚨 NEW: Set Cookies for the Server Middleware (Expires in 24 hours)
+      document.cookie = `employeeId=${username}; path=/; max-age=86400; SameSite=Strict`;
+      document.cookie = `userRole=${data.role}; path=/; max-age=86400; SameSite=Strict`;
       
       if (data.role === 'ADMIN') router.push('/admin/dashboard');
       else router.push('/sales/dashboard');
+
+
     } catch (error) {
       setErrorMsg(error.message);
       setLoading(false);
