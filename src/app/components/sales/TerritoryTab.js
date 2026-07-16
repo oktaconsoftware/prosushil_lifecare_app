@@ -459,41 +459,45 @@ const verifyGeofence = () => {
 
      <div className="px-4 pt-5 flex flex-col gap-4 max-w-lg mx-auto">
         
-        {/* Progress Cards */}
         {selectedArea && (
-          <div className="flex flex-col gap-3">
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-              <div className="flex justify-between items-center mb-3">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            
+            {/* Top Row: Progress % and Earnings */}
+            <div className="flex justify-between items-center mb-2.5">
+              <div className="flex items-center gap-2">
                 <span className="text-[12px] font-semibold text-slate-500">Daily progress</span>
-                <span className="text-[14px] font-bold text-[#5C7A1A]">{progress}%</span>
+                <span className="text-[13px] font-bold text-[#5C7A1A]">{progress}%</span>
               </div>
-              <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-4">
-                <div className="h-full bg-[#97C22A] rounded-full transition-all duration-700 ease-out" style={{ width: `${progress}%` }} />
-              </div>
-              <div className="flex divide-x divide-slate-100">
-                {[
-                  { label: 'Total', val: totalCount },
-                  { label: 'Done', val: visitedCount },
-                  { label: 'Left', val: totalCount - visitedCount },
-                ].map(({ label, val }) => (
-                  <div key={label} className="flex-1 text-center">
-                    <p className="text-[20px] font-bold text-slate-800 leading-none m-0">{val}</p>
-                    <p className="text-[11px] font-semibold text-slate-400 mt-1.5">{label}</p>
-                  </div>
-                ))}
+              <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">
+                <span className="text-[11px] font-semibold text-slate-400">Earned</span>
+                <span className="text-[12px] font-semibold text-[#1d6e04]">
+                  ₹{safeCollection >= 1000 ? (safeCollection / 1000).toFixed(1) + 'k' : safeCollection.toLocaleString('en-IN')}
+                </span>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex justify-between items-center">
-              <span className="text-[13px] font-semibold text-slate-500">Earned today</span>
-              <p className="text-[20px] font-bold text-slate-900 m-0">
-                ₹{safeCollection >= 1000 ? (safeCollection / 1000).toFixed(1) + 'k' : safeCollection.toLocaleString('en-IN')}
-              </p>
+            {/* Middle Row: Progress Bar */}
+            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-3">
+              <div className="h-full bg-[#97C22A] rounded-full transition-all duration-700 ease-out" style={{ width: `${progress}%` }} />
             </div>
+
+            {/* Bottom Row: Stats */}
+            <div className="flex divide-x divide-slate-100">
+              {[
+                { label: 'Total Shops', val: totalCount },
+                { label: 'Visited', val: visitedCount },
+                { label: 'Pending', val: totalCount - visitedCount },
+              ].map(({ label, val }) => (
+                <div key={label} className="flex-1 text-center">
+                  <p className="text-[16px] font-bold text-slate-800 leading-none m-0">{val}</p>
+                  <p className="text-[10px] font-semibold text-slate-400 mt-1">{label}</p>
+                </div>
+              ))}
+            </div>
+            
           </div>
         )}
-
-        {/* Dynamic Views */}
+     
         {isLoadingRoute ? (
           <div className="bg-white rounded-2xl p-10 flex flex-col items-center gap-4 shadow-sm border border-slate-100 mt-2">
             <svg className="w-8 h-8 text-[#97C22A] animate-spin" fill="none" viewBox="0 0 24 24">
@@ -529,13 +533,13 @@ const verifyGeofence = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
               </svg>
             </div>
-            <p className="text-[12px] font-bold text-[#97C22A] mb-1.5">Security check</p>
+            <p className="text-[12px] font-semibold text-[#97C22A] mb-1.5">Security check 🛡️</p>
             <h2 className="text-[18px] font-bold text-slate-900 mb-2">Field check-in</h2>
-            <p className="text-[13.5px] text-slate-500 leading-relaxed mb-7 max-w-[260px]">
-              Take a photo of the shop in {selectedArea}. GPS will auto-detect your location.
+            <p className="text-[13px] text-slate-500 leading-relaxed mb-7 max-w-[260px]">
+              Take a photo of the shop in <span className="font-semibold text-[#fc2666]">{selectedArea}</span>. GPS will auto-detect your location.
             </p>
             
-            {/* 🚨 DESKTOP BLOCKER CONDITIONAL BUTTON 🚨 */}
+            {/* 🚨 DESKTOP BLOCKER CONDITIONAL BUTTON 🚨
             {isMobile ? (
               <button 
                 onClick={() => fileInputRef.current?.click()} 
@@ -555,6 +559,55 @@ const verifyGeofence = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 Please use a mobile phone to check-in
+              </div>
+            )} */}
+
+
+            {/* 🚨 DESKTOP BLOCKER CONDITIONAL BUTTON & INSTRUCTIONS 🚨 */}
+            {isMobile ? (
+              <div className="space-y-3">
+                <button 
+                  onClick={() => fileInputRef.current?.click()} 
+                  disabled={isLocating} 
+                  className={`w-full px-5 py-4 rounded-2xl text-[14px] font-semibold 
+                    flex items-center justify-center gap-3 transition-all shadow-sm text-left ${
+                    isLocating ? 'bg-slate-800 text[#b8ed3b] cursor-not-allowed' : 'bg-[#0a0f1c] text-white active:scale-[0.98]'
+                  }`}
+                >
+                  <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
+                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                  </svg>
+                  {isLocating ? 'Analyzing GPS...' : 'Take photo to unlock'}
+                </button>
+
+                {/* Mobile Instructions & Warning */}
+                <div className="bg-amber-50/80 border border-amber-200/60 rounded-xl p-3.5 flex items-start gap-3 text-left">
+                  
+                  <div>
+                    <p className="text-[12px] font-bold flex gap-2 text-[#6e2600] mb-1"><svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                  </svg> Strict GPS Protocol Active</p>
+                    <ul className="text-[11px] font-medium text-amber-700/90 
+                    space-y-1 list-disc pl-3">
+                      <li>You must be exactly at the shop location.</li>
+                      <li>Photo must clearly show the shop's front board.</li>
+                      <li>All check-ins are recorded and audited.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="w-full p-4 rounded-2xl bg-red-50 border border-red-100 text-left shadow-sm">
+                <div className="text-red-600 text-[14px] font-bold flex items-center justify-start gap-2 mb-1.5">
+                  <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  Desktop Access Blocked
+                </div>
+                <p className="text-[11px] font-medium text-red-500/90 leading-relaxed">
+                  Hardware GPS verification is required. Please switch to your mobile device to check in and submit this form.
+                </p>
               </div>
             )}
             
