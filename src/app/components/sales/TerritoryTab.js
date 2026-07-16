@@ -526,16 +526,16 @@ const verifyGeofence = () => {
             </button>
           </div>
         ) : step === 'camera' ? (
-          <div className="bg-white rounded-2xl p-8 flex flex-col items-center text-center shadow-sm border border-slate-100 mt-2">
-            <div className="w-16 h-16 rounded-3xl bg-[#97C22A]/10 flex items-center justify-center mb-5 border border-[#97C22A]/20 relative">
+          <div className="bg-white rounded-2xl p-4 flex flex-col items-center text-center shadow-sm border border-slate-100 mt-2">
+            <div className="w-14 h-14 rounded-2xl bg-[#97C22A]/10 flex items-center justify-center mb-3 border border-[#97C22A]/20 relative">
               {isLocating && <div className="absolute inset-0 border-2 border-[#97C22A] rounded-3xl animate-ping opacity-30" />}
               <svg className="w-7 h-7 text-[#5C7A1A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
               </svg>
             </div>
             <p className="text-[12px] font-semibold text-[#97C22A] mb-1.5">Security check 🛡️</p>
-            <h2 className="text-[18px] font-bold text-slate-900 mb-2">Field check-in</h2>
-            <p className="text-[13px] text-slate-500 leading-relaxed mb-7 max-w-[260px]">
+            <h2 className="text-[18px] font-bold text-slate-900 mb-1.5">Field check-in</h2>
+            <p className="text-[13px] text-slate-500 leading-relaxed mb-3 max-w-[300px]">
               Take a photo of the shop in <span className="font-semibold text-[#fc2666]">{selectedArea}</span>. GPS will auto-detect your location.
             </p>
             
@@ -585,11 +585,11 @@ const verifyGeofence = () => {
                 <div className="bg-amber-50/80 border border-amber-200/60 rounded-xl p-3.5 flex items-start gap-3 text-left">
                   
                   <div>
-                    <p className="text-[12px] font-bold flex gap-2 text-[#6e2600] mb-1"><svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                  </svg> Strict GPS Protocol Active</p>
-                    <ul className="text-[11px] font-medium text-amber-700/90 
-                    space-y-1 list-disc pl-3">
+                    <p className="text-[12px] font-bold flex gap-2 text-[#6e2600] mb-1">
+                      
+                ⚠️ Strict GPS Protocol Active</p>
+                    <ul className="text-[11px] font-medium text-[#6e2600]/60 
+                    space-y-1 list-disc pl-5">
                       <li>You must be exactly at the shop location.</li>
                       <li>Photo must clearly show the shop's front board.</li>
                       <li>All check-ins are recorded and audited.</li>
