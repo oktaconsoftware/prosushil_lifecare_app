@@ -176,7 +176,7 @@ export default function LoginPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = async (e) => {
+const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg('');
@@ -188,19 +188,26 @@ export default function LoginPage() {
       });
 
       const data = await response.json();
+
+      // 🚨 FIX: Catch the specific Device Security lock 🚨
+      if (response.status === 403 && data.code === 'DEVICE_PENDING') {
+        setErrorMsg("Unrecognized device. Admin approval requested Please contact your manager Or Call : +91  9284443453");
+        setLoading(false);
+        return; // Stop the login process entirely
+      }
+
       if (!response.ok) throw new Error(data.error || 'Authentication failed');
       
       // Keep localStorage for your frontend components to use
       localStorage.setItem('employeeId', username); 
       localStorage.setItem('userRole', data.role);
       
-      // 🚨 NEW: Set Cookies for the Server Middleware (Expires in 24 hours)
+      // Set Cookies for the Server Middleware (Expires in 24 hours)
       document.cookie = `employeeId=${username}; path=/; max-age=86400; SameSite=Strict`;
       document.cookie = `userRole=${data.role}; path=/; max-age=86400; SameSite=Strict`;
       
       if (data.role === 'ADMIN') router.push('/admin/dashboard');
       else router.push('/sales/dashboard');
-
 
     } catch (error) {
       setErrorMsg(error.message);
@@ -274,7 +281,7 @@ export default function LoginPage() {
             {errorMsg && (
               <div className="flex items-start gap-2 p-2.5 rounded-xl mb-3" style={{ background: 'rgba(231,62,67,0.08)', border: '1px solid rgba(231,62,67,0.18)' }}>
                 <svg className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: '#e73e43' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                <p className="text-[11px] font-medium leading-tight" style={{ color: '#c0373b' }}>{errorMsg}</p>
+                <p className="text-[12px] font-medium leading-tight" style={{ color: '#c0373b' }}>{errorMsg}</p>
               </div>
             )}
 
