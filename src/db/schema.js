@@ -3,8 +3,6 @@ import { pgTable, serial, text, timestamp, integer, decimal, boolean , varchar ,
  } from 'drizzle-orm/pg-core';
 
 
-// 1. Users Table (Stores both Admins and Sales Agents)
-// 1. Users Table (Stores both Admins and Sales Agents)
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   employeeId: text('employee_id').notNull().unique(), // e.g., 'PL-1042'

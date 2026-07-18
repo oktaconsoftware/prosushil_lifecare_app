@@ -81,7 +81,9 @@ export async function GET(request) {
         status: status, 
         lastVisited: lastVisitedLabel,
         Collection: todayCollection,
-        orderAmount: todayOrder
+        orderAmount: todayOrder,
+        // Also attach paymentMethod to the targets so the frontend can read it
+        paymentMethod: latestVisit?.paymentMethod || 'Cash' 
       };
     });
 
@@ -97,49 +99,52 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { agentId, targetId, photoUrl, orderAmount, collectionAmount, paymentMethod, remark, latitude, longitude } = body;
+    const { agentId, targetId, photoUrl, orderAmount, collectionAmount, remark, latitude, longitude } = body;
+
+    // 🚨 SMART EXTRACTOR: Grabs payment method regardless of how the frontend sends it
+    const finalPaymentMethod = body.paymentMethod || body.paymentType || body.payment_method || 'Cash';
 
     if (!agentId || !targetId) return NextResponse.json({ error: 'Agent ID and Target ID are required' }, { status: 400 });
 
     // ─────────────────────────────────────────────────────────
-    // NEW: NUCLEAR BASE64 SIZE SHIELD
+    // NUCLEAR BASE64 SIZE SHIELD
     // ─────────────────────────────────────────────────────────
     if (photoUrl) {
-      // Base64 strings are ~33% larger than the actual file. 
-      // This calculates the exact file size in Megabytes.
       const sizeInMB = (photoUrl.length * 0.75) / (1024 * 1024);
-      
-      // If the image is larger than 1.5MB, reject it immediately to protect the database.
       if (sizeInMB > 1.5) {
         return NextResponse.json({ 
           error: `Image is too large (${sizeInMB.toFixed(1)}MB). The app must compress it before saving.` 
         }, { status: 413 });
       }
     }
-    // ─────────────────────────────────────────────────────────
 
     const cleanTargetId = parseInt(targetId, 10);
     if (isNaN(cleanTargetId)) return NextResponse.json({ error: 'Invalid Target ID.' }, { status: 400 });
 
     const cleanOrderAmt = parseFloat(orderAmount) || 0;
     const cleanCollectionAmt = parseFloat(collectionAmount) || 0;
+
     // ─────────────────────────────────────────────────────────
-    // ACTION 1: RAW SQL INSERT (Log the Visit)
+    // 🚨 ACTION 1: DRIZZLE INSERT (Fixes the Payment Method Bug) 🚨
+    // Using Drizzle's `insert()` maps the keys directly to the schema
     // ─────────────────────────────────────────────────────────
-    const insertRes = await db.execute(sql`
-      INSERT INTO visits (agent_id, medical_shop_id, photo_url, order_amount, collection_amount, payment_method, remark)
-      VALUES (${String(agentId)}, ${cleanTargetId}, ${photoUrl || null}, ${String(cleanOrderAmt)}, ${String(cleanCollectionAmt)}, ${paymentMethod || 'None'}, ${remark || ''})
-      RETURNING id
-    `);
+    const insertRes = await db.insert(visits).values({
+      agentId: String(agentId),
+      medicalShopId: cleanTargetId,
+      photoUrl: photoUrl || null,
+      orderAmount: String(cleanOrderAmt),
+      collectionAmount: String(cleanCollectionAmt),
+      paymentMethod: finalPaymentMethod, // Perfectly mapped to DB schema
+      remark: remark || ''
+    }).returning({ id: visits.id });
     
-    const newVisitId = insertRes.rows ? insertRes.rows[0].id : (insertRes[0] ? insertRes[0].id : 0);
+    const newVisitId = insertRes[0].id;
 
     // ─────────────────────────────────────────────────────────
     // ACTION 2: 20KM SHIELD & SHOP UPDATE
     // ─────────────────────────────────────────────────────────
     if (latitude && longitude) {
       
-      // Fetch the currently saved GPS of this specific shop
       const shopData = await db.select({
         savedLat: medicalShops.latitude,
         savedLng: medicalShops.longitude,
@@ -151,11 +156,10 @@ export async function POST(request) {
       if (shopData.length > 0) {
         const { savedLat, savedLng } = shopData[0];
 
-        // 🚨 APPLY 20KM SHIELD ONLY IF GPS IS ALREADY SAVED IN DB
         if (savedLat && savedLng) {
           const distanceToShop = getDistance(latitude, longitude, Number(savedLat), Number(savedLng));
           
-          if (distanceToShop > 20000) { // 20,000 meters = 20km
+          if (distanceToShop > 20000) { 
             return NextResponse.json({ 
               error: `🚨 MISMATCH: You are ${(distanceToShop / 1000).toFixed(1)}km away from the shop's official location.` 
             }, { status: 403 });
@@ -163,7 +167,7 @@ export async function POST(request) {
         }
       }
 
-      // Update the Medical Shop with new GPS and Image IF it's not verified yet!
+      // Update the Medical Shop with new GPS and Image IF it's not verified yet
       await db.execute(sql`
         UPDATE medical_shops 
         SET latitude = ${String(latitude)}, 
@@ -177,7 +181,7 @@ export async function POST(request) {
     return NextResponse.json({ 
       success: true, 
       visitId: newVisitId,
-      Collection: 0,
+      Collection: cleanCollectionAmt,
       time: new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })
     }, { status: 200 });
 

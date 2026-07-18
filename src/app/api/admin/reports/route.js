@@ -1,4 +1,4 @@
-// // NUCLEAR CACHE KILLERS
+
 // export const dynamic = 'force-dynamic';
 // export const revalidate = 0;
 // export const fetchCache = 'force-no-store';
@@ -18,18 +18,18 @@
 //       return NextResponse.json({ error: 'Missing agentId or date parameters' }, { status: 400 });
 //     }
 
-//     // ── 1. SETUP DATE BOUNDARIES ──
-//     const targetDate = new Date(dateParam);
+//     // ── 1. SETUP DATE BOUNDARIES (STRICTLY IST TIMEZONE) ──
+//     const dateStr = dateParam; // Format: 'YYYY-MM-DD'
+//     const [year, month] = dateStr.split('-');
     
-//     // Daily Bounds
-//     const startOfDay = new Date(targetDate);
-//     startOfDay.setHours(0, 0, 0, 0);
-//     const endOfDay = new Date(targetDate);
-//     endOfDay.setHours(23, 59, 59, 999);
+//     // Force Start and End of Day to IST (+05:30)
+//     const startOfDay = new Date(`${dateStr}T00:00:00+05:30`);
+//     const endOfDay = new Date(`${dateStr}T23:59:59.999+05:30`);
 
-//     // Monthly Bounds
-//     const startOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
-//     const endOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0, 23, 59, 59, 999);
+//     // Force Start and End of Month to IST (+05:30)
+//     const startOfMonth = new Date(`${year}-${month}-01T00:00:00+05:30`);
+//     const lastDay = new Date(Number(year), Number(month), 0).getDate();
+//     const endOfMonth = new Date(`${year}-${month}-${lastDay}T23:59:59.999+05:30`);
 
 //     // ── 2. FETCH DAILY VISITS ──
 //     const dailyVisits = await db.select({
@@ -54,7 +54,7 @@
 //     // ── 3. PROCESS DAILY TIMELINE ──
 //     let dailyOrderValue = 0;
 //     let dailyCollection = 0;
-//     let dailyCommission = 0; // 🚨 Fixed: Declared the commission variable
+//     let dailyCommission = 0; 
 //     let deviations = 0;
 
 //     const timeline = dailyVisits.map(row => {
@@ -65,7 +65,6 @@
       
 //       dailyOrderValue += orderAmt;
 //       dailyCollection += collAmt;
-//       // 🚨 Fixed: 8% Commission calculated purely on Order Amount
 //       dailyCommission += Math.round(orderAmt * 0.08); 
 
 //       let status = 'success';
@@ -98,36 +97,34 @@
 //         )
 //       );
 
-//     // 🚨 Fixed: Safely calculated monthly totals
 //     const monthlyOrderValue = monthlyVisits.reduce((sum, v) => sum + (Number(v.orderAmount) || 0), 0);
 //     const monthlyCollection = monthlyVisits.reduce((sum, v) => sum + (Number(v.collectionAmount) || 0), 0);
 //     const monthlyCommission = Math.round(monthlyOrderValue * 0.08);
 
-//     // Group visits by Day to check the "10 Visits" rule
+//     // Group visits by Day cleanly using IST Timezone string
 //     const visitsByDate = {};
 //     monthlyVisits.forEach(v => {
-//       const d = new Date(v.createdAt);
-//       // Format as YYYY-MM-DD
-//       const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-//       visitsByDate[dateStr] = (visitsByDate[dateStr] || 0) + 1;
+//       // Force date string to evaluate in Kolkata time to avoid 11:30PM UTC shifting to the next day
+//       const dStr = new Date(v.createdAt).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); 
+//       visitsByDate[dStr] = (visitsByDate[dStr] || 0) + 1;
 //     });
 
-//     // Calculate Present Days (Days with >= 10 visits)
 //     let presentDays = 0;
 //     Object.values(visitsByDate).forEach(count => {
 //       if (count >= 10) presentDays++;
 //     });
 
-//     // Calculate Total Working Days in the Month (Up to today)
+//     const targetDateObj = new Date(`${dateStr}T12:00:00+05:30`);
 //     const now = new Date();
 //     let elapsedDaysInMonth;
-//     if (targetDate.getFullYear() === now.getFullYear() && targetDate.getMonth() === now.getMonth()) {
-//       elapsedDaysInMonth = now.getDate(); // If current month, only count up to today
+    
+//     // Compare month/year safely
+//     if (targetDateObj.getFullYear() === now.getFullYear() && targetDateObj.getMonth() === now.getMonth()) {
+//       elapsedDaysInMonth = Number(now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric' }));
 //     } else {
-//       elapsedDaysInMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate(); // Total days in past month
+//       elapsedDaysInMonth = lastDay;
 //     }
 
-//     // Absent Days = Total Days - Present Days
 //     const absentDays = elapsedDaysInMonth - presentDays;
 
 //     return NextResponse.json({
@@ -136,7 +133,7 @@
 //         totalVisits: dailyVisits.length,
 //         totalOrderValue: dailyOrderValue,
 //         totalCollection: dailyCollection, 
-//         commissionEarned: dailyCommission, // 🚨 Now works perfectly
+//         commissionEarned: dailyCommission,
 //         deviations: deviations
 //       },
 //       timeline: timeline,
@@ -145,13 +142,11 @@
 //         absentDays: absentDays,
 //         totalVisits: monthlyVisits.length,
 //         totalOrderValue: monthlyOrderValue,
-//         totalCollection: monthlyCollection, // 🚨 Added Monthly Collection
-//         commissionEarned: monthlyCommission // 🚨 Now works perfectly
+//         totalCollection: monthlyCollection, 
+//         commissionEarned: monthlyCommission
 //       }
 //     }, {
-//       headers: {
-//         'Cache-Control': 'no-store, no-cache, must-revalidate',
-//       }
+//       headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
 //     });
 
 //   } catch (error) {
@@ -161,7 +156,8 @@
 // }
 
 
-// NUCLEAR CACHE KILLERS
+
+// 🚨 NUCLEAR CACHE KILLERS 🚨
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
@@ -238,6 +234,9 @@ export async function GET(request) {
         deviations++;
       }
 
+      // 🚨 Failsafe: Handle both camelCase and snake_case mapping for Payment Method
+      const safePaymentMethod = v.paymentMethod || v.payment_method || 'Cash';
+
       return {
         status: status,
         type: 'visit',
@@ -245,7 +244,12 @@ export async function GET(request) {
         time: new Date(v.createdAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }),
         location: `${s?.address || 'No Address'} | ${row.place?.name || ''}, ${row.area?.name || ''}`,
         errorNote: errorNote,
-        details: { order: orderAmt, collection: collAmt, paymentMethod: v.paymentMethod || 'None', note: v.remark || '' }
+        details: { 
+          order: orderAmt, 
+          collection: collAmt, 
+          paymentMethod: safePaymentMethod, 
+          note: v.remark || '' 
+        }
       };
     });
 
@@ -290,6 +294,13 @@ export async function GET(request) {
 
     const absentDays = elapsedDaysInMonth - presentDays;
 
+    // 🚨 FIX: Force Strict Headers via Next.js Headers API
+    const responseHeaders = new Headers();
+    responseHeaders.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    responseHeaders.set('Pragma', 'no-cache');
+    responseHeaders.set('Expires', '0');
+    responseHeaders.set('Surrogate-Control', 'no-store');
+
     return NextResponse.json({
       summary: {
         completedVisits: dailyVisits.length,
@@ -309,7 +320,8 @@ export async function GET(request) {
         commissionEarned: monthlyCommission
       }
     }, {
-      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
+      status: 200,
+      headers: responseHeaders // Injecting the absolute cache-killers here
     });
 
   } catch (error) {

@@ -430,12 +430,12 @@ const verifyGeofence = () => {
               </div>
             ) : (
               <div className="p-3 flex flex-wrap gap-2 max-h-[35vh] overflow-y-auto">
-                {filteredAreas.map((area) => {
-                  const sel = area === selectedArea;
-                  return (
-                    <button
-                      key={area}
-                      onClick={() => toggleArea(area)}
+               {filteredAreas.map((area, index) => {
+  const sel = area === selectedArea;
+  return (
+    <button
+      key={`${area}-${index}`} 
+      onClick={() => toggleArea(area)}
                       className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-[13px] font-semibold transition-all ${
                         sel 
                           ? 'bg-[#97C22A] text-[#0a0f1c] shadow-sm' 
