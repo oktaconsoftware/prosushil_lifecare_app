@@ -9,6 +9,7 @@ export default function TerritorySetupTab() {
 
   // Global Search State
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
 
   // Cascading Selection State
   const [selectedArea, setSelectedArea] = useState(null);
@@ -23,8 +24,9 @@ export default function TerritorySetupTab() {
   // State for Delete Password Verification
   const [deletePassword, setDeletePassword] = useState('');
   
-  // Lightbox State for Full Image
+  // Lightbox & Photo State
   const [fullImage, setFullImage] = useState(null);
+  const [isFetchingPhoto, setIsFetchingPhoto] = useState(false);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -57,9 +59,16 @@ export default function TerritorySetupTab() {
   useEffect(() => { fetchData(); }, []);
 
   useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  useEffect(() => {
     setSelectedArea(null);
     setSelectedPlace(null);
-  }, [searchQuery]);
+  }, [debouncedQuery]);
 
   const downloadTemplate = () => {
     const ws_data = [
@@ -137,6 +146,21 @@ export default function TerritorySetupTab() {
     } catch (err) { alert(err.message); }
   };
 
+  // 🚨 NEW: Fetches only ONE photo from the database when clicked
+  const handleViewPhoto = async (shopId) => {
+    setIsFetchingPhoto(true);
+    try {
+      const res = await fetch(`/api/admin/territories/photo?id=${shopId}`);
+      if (!res.ok) throw new Error("Could not load photo");
+      const data = await res.json();
+      setFullImage(data.photoUrl); // Opens your Lightbox!
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setIsFetchingPhoto(false);
+    }
+  };
+
   const closeModal = () => { 
     setModalMode(null); 
     setModalType(null); 
@@ -174,7 +198,6 @@ export default function TerritorySetupTab() {
     }
   };
 
-  // 🚨 NEW: Calculate the GRAND TOTAL of all shops for the top header
   const grandTotalShops = useMemo(() => {
     return data.reduce((total, area) => {
       return total + (area.places || []).reduce((pTotal, place) => pTotal + (place.medicals?.length || 0), 0);
@@ -182,8 +205,8 @@ export default function TerritorySetupTab() {
   }, [data]);
 
   const filteredHierarchy = useMemo(() => {
-    if (!searchQuery.trim()) return data;
-    const lowerQ = searchQuery.toLowerCase().trim();
+    if (!debouncedQuery.trim()) return data;
+    const lowerQ = debouncedQuery.toLowerCase().trim();
 
     return data.map(area => {
       const areaName = area.name || '';
@@ -212,7 +235,7 @@ export default function TerritorySetupTab() {
       }
       return null;
     }).filter(Boolean);
-  }, [data, searchQuery]);
+  }, [data, debouncedQuery]);
 
   const activeArea = useMemo(() => {
     if (filteredHierarchy.length === 0) return null;
@@ -231,6 +254,14 @@ export default function TerritorySetupTab() {
     }
     return activeArea.places[0];
   }, [activeArea, selectedPlace]);
+
+  const sortedActiveMedicals = useMemo(() => {
+    if (!activePlace || !activePlace.medicals) return [];
+    return [...activePlace.medicals].sort((a, b) => {
+      if (a.isVerified === b.isVerified) return 0;
+      return a.isVerified ? 1 : -1;
+    });
+  }, [activePlace]);
 
   const openAddModal = (type) => {
     setModalMode('add'); setModalType(type);
@@ -262,7 +293,6 @@ export default function TerritorySetupTab() {
       cardStyle = 'border-amber-300 bg-amber-50 hover:border-amber-400'; 
     }
 
-    // 🚨 FIX: Must use 'const' here so it is strictly scoped to this specific list item
     const totalMedicalsInArea = type === 'area' 
       ? (item.places || []).reduce((sum, place) => sum + (place.medicals?.length || 0), 0) 
       : 0;
@@ -271,8 +301,19 @@ export default function TerritorySetupTab() {
       <div onClick={onClick} className={`w-full p-2.5 rounded-xl border transition-all flex items-center gap-3 group cursor-pointer ${cardStyle}`}>
         {isMedical && (
           <div className="shrink-0">
-            {item.photoUrl ? (
-              <img src={item.photoUrl} alt="Shop" onClick={(e) => { e.stopPropagation(); setFullImage(item.photoUrl); }} className="w-10 h-10 rounded-lg object-cover border border-slate-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" />
+            {/* 🚨 FIX: Replaced the img tag with the on-demand Photo Badge */}
+            {item.hasPhoto ? (
+              <div 
+                onClick={(e) => { e.stopPropagation(); handleViewPhoto(item.id); }} 
+                className="w-10 h-10 rounded-lg bg-[#97c22a]/10 border border-[#97c22a]/30 flex flex-col items-center justify-center text-[9px] text-[#5c7a1a] font-bold text-center leading-tight shadow-sm cursor-pointer hover:bg-[#97c22a]/20 transition-colors"
+              >
+                {isFetchingPhoto ? (
+                   <div className="w-4 h-4 mb-0.5 border-2 border-[#5c7a1a] border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                   <svg className="w-4 h-4 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
+                )}
+                Photo
+              </div>
             ) : (
               <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-[9px] text-slate-400 font-semibold text-center leading-tight shadow-sm">No<br/>Img</div>
             )}
@@ -286,7 +327,7 @@ export default function TerritorySetupTab() {
             {isVerified && <span className="flex items-center gap-1 bg-[#97C22A]/10 text-[#97C22A] border border-[#97C22A]/20 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg> Verified</span>}
           </div>
           
-          {type === 'area' && <p className="text-sm text-red-800 truncate">{item.places?.length || 0} Places • {totalMedicalsInArea} Shops</p>}
+          {type === 'area' && <p className="text-sm text-slate-500 truncate">{item.places?.length || 0} Places • {totalMedicalsInArea} Shops</p>}
           {type === 'place' && <p className="text-sm text-slate-500 truncate">{item.medicals?.length || 0} Medical Shops</p>}
           {isMedical && <p className="text-sm text-slate-600 truncate" title={item.address}>{item.address}</p>}
         </div>
@@ -349,20 +390,22 @@ export default function TerritorySetupTab() {
         {/* 3-COLUMN HIERARCHY LAYOUT */}
         <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-[500px] animate-in fade-in duration-300">
           
+          {/* AREA COLUMN */}
           <div className="flex-1 bg-white rounded-2xl flex flex-col overflow-hidden shadow-sm border border-slate-200">
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-              <h4 className="text-[12px] font-semibold text-slate-800">1. Master Areas <span className='text-red-500 text-[14px]'>( Total Medical Shops: {grandTotalShops} )</span></h4>
+              <h4 className="text-[12px] font-semibold text-slate-800">1. Master Areas ({grandTotalShops})</h4>
               <button onClick={() => openAddModal('area')} className="w-6 h-6 rounded-lg bg-[#97c22a]/10 text-[#97c22a] flex items-center justify-center hover:bg-[#97c22a] hover:text-white transition-colors"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"></path></svg></button>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {isLoading ? <p className="text-[11px] text-slate-400 text-center py-4">Loading...</p> : 
                filteredHierarchy.length === 0 ? <p className="text-[11px] text-slate-400 text-center py-4">No matching areas found.</p> :
-               filteredHierarchy.map(area => 
-               <ListItem key={area.id} type="area" item={area} isSelected={activeArea?.id === area.id} onClick={() => { setSelectedArea(area); setSelectedPlace(null); }} />)
+               filteredHierarchy.slice(0, 100).map(area => <ListItem key={area.id} type="area" item={area} isSelected={activeArea?.id === area.id} onClick={() => { setSelectedArea(area); setSelectedPlace(null); }} />)
               }
+              {filteredHierarchy.length > 100 && <p className="text-[11px] text-slate-400 text-center py-3 italic">Use search to view more areas...</p>}
             </div>
           </div>
 
+          {/* PLACE COLUMN */}
           <div className="flex-1 bg-white rounded-2xl flex flex-col overflow-hidden shadow-sm border border-slate-200 transition-opacity" style={{ opacity: activeArea ? 1 : 0.4, pointerEvents: activeArea ? 'auto' : 'none' }}>
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <h4 className="text-[12px] font-semibold text-slate-800">2. Places</h4>
@@ -371,11 +414,13 @@ export default function TerritorySetupTab() {
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {!activeArea ? <p className="text-[11px] text-slate-400 text-center py-4">Select an Area first.</p> : 
                !activeArea.places || activeArea.places.length === 0 ? <p className="text-[11px] text-slate-400 text-center py-4">No places added yet.</p> :
-               activeArea.places.map(place => <ListItem key={place.id} type="place" item={place} isSelected={activePlace?.id === place.id} onClick={() => setSelectedPlace(place)} />)
+               activeArea.places.slice(0, 150).map(place => <ListItem key={place.id} type="place" item={place} isSelected={activePlace?.id === place.id} onClick={() => setSelectedPlace(place)} />)
               }
+              {activeArea?.places?.length > 150 && <p className="text-[11px] text-slate-400 text-center py-3 italic">Use search to view more places...</p>}
             </div>
           </div>
 
+          {/* MEDICAL SHOPS COLUMN */}
           <div className="flex-[1.5] bg-white rounded-2xl flex flex-col overflow-hidden shadow-sm border border-slate-200 transition-opacity" style={{ opacity: activePlace ? 1 : 0.4, pointerEvents: activePlace ? 'auto' : 'none' }}>
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <h4 className="text-[12px] font-semibold text-slate-800">3. Medical Shops</h4>
@@ -383,14 +428,10 @@ export default function TerritorySetupTab() {
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/30">
               {!activePlace ? <p className="text-[11px] text-slate-400 text-center py-4">Select a Place first.</p> : 
-               !activePlace.medicals || activePlace.medicals.length === 0 ? <p className="text-[11px] text-slate-400 text-center py-4">No shops registered.</p> :
-               [...activePlace.medicals]
-                .sort((a, b) => {
-                  if (a.isVerified === b.isVerified) return 0;
-                  return a.isVerified ? 1 : -1;
-                })
-                .map(med => <ListItem key={med.id} type="medical" item={med} isSelected={false} onClick={() => {}} />)
+               !sortedActiveMedicals || sortedActiveMedicals.length === 0 ? <p className="text-[11px] text-slate-400 text-center py-4">No shops registered.</p> :
+               sortedActiveMedicals.slice(0, 150).map(med => <ListItem key={med.id} type="medical" item={med} isSelected={false} onClick={() => {}} />)
               }
+              {sortedActiveMedicals.length > 150 && <p className="text-[11px] text-slate-400 text-center py-3 italic bg-white border border-slate-200 rounded-xl mt-2">Showing 150 shops. Use search to find more.</p>}
             </div>
           </div>
         </div>
@@ -412,7 +453,7 @@ export default function TerritorySetupTab() {
           <div className="w-full sm:max-w-md bg-white overflow-hidden rounded-t-2xl sm:rounded-2xl shadow-2xl">
             
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-              <p className="text-[13px] font-semibold text-slate-800 capitalize">{modalMode}  {modalType}</p>
+              <p className="text-[13px] font-semibold text-slate-800 capitalize">{modalMode} {modalType}</p>
               <button onClick={closeModal} className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center hover:bg-slate-100"><svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
             

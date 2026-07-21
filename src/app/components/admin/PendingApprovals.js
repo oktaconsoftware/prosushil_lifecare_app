@@ -255,21 +255,29 @@
 // }
 
 
-
-
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 
 export default function PendingApprovals() {
   const [data, setData] = useState([]);
   const [dismissedPending, setDismissedPending] = useState([]);
-  const [fullImage, setFullImage] = useState(null);
-  
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  
+  // Lightbox & Photo State
+  const [fullImage, setFullImage] = useState(null);
+  const [isFetchingPhoto, setIsFetchingPhoto] = useState(false);
 
   const fetchData = async () => {
     try {
-      const res = await fetch('/api/admin/territories');
+      // 🚨 FIX: Add cache-busting to ensure we always see the latest pending shops
+      const res = await fetch(`/api/admin/territories?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Pragma': 'no-cache',
+          'Cache-Control': 'no-cache'
+        }
+      });
       if (res.ok) {
         const json = await res.json();
         setData(json);
@@ -287,6 +295,14 @@ export default function PendingApprovals() {
     } catch (e) { }
   }, []);
 
+  // 🚨 FIX: Debounce search to prevent browser freezing while typing
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
   const handleVerify = async (medicalId, newStatus) => {
     try {
       const res = await fetch('/api/admin/territories', {
@@ -299,6 +315,21 @@ export default function PendingApprovals() {
       await fetchData(); 
     } catch (err) {
       alert(err.message);
+    }
+  };
+
+  // 🚨 NEW: Fetch only ONE photo from the database when clicked
+  const handleViewPhoto = async (shopId) => {
+    setIsFetchingPhoto(true);
+    try {
+      const res = await fetch(`/api/admin/territories/photo?id=${shopId}`);
+      if (!res.ok) throw new Error("Could not load photo");
+      const data = await res.json();
+      setFullImage(data.photoUrl); // Opens your Lightbox
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setIsFetchingPhoto(false);
     }
   };
 
@@ -323,19 +354,25 @@ export default function PendingApprovals() {
         });
       });
     });
-    return pending;
+
+    // 🚨 FIX: Custom Sort - Prioritize shops WITH photos, then by newest ID first
+    return pending.sort((a, b) => {
+      if (a.hasPhoto && !b.hasPhoto) return -1;
+      if (!a.hasPhoto && b.hasPhoto) return 1;
+      return b.id - a.id; 
+    });
   }, [data, dismissedPending]);
 
   const filteredShops = useMemo(() => {
-    if (!searchQuery.trim()) return pendingShops;
-    const lowerQ = searchQuery.toLowerCase();
+    if (!debouncedQuery.trim()) return pendingShops;
+    const lowerQ = debouncedQuery.toLowerCase();
     return pendingShops.filter(shop => 
       shop.name.toLowerCase().includes(lowerQ) ||
       shop.areaName.toLowerCase().includes(lowerQ) ||
       shop.placeName.toLowerCase().includes(lowerQ) ||
       (shop.address && shop.address.toLowerCase().includes(lowerQ))
     );
-  }, [pendingShops, searchQuery]);
+  }, [pendingShops, debouncedQuery]);
 
   if (pendingShops.length === 0) return null;
 
@@ -397,21 +434,28 @@ export default function PendingApprovals() {
               </thead>
               <tbody>
                 {filteredShops.length > 0 ? (
-                  filteredShops.map(shop => (
+                  // 🚨 FIX: Slice to 100 rows to prevent the browser from freezing
+                  filteredShops.slice(0, 100).map(shop => (
                     <tr key={shop.id} className="hover:bg-slate-50/80 transition-colors group">
                       
                       {/* Photo Column */}
                       <td className="border-b border-r border-slate-200 px-4 py-2 align-middle">
                         <div className="flex justify-center items-center">
-                          {shop.photoUrl ? (
-                            <img 
-                              src={shop.photoUrl} 
-                              alt="Shop" 
-                              onClick={() => setFullImage(shop.photoUrl)}
-                              className="w-9 h-9 rounded-lg object-cover border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity shadow-sm" 
-                            />
+                          {/* 🚨 FIX: Using the optimized Photo Badge instead of raw img tags */}
+                          {shop.hasPhoto ? (
+                            <div 
+                              onClick={() => handleViewPhoto(shop.id)}
+                              className="w-10 h-10 rounded-lg bg-[#97c22a]/10 border border-[#97c22a]/30 flex flex-col items-center justify-center text-[9px] text-[#5c7a1a] font-bold text-center leading-tight shadow-sm cursor-pointer hover:bg-[#97c22a]/20 transition-colors"
+                            >
+                              {isFetchingPhoto ? (
+                                <div className="w-4 h-4 mb-0.5 border-2 border-[#5c7a1a] border-t-transparent rounded-full animate-spin"></div>
+                              ) : (
+                                <svg className="w-4 h-4 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
+                              )}
+                              Photo
+                            </div>
                           ) : (
-                            <div className="w-9 h-9 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-semibold shrink-0 text-center leading-tight">
+                            <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-semibold shrink-0 text-center leading-tight">
                               No<br/>Img
                             </div>
                           )}
@@ -488,6 +532,12 @@ export default function PendingApprovals() {
                 )}
               </tbody>
             </table>
+            {/* Show message if there are more than 100 rows hidden */}
+            {filteredShops.length > 100 && (
+              <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 text-center text-xs font-semibold text-slate-500">
+                Showing 100 of {filteredShops.length} pending shops. Use the search bar to find more.
+              </div>
+            )}
           </div>
         </div>
       </div>

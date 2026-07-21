@@ -191,12 +191,12 @@
 //   }
 // }
 
-
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers'; 
 import { db } from '../../../../db/index';
 import { areas, places, medicalShops, users, visits } from '../../../../db/schema';
-import { eq, inArray, ilike, and } from 'drizzle-orm';
+// 🚨 FIX 1: Added 'sql' to the imports here
+import { eq, inArray, ilike, and, sql } from 'drizzle-orm';
 
 // 🚨 FIX: Force Next.js to NEVER cache this route
 export const dynamic = 'force-dynamic';
@@ -207,7 +207,7 @@ function toTitleCase(str) {
   return String(str).trim().toLowerCase().replace(/\b\w/g, s => s.toUpperCase());
 }
 
-// 🚨 NEW: Helper to hash the password for verification
+// Helper to hash the password for verification
 async function hashPassword(password) {
   const encoder = new TextEncoder();
   const data = encoder.encode(password);
@@ -216,13 +216,24 @@ async function hashPassword(password) {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+// 🚨 FIX 2: Updated GET to PREVENT downloading massive photo URLs
 // GET: Fetch all territories (Optimized for massive data)
 export async function GET() {
   try {
-    // 1. Fetch all raw data from database at once
-    const allAreas = await db.select().from(areas);
-    const allPlaces = await db.select().from(places);
-    const allMedicals = await db.select().from(medicalShops);
+    // 1. Fetch exactly the columns we need to prevent memory overload
+    const allAreas = await db.select({ id: areas.id, name: areas.name }).from(areas);
+    const allPlaces = await db.select({ id: places.id, name: places.name, areaId: places.areaId }).from(places);
+    
+    // We explicitly EXCLUDE `photoUrl` from this query to stop server freezing!
+    const allMedicals = await db.select({
+      id: medicalShops.id,
+      name: medicalShops.name,
+      address: medicalShops.address,
+      placeId: medicalShops.placeId,
+      isVerified: medicalShops.isVerified,
+      // We use SQL to simply check IF the photo exists (returns 1 or 0) without downloading the heavy string
+      hasPhoto: sql`CASE WHEN ${medicalShops.photoUrl} IS NOT NULL THEN 1 ELSE 0 END`
+    }).from(medicalShops);
 
     // 2. Create Hash Maps to group data instantly (O(1) lookup time)
     const placesByArea = {};
@@ -233,6 +244,8 @@ export async function GET() {
       if (!medicalsByPlace[med.placeId]) {
         medicalsByPlace[med.placeId] = [];
       }
+      // Convert SQL 1/0 to true/false for the frontend
+      med.hasPhoto = med.hasPhoto === 1;
       medicalsByPlace[med.placeId].push(med);
     }
 
@@ -261,8 +274,6 @@ export async function GET() {
     return NextResponse.json({ error: 'Database fetch failed' }, { status: 500 });
   }
 }
-
-
 
 // POST: Add new record (With Duplicate Prevention)
 export async function POST(request) {
