@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect } from 'react';
 
@@ -8,7 +7,7 @@ export default function DailySalesTab() {
   const [salesData, setSalesData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // 🚨 NEW: State for Employee Dropdown Filter
+  // State for Employee Dropdown Filter
   const [selectedAgentId, setSelectedAgentId] = useState('ALL');
 
   useEffect(() => {
@@ -25,14 +24,14 @@ export default function DailySalesTab() {
       });
   }, [date]);
 
-  // 🚨 NEW: Filter data based on dropdown selection
+  // Filter data based on dropdown selection
   const filteredData = selectedAgentId === 'ALL' 
     ? salesData 
     : salesData.filter(agent => agent.id === selectedAgentId);
 
   return (
     <div className="flex-1 overflow-y-auto animate-in fade-in duration-300 bg-slate-50">
-      <div className="p-4 md:p-8 lg:p-10 space-y-6 md:space-y-8 pb-24 md:pb-10 max-w-5xl mx-auto w-full">
+      <div className="p-4 md:p-8 lg:p-10 space-y-6 md:space-y-8 pb-24 md:pb-10 max-w-7xl mx-auto w-full">
         
         {/* ── HEADER & DATE PICKER ── */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
@@ -80,87 +79,99 @@ export default function DailySalesTab() {
           </div>
         </div>
 
-        {/* ── AGENT LIST (EMPLOYEE-WISE DAILY VS MONTHLY) ── */}
+        {/* ── EXCEL-LIKE DATA TABLE ── */}
         {isLoading ? (
           <div className="py-20 flex flex-col items-center justify-center">
              <div className="w-8 h-8 border-4 border-slate-200 border-t-[#97c22a] rounded-full animate-spin mb-3"></div>
              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Loading Employee Data...</p>
           </div>
         ) : filteredData.length === 0 ? (
-          <p className="text-center text-slate-500 py-10">No agents found for this selection.</p>
+          <p className="text-center text-slate-500 py-10 bg-white rounded-2xl border border-slate-200 shadow-sm">No agents found for this selection.</p>
         ) : (
-          <div className="space-y-5">
-            {filteredData.map((agent, index) => (
-              <div key={agent.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden transition-transform hover:-translate-y-1 duration-300">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-10">
+            <div className="overflow-x-auto overflow-y-auto max-h-[65vh] custom-scrollbar">
+              <table className="w-full text-left border-collapse whitespace-nowrap relative">
                 
-                {/* Agent Identity Header */}
-                <div className="p-4 flex items-center gap-4 bg-slate-50/50 border-b border-slate-100 relative">
-                  {/* Top 3 Trophies (Only show if viewing ALL) */}
-                  {selectedAgentId === 'ALL' && index === 0 && <div className="absolute top-4 right-4 text-2xl filter drop-shadow-sm">🥇</div>}
-                  {selectedAgentId === 'ALL' && index === 1 && <div className="absolute top-4 right-4 text-2xl filter drop-shadow-sm">🥈</div>}
-                  {selectedAgentId === 'ALL' && index === 2 && <div className="absolute top-4 right-4 text-2xl filter drop-shadow-sm">🥉</div>}
+                {/* Master Headers */}
+                <thead className="sticky top-0 z-20 shadow-sm">
+                  <tr>
+                    <th className="bg-slate-100 border-b border-r border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 w-12 text-center" rowSpan="2">Rank</th>
+                    <th className="bg-slate-100 border-b border-r border-slate-200 px-4 py-2 text-xs font-bold text-slate-700" rowSpan="2">Employee Name</th>
+                    <th className="bg-slate-100 border-b border-r border-slate-200 px-4 py-2 text-xs font-bold text-slate-700" rowSpan="2">Area</th>
+                    <th className="bg-blue-50 border-b border-r border-slate-300 px-4 py-2 text-xs font-bold text-blue-900 text-center" colSpan="4">
+                      Today ({new Date(date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })})
+                    </th>
+                    <th className="bg-[#f4faeb] border-b border-slate-300 px-4 py-2 text-xs font-bold text-[#5c7a1a] text-center" colSpan="3">
+                      Monthly (Till Date)
+                    </th>
+                  </tr>
                   
-                  <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-slate-600 font-bold text-[13px] border border-slate-200 shrink-0 shadow-sm">
-                    {agent.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                  </div>
-                  <div>
-                    <h4 className="text-[14px] font-bold text-slate-800 leading-tight">{agent.name}</h4>
-                    <p className="text-[10px] font-bold tracking-wider text-slate-400 mt-0.5">{agent.id}</p>
-                  </div>
-                </div>
-
-                {/* Split Metrics Grid (Daily | Monthly) */}
-                <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-slate-100">
-                  
-                  {/* ── TODAY'S PERFORMANCE ── */}
-                  <div className="flex-1 p-5 relative">
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="bg-blue-100 text-blue-700 text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-widest">Today</span>
-                      <span className="text-[10px] font-semibold text-slate-400">{new Date(date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</span>
-                    </div>
+                  {/* Sub Headers */}
+                  <tr>
+                    <th className="bg-blue-50/60 border-b border-r border-slate-200 px-4 py-2 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-center">Visits</th>
+                    <th className="bg-blue-50/60 border-b border-r border-slate-200 px-4 py-2 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Sales (₹)</th>
+                    <th className="bg-blue-50/60 border-b border-r border-slate-200 px-4 py-2 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Cash (₹)</th>
+                    <th className="bg-blue-50/60 border-b border-r border-slate-300 px-4 py-2 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Pay Method</th>
                     
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Visits</p>
-                        <p className="text-[15px] font-bold text-slate-800">{agent.visitCount || 0}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Cash</p>
-                        <p className="text-[15px] font-bold text-slate-800">₹{(agent.collectionVolume || 0).toLocaleString('en-IN')}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-[#3b82f6] uppercase tracking-widest mb-1">Sales</p>
-                        <p className="text-[15px] font-bold text-[#3b82f6]">₹{(agent.orderVolume || 0).toLocaleString('en-IN')}</p>
-                      </div>
-                    </div>
-                  </div>
+                    <th className="bg-[#f4faeb]/60 border-b border-r border-slate-200 px-4 py-2 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-center">Visits</th>
+                    <th className="bg-[#f4faeb]/60 border-b border-r border-slate-200 px-4 py-2 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Sales (₹)</th>
+                    <th className="bg-[#f4faeb]/60 border-b border-slate-200 px-4 py-2 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Cash (₹)</th>
+                  </tr>
+                </thead>
 
-                  {/* ── MONTHLY TILL DATE ── */}
-                  <div className="flex-1 p-5 bg-[#fcfdfa] relative">
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="bg-[#97c22a]/20 text-[#659c12] text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-widest">This Month</span>
-                      <span className="text-[10px] font-semibold text-slate-400">Till Date</span>
-                    </div>
+                {/* Table Body */}
+                <tbody>
+                  {filteredData.map((agent, index) => (
+                    <tr key={agent.id} className="hover:bg-slate-50/80 transition-colors group">
+                      
+                      {/* Rank Logic */}
+                      <td className="border-b border-r border-slate-200 px-4 py-2.5 text-center text-lg bg-slate-50/30">
+                        {selectedAgentId === 'ALL' && index === 0 ? '🥇' : 
+                         selectedAgentId === 'ALL' && index === 1 ? '🥈' : 
+                         selectedAgentId === 'ALL' && index === 2 ? '🥉' : 
+                         <span className="text-xs font-semibold text-slate-400">{index + 1}</span>}
+                      </td>
 
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Vis</p>
-                        <p className="text-[15px] font-bold text-slate-800">{agent.monthlyVisitCount || 0}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Cash</p>
-                        <p className="text-[15px] font-bold text-slate-800">₹{(agent.monthlyCollectionVolume || 0).toLocaleString('en-IN')}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-[#97c22a] uppercase tracking-widest mb-1">Total Sales</p>
-                        <p className="text-[15px] font-bold text-[#97c22a]">₹{(agent.monthlyOrderVolume || 0).toLocaleString('en-IN')}</p>
-                      </div>
-                    </div>
-                  </div>
+                      <td className="border-b border-r border-slate-200 px-4 py-2.5">
+                        <p className="text-sm font-bold text-slate-800">{agent.name}</p>
+                        <p className="text-[10px] font-semibold text-slate-400">{agent.id}</p>
+                      </td>
 
-                </div>
-              </div>
-            ))}
+                      <td className="border-b border-r border-slate-200 px-4 py-2.5 text-xs font-medium text-slate-600">
+                        {agent.area || '-'}
+                      </td>
+
+                      {/* Today Data */}
+                      <td className="border-b border-r border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 text-center">
+                        {agent.visitCount || 0}
+                      </td>
+                      <td className="border-b border-r border-slate-200 px-4 py-2.5 text-sm font-bold text-blue-600 text-right bg-blue-50/10">
+                        {(agent.orderVolume || 0).toLocaleString('en-IN')}
+                      </td>
+                      <td className="border-b border-r border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 text-right">
+                        {(agent.collectionVolume || 0).toLocaleString('en-IN')}
+                      </td>
+                      <td className="border-b border-r border-slate-300 px-4 py-2.5 text-xs font-medium text-slate-500">
+                        {agent.paymentMethod || '-'}
+                      </td>
+
+                      {/* Monthly Data */}
+                      <td className="border-b border-r border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 text-center bg-[#f4faeb]/20">
+                        {agent.monthlyVisitCount || 0}
+                      </td>
+                      <td className="border-b border-r border-slate-200 px-4 py-2.5 text-sm font-bold text-[#659c12] text-right bg-[#f4faeb]/40">
+                        {(agent.monthlyOrderVolume || 0).toLocaleString('en-IN')}
+                      </td>
+                      <td className="border-b border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 text-right bg-[#f4faeb]/20">
+                        {(agent.monthlyCollectionVolume || 0).toLocaleString('en-IN')}
+                      </td>
+
+                    </tr>
+                  ))}
+                </tbody>
+
+              </table>
+            </div>
           </div>
         )}
       </div>
