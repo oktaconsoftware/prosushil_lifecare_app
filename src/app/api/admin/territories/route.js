@@ -216,28 +216,53 @@ async function hashPassword(password) {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// GET: Fetch all territories
+// GET: Fetch all territories (Optimized for massive data)
 export async function GET() {
   try {
+    // 1. Fetch all raw data from database at once
     const allAreas = await db.select().from(areas);
     const allPlaces = await db.select().from(places);
     const allMedicals = await db.select().from(medicalShops);
 
+    // 2. Create Hash Maps to group data instantly (O(1) lookup time)
+    const placesByArea = {};
+    const medicalsByPlace = {};
+
+    // Group all medical shops by their placeId
+    for (const med of allMedicals) {
+      if (!medicalsByPlace[med.placeId]) {
+        medicalsByPlace[med.placeId] = [];
+      }
+      medicalsByPlace[med.placeId].push(med);
+    }
+
+    // Group all places by their areaId, and instantly attach their medical shops
+    for (const place of allPlaces) {
+      if (!placesByArea[place.areaId]) {
+        placesByArea[place.areaId] = [];
+      }
+      placesByArea[place.areaId].push({
+        id: place.id,
+        name: place.name,
+        medicals: medicalsByPlace[place.id] || [] // Attach the shops instantly
+      });
+    }
+
+    // 3. Build the final Tree Structure instantly
     const territories = allAreas.map(area => ({
       id: area.id,
       name: area.name,
-      places: allPlaces.filter(p => p.areaId === area.id).map(place => ({
-        id: place.id,
-        name: place.name,
-        medicals: allMedicals.filter(m => m.placeId === place.id)
-      }))
+      places: placesByArea[area.id] || []
     }));
 
     return NextResponse.json(territories);
   } catch (error) {
+    console.error("Fetch Error:", error);
     return NextResponse.json({ error: 'Database fetch failed' }, { status: 500 });
   }
 }
+
+
 
 // POST: Add new record (With Duplicate Prevention)
 export async function POST(request) {
