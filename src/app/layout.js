@@ -21,6 +21,7 @@
 // }
 import './globals.css';
 import PwaInit from './PwaInit';
+import { Toaster } from 'react-hot-toast';
 
 export const metadata = {
   title: 'Prosushil Lifecare | Field Force Tracker',
@@ -31,6 +32,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="antialiased bg-slate-50">
+        <Toaster/>
         <PwaInit />
         {children}
       </body>
