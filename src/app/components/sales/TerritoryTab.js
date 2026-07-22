@@ -798,7 +798,7 @@ export default function TerritoryTab({
   const dropdownRef = useRef(null);
 
   // 🚨 FIX 1: Shrunk from 100m down to a strict 30 meters to prevent shop overlap
-  const GEOFENCE_RADIUS_METERS = 5; 
+  const GEOFENCE_RADIUS_METERS = 30; 
 
   const uniqueAreas = useMemo(() => {
     const fromMasterTerritories = Array.isArray(masterTerritories) ? masterTerritories.map(a => a.name) : [];
