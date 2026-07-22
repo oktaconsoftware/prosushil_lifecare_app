@@ -229,16 +229,28 @@ import { createClient } from '@supabase/supabase-js';
 // SAFE SUPABASE INITIALIZATION HELPER
 // ─────────────────────────────────────────────────────────
 function getSupabaseClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  let supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  let supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   
   if (!supabaseUrl || !supabaseKey) {
     console.error("🚨 SUPABASE KEYS MISSING FROM .env.local!");
     return null;
   }
-  return createClient(supabaseUrl, supabaseKey);
-}
 
+  // 🚨 STRIP OUT HIDDEN SPACES, NEWLINES, OR QUOTES
+  supabaseUrl = supabaseUrl.replace(/['"]/g, '').trim();
+  supabaseKey = supabaseKey.replace(/['"]/g, '').trim();
+
+  // DEBUG LOG: This will print in your VS Code terminal so you can see exactly what is being read
+  console.log("🔍 SUPABASE URL READ AS:", supabaseUrl);
+  
+  try {
+    return createClient(supabaseUrl, supabaseKey);
+  } catch (err) {
+    console.error("🚨 createClient Crash:", err.message);
+    return null;
+  }
+}
 // ─────────────────────────────────────────────────────────
 // SUPABASE STORAGE UPLOAD HELPER
 // ─────────────────────────────────────────────────────────
