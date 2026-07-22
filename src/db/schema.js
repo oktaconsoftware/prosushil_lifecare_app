@@ -32,19 +32,21 @@ export const targets = pgTable('targets', {
 
 export const visits = pgTable('visits', {
   id: serial('id').primaryKey(),
-  // 🚨 ADDED { length: 255 } here
   agentId: varchar('agent_id', { length: 255 }).notNull(),
   medicalShopId: integer('medical_shop_id').references(() => medicalShops.id).notNull(),
   photoUrl: text('photo_url'),
   orderAmount: numeric('order_amount').notNull().default('0'),
   collectionAmount: numeric('collection_amount').notNull().default('0'),
   remark: text('remark'),
+  
+  // 🚨 ADDED: Capture the agent's exact physical location!
+  latitude: varchar('latitude', { length: 100 }), 
+  longitude: varchar('longitude', { length: 100 }),
+  
   createdAt: timestamp('created_at').defaultNow(),
-  // 🚨 ADDED { length: 50 } here
   status: varchar('status', { length: 50 }).notNull().default('Pending Review'),
   paymentMethod: varchar('payment_method', { length: 50 })
 });
-
 
 export const routeAssignments = pgTable('route_assignments', {
   id: serial('id').primaryKey(),

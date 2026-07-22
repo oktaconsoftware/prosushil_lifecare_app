@@ -135,7 +135,9 @@ export async function POST(request) {
       orderAmount: String(cleanOrderAmt),
       collectionAmount: String(cleanCollectionAmt),
       paymentMethod: finalPaymentMethod, // Perfectly mapped to DB schema
-      remark: remark || ''
+      remark: remark || '',
+      latitude: String(body.latitude),   // 🚨 Make sure this is saving
+      longitude: String(body.longitude)  // 🚨 Make sure this is saving
     }).returning({ id: visits.id });
     
     const newVisitId = insertRes[0].id;

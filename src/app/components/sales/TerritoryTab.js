@@ -1,3 +1,5 @@
+
+
 // 'use client';
 // import { useState, useRef, useMemo, useEffect } from 'react';
 
@@ -26,14 +28,14 @@
 //   const [step, setStep] = useState('camera');
 //   const [selectedArea, setSelectedArea] = useState(''); 
 //   const [isAreaDropdownOpen, setIsAreaDropdownOpen] = useState(false);
-//   const [areaSearchQuery, setAreaSearchQuery] = useState(''); // NEW: Search state
+//   const [areaSearchQuery, setAreaSearchQuery] = useState(''); 
 //   const [localPhoto, setLocalPhoto] = useState(null);
 //   const [location, setLocation] = useState(null);
 //   const [isLocating, setIsLocating] = useState(false);
 //   const [isSubmitting, setIsSubmitting] = useState(false);
 //   const [isMounted, setIsMounted] = useState(false);
 //   const [isMobile, setIsMobile] = useState(true);
-// const [cachedLocation, setCachedLocation] = useState(null);
+//   const [cachedLocation, setCachedLocation] = useState(null);
 //   const [nearbyShops, setNearbyShops] = useState([]);
 //   const [selectedShopId, setSelectedShopId] = useState('');
 //   const [formData, setFormData] = useState({
@@ -45,7 +47,9 @@
 
 //   const fileInputRef = useRef(null);
 //   const dropdownRef = useRef(null);
-//   const GEOFENCE_RADIUS_METERS = 100; 
+
+//   // 🚨 FIX 1: Shrunk from 100m down to a strict 30 meters to prevent shop overlap
+//   const GEOFENCE_RADIUS_METERS = 30; 
 
 //   const uniqueAreas = useMemo(() => {
 //     const fromMasterTerritories = Array.isArray(masterTerritories) ? masterTerritories.map(a => a.name) : [];
@@ -58,7 +62,6 @@
 //     )].sort();
 //   }, [targets, masterTerritories, masterAreas]);
 
-//   // NEW: Filter areas based on search query
 //   const filteredAreas = useMemo(() => {
 //     if (!areaSearchQuery) return uniqueAreas;
 //     return uniqueAreas.filter(area => 
@@ -82,8 +85,7 @@
 //     return () => document.removeEventListener('mousedown', handler);
 //   }, []);
 
-// // 🚨 BACKGROUND GPS TRACKER
-//   // Silently tracks location while the dashboard is open, bypassing the Android camera-pause bug.
+//   // 🚨 FIX 2: Force High Accuracy for the background tracker
 //   useEffect(() => {
 //     if (typeof window !== 'undefined' && navigator.geolocation) {
 //       const watchId = navigator.geolocation.watchPosition(
@@ -91,19 +93,22 @@
 //           setCachedLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
 //         },
 //         (err) => console.warn("Background GPS waiting for permission..."),
-//         { enableHighAccuracy: false, maximumAge: 10000, timeout: 10000 }
+//         { 
+//           enableHighAccuracy: true, // Forces physical GPS chip
+//           maximumAge: 5000,         // Discard locations older than 5 seconds
+//           timeout: 10000 
+//         }
 //       );
 //       return () => navigator.geolocation.clearWatch(watchId);
 //     }
 //   }, []);
+
 //   useEffect(() => {
-//     // 🚨 DEVELOPER BYPASS: Always allow if testing locally on your computer
 //     if (window.location.hostname === 'localhost') {
 //       setIsMobile(true);
 //       return;
 //     }
 
-//     // Standard security check for production
 //     const userAgent = navigator.userAgent || navigator.vendor || window.opera;
 //     if (/android/i.test(userAgent) || /iPad|iPhone|iPod/.test(userAgent)) {
 //       setIsMobile(true);
@@ -116,7 +121,7 @@
 //     setSelectedArea(area);
 //     localStorage.setItem('assignedSalesArea', area);
 //     setIsAreaDropdownOpen(false);
-//     setAreaSearchQuery(''); // Reset search when selected
+//     setAreaSearchQuery('');
 //     setStep('camera');
 //     setLocalPhoto(null);
 //     setLocation(null);
@@ -133,13 +138,12 @@
 //   const safeCollection = totalCollection || 0;
 //   const progress = totalCount > 0 ? Math.round((visitedCount / totalCount) * 100) : 0;
 
-// const handleCapture = (e) => {
+//   const handleCapture = (e) => {
 //     const file = e.target.files[0];
 //     if (!file) return;
     
 //     setIsLocating(true);
     
-//     // 🚨 FIX: Use Object URL instead of FileReader (Prevents iPhone memory crash)
 //     const img = new Image();
     
 //     img.onload = () => {
@@ -148,7 +152,6 @@
 //       let width = img.width;
 //       let height = img.height;
 
-//       // Smart scaling to keep the image sharp but small
 //       if (width > height) {
 //         if (width > MAX_WIDTH) { 
 //           height = Math.round((height * MAX_WIDTH) / width); 
@@ -166,23 +169,18 @@
 //       canvas.height = height;
 //       const ctx = canvas.getContext('2d');
       
-//       // Ensure white background
 //       ctx.fillStyle = '#FFFFFF';
 //       ctx.fillRect(0, 0, width, height);
 //       ctx.drawImage(img, 0, 0, width, height);
 
-//       // Compress to JPEG
 //       const compressedPhoto = canvas.toDataURL('image/jpeg', 0.5);
       
-//       // Set the state so the image shows up!
 //       setLocalPhoto(compressedPhoto);
 //       if (setPhotoUri) setPhotoUri(compressedPhoto);
       
-//       // Free up the iPhone's memory instantly
 //       URL.revokeObjectURL(img.src);
 //       if (fileInputRef.current) fileInputRef.current.value = ''; 
       
-//       // Proceed to the GPS check
 //       verifyGeofence();
 //     };
 
@@ -192,11 +190,10 @@
 //       if (fileInputRef.current) fileInputRef.current.value = ''; 
 //     };
     
-//     // Load the file instantly
 //     img.src = URL.createObjectURL(file);
 //   };
   
-// const verifyGeofence = () => {
+//   const verifyGeofence = () => {
 //     if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
 //       alert("🚨 GPS requires a secure HTTPS connection.");
 //       setIsLocating(false);
@@ -204,7 +201,6 @@
 //       return;
 //     }
 
-//     // 1. HELPER: The logic that actually sorts the shops
 //     const processLocation = (lat, lng) => {
 //       const shopsWithGps = activeTargets.filter(s => s.latitude && s.longitude);
 //       let closestShop = null;
@@ -244,14 +240,11 @@
 //       setStep('form');
 //     };
 
-//     // 🚨 2. INSTANT CACHE BYPASS 🚨
-//     // If the background tracker caught their location before they opened the camera, use it instantly!
 //     if (cachedLocation) {
 //       processLocation(cachedLocation.lat, cachedLocation.lng);
 //       return; 
 //     }
 
-//     // 3. FALLBACK: Only if they took the photo faster than the background tracker could load
 //     if (!navigator.geolocation) {
 //       alert('Geolocation is not supported by your browser.');
 //       setIsLocating(false);
@@ -266,7 +259,7 @@
 //         setIsLocating(false);
 //         setStep('camera');
 //       }
-//     }, 8000); // Reduced to 8 seconds so they don't wait as long
+//     }, 10000); // Give high accuracy slightly more time to resolve
 
 //     navigator.geolocation.getCurrentPosition(
 //       (pos) => {
@@ -289,7 +282,12 @@
 //         if (setPhotoUri) setPhotoUri(null);
 //         setStep('camera');
 //       },
-//       { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 }
+//       { 
+//         // 🚨 FIX 3: Force Strict live GPS for photo verification
+//         enableHighAccuracy: true, 
+//         timeout: 8000, 
+//         maximumAge: 0 // Do NOT accept stale cached locations
+//       }
 //     );
 //   };
 
@@ -417,7 +415,6 @@
 //                   placeholder="Search area..."
 //                   value={areaSearchQuery}
 //                   onChange={(e) => setAreaSearchQuery(e.target.value)}
-//                   // 🚨 FIX: Changed text-[14px] to text-[16px] to prevent iPhone auto-zoom!
 //                   className="w-full bg-white border border-slate-200 rounded-2xl pl-9 pr-4 py-2.5 text-[16px] font-medium text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all"
 //                 />
 //               </div>
@@ -530,7 +527,7 @@
 //             <div className="w-14 h-14 rounded-2xl bg-[#97C22A]/10 flex items-center justify-center mb-3 border border-[#97C22A]/20 relative">
 //               {isLocating && <div className="absolute inset-0 border-2 border-[#97C22A] rounded-3xl animate-ping opacity-30" />}
 //               <svg className="w-7 h-7 text-[#5C7A1A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+//                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
 //               </svg>
 //             </div>
 //             <p className="text-[12px] font-semibold text-[#97C22A] mb-1.5">Security check 🛡️</p>
@@ -539,29 +536,6 @@
 //               Take a photo of the shop in <span className="font-semibold text-[#fc2666]">{selectedArea}</span>. GPS will auto-detect your location.
 //             </p>
             
-//             {/* 🚨 DESKTOP BLOCKER CONDITIONAL BUTTON 🚨
-//             {isMobile ? (
-//               <button 
-//                 onClick={() => fileInputRef.current?.click()} 
-//                 disabled={isLocating} 
-//                 className={`w-full py-4 rounded-2xl text-[15px] font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${
-//                   isLocating ? 'bg-slate-800 text-white/50 cursor-not-allowed' : 'bg-[#0a0f1c] text-white active:scale-[0.98]'
-//                 }`}
-//               >
-//                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
-//                 </svg>
-//                 {isLocating ? 'Analyzing GPS...' : 'Take photo to unlock'}
-//               </button>
-//             ) : (
-//               <div className="w-full py-4 rounded-2xl bg-red-50 border border-red-100 text-red-600 text-[14px] font-bold flex items-center justify-center gap-2">
-//                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-//                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-//                 </svg>
-//                 Please use a mobile phone to check-in
-//               </div>
-//             )} */}
-
 
 //             {/* 🚨 DESKTOP BLOCKER CONDITIONAL BUTTON & INSTRUCTIONS 🚨 */}
 //             {isMobile ? (
@@ -647,7 +621,7 @@
 //                     <option value="" disabled>Select a shop in {selectedArea}...</option>
 //                     {nearbyShops.map((shop) => (
 //                       <option key={shop.id} value={shop.id}>
-//                         {shop.isNewAnchor ? 'First Visit - ' : ''}{shop.name} {shop.distance !== undefined && shop.distance < 999999 ? `(${ (shop.distance / 1000).toFixed(1) }km)` : ''}
+//                         {shop.isNewAnchor ? 'First Visit - ' : ''}{shop.name} {shop.distance !== undefined && shop.distance < 999999 ? `(${ (shop.distance / 1000).toFixed(2) }km)` : ''}
 //                       </option>
 //                     ))}
 //                   </select>
@@ -664,7 +638,7 @@
 
 //               <div className="grid grid-cols-2 gap-3 mb-5">
 //                 <div>
-//                   <label className="block text-[12px] font-semibold text-slate-500 mb-2">Order vol (₹)</label>
+//                   <label className="block text-[12px] font-semibold text-slate-500 mb-2">Cash Collection (₹)</label>
 //                   <input
 //                     type="number"
 //                     value={formData.orderAmount}
@@ -686,9 +660,9 @@
 //               </div>
 
 //               <div className="mb-5">
-//                 <label className="block text-[12px] font-semibold text-slate-500 mb-2">Payment method</label>
+//                 <label className="block text-[12px] font-semibold text-slate-500 mb-2">Payment method of <span className=" text-[12px] font-semibold text-[#97C22A] ">Collection</span></label>
 //                 <div className="grid grid-cols-4 gap-2">
-//                   {['Cash', 'UPI', 'Cheque', 'Credit'].map((method) => {
+//                   {['UPI', 'Cheque', 'Credit'].map((method) => {
 //                     const active = formData.paymentMethod === method;
 //                     return (
 //                       <button
@@ -787,17 +761,18 @@ export default function TerritoryTab({
   const [cachedLocation, setCachedLocation] = useState(null);
   const [nearbyShops, setNearbyShops] = useState([]);
   const [selectedShopId, setSelectedShopId] = useState('');
+  
+  // 🚨 FIX: Updated State to handle split collections safely
   const [formData, setFormData] = useState({
     orderAmount: '',
-    collectionAmount: '',
-    paymentMethod: 'Cash',
+    cashAmount: '',
+    otherAmount: '',
+    otherMethod: 'UPI',
     remark: ''
   });
 
   const fileInputRef = useRef(null);
   const dropdownRef = useRef(null);
-
-  // 🚨 FIX 1: Shrunk from 100m down to a strict 30 meters to prevent shop overlap
   const GEOFENCE_RADIUS_METERS = 30; 
 
   const uniqueAreas = useMemo(() => {
@@ -834,19 +809,14 @@ export default function TerritoryTab({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // 🚨 FIX 2: Force High Accuracy for the background tracker
   useEffect(() => {
     if (typeof window !== 'undefined' && navigator.geolocation) {
       const watchId = navigator.geolocation.watchPosition(
         (pos) => {
           setCachedLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         },
-        (err) => console.warn("Background GPS waiting for permission..."),
-        { 
-          enableHighAccuracy: true, // Forces physical GPS chip
-          maximumAge: 5000,         // Discard locations older than 5 seconds
-          timeout: 10000 
-        }
+        (err) => console.warn("Background GPS waiting..."),
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
       );
       return () => navigator.geolocation.clearWatch(watchId);
     }
@@ -857,7 +827,6 @@ export default function TerritoryTab({
       setIsMobile(true);
       return;
     }
-
     const userAgent = navigator.userAgent || navigator.vendor || window.opera;
     if (/android/i.test(userAgent) || /iPad|iPhone|iPod/.test(userAgent)) {
       setIsMobile(true);
@@ -892,7 +861,6 @@ export default function TerritoryTab({
     if (!file) return;
     
     setIsLocating(true);
-    
     const img = new Image();
     
     img.onload = () => {
@@ -934,7 +902,7 @@ export default function TerritoryTab({
     };
 
     img.onerror = () => {
-      alert("⚠️ Error processing the photo. Please try taking it again.");
+      alert("⚠️ Error processing the photo.");
       setIsLocating(false);
       if (fileInputRef.current) fileInputRef.current.value = ''; 
     };
@@ -1008,7 +976,7 @@ export default function TerritoryTab({
         setIsLocating(false);
         setStep('camera');
       }
-    }, 10000); // Give high accuracy slightly more time to resolve
+    }, 10000); 
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -1021,26 +989,16 @@ export default function TerritoryTab({
         if (isResolved) return;
         isResolved = true;
         clearTimeout(killSwitchTimer);
-        
-        if (error.code === 1) alert("🔒 Permission Denied! Please click the lock icon 🔒 next to the web address and Allow Location.");
-        else if (error.code === 2) alert("📡 GPS is OFF! Please turn ON 'Location' in your phone settings.");
-        else alert("⏱️ Signal Lost! Please step outside or near a window.");
-        
         setIsLocating(false);
         setLocalPhoto(null);
         if (setPhotoUri) setPhotoUri(null);
         setStep('camera');
       },
-      { 
-        // 🚨 FIX 3: Force Strict live GPS for photo verification
-        enableHighAccuracy: true, 
-        timeout: 8000, 
-        maximumAge: 0 // Do NOT accept stale cached locations
-      }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     );
   };
 
-  const handleSubmitVisit = async (e) => {
+const handleSubmitVisit = async (e) => {
     e.preventDefault();
     if (!selectedShopId) return alert("Please select a medical shop.");
 
@@ -1048,15 +1006,29 @@ export default function TerritoryTab({
     try {
       const agentId = localStorage.getItem('employeeId') || 'Unknown';
 
+      const cashVal = parseFloat(formData.cashAmount) || 0;
+      const otherVal = parseFloat(formData.otherAmount) || 0;
+      const totalCollectionVal = cashVal + otherVal;
+
+      let finalMethod = 'None';
+      if (cashVal > 0 && otherVal > 0) {
+        finalMethod = `Cash & ${formData.otherMethod}`;
+      } else if (cashVal > 0 && otherVal === 0) {
+        finalMethod = 'Cash';
+      } else if (cashVal === 0 && otherVal > 0) {
+        finalMethod = formData.otherMethod;
+      }
+
+      // 🚨 CRITICAL FIX: Cast latitude and longitude safely to Strings for the varchar schema
       const payload = {
         agentId: agentId,
         targetId: selectedShopId,
-        latitude: location?.lat || null,
-        longitude: location?.lng || null,
+        latitude: location?.lat ? String(location.lat) : null,
+        longitude: location?.lng ? String(location.lng) : null,
         photoUrl: localPhoto || null,
         orderAmount: parseFloat(formData.orderAmount) || 0,
-        collectionAmount: parseFloat(formData.collectionAmount) || 0,
-        paymentMethod: formData.paymentMethod || 'Cash',
+        collectionAmount: totalCollectionVal, 
+        paymentMethod: finalMethod,           
         remark: formData.remark || ''
       };
 
@@ -1072,7 +1044,7 @@ export default function TerritoryTab({
       setStep('camera');
       setLocalPhoto(null);
       setLocation(null);
-      setFormData({ orderAmount: '', collectionAmount: '', paymentMethod: 'Cash', remark: '' });
+      setFormData({ orderAmount: '', cashAmount: '', otherAmount: '', otherMethod: 'UPI', remark: '' });
 
       if (onRefreshData) onRefreshData();
       else window.location.reload();
@@ -1136,7 +1108,6 @@ export default function TerritoryTab({
             </div>
           </div>
 
-          {/* Status Indicator */}
           <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl border shrink-0 mt-1 ${
             step === 'form' ? 'bg-[#97C22A]/10 border-[#97C22A]/20' : 'bg-white/5 border-white/10'
           }`}>
@@ -1147,11 +1118,8 @@ export default function TerritoryTab({
           </div>
         </div>
 
-        {/* MODIFIED: Searchable Horizontal Chips Dropdown */}
         {isAreaDropdownOpen && (
           <div className="absolute top-[100%] left-4 right-4 mt-2 bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-top-2 z-40">
-            
-       {/* Search Bar */}
             <div className="p-3 border-b border-slate-100 bg-slate-50/50">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -1169,7 +1137,6 @@ export default function TerritoryTab({
               </div>
             </div>
 
-            {/* Horizontal Flowing Chips */}
             {filteredAreas.length === 0 ? (
               <div className="p-6 text-center">
                 <p className="text-[13px] text-slate-500 font-medium m-0">No areas found</p>
@@ -1177,11 +1144,11 @@ export default function TerritoryTab({
             ) : (
               <div className="p-3 flex flex-wrap gap-2 max-h-[35vh] overflow-y-auto">
                {filteredAreas.map((area, index) => {
-  const sel = area === selectedArea;
-  return (
-    <button
-      key={`${area}-${index}`} 
-      onClick={() => toggleArea(area)}
+                  const sel = area === selectedArea;
+                  return (
+                    <button
+                      key={`${area}-${index}`} 
+                      onClick={() => toggleArea(area)}
                       className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-[13px] font-semibold transition-all ${
                         sel 
                           ? 'bg-[#97C22A] text-[#0a0f1c] shadow-sm' 
@@ -1207,8 +1174,6 @@ export default function TerritoryTab({
         
         {selectedArea && (
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-            
-            {/* Top Row: Progress % and Earnings */}
             <div className="flex justify-between items-center mb-2.5">
               <div className="flex items-center gap-2">
                 <span className="text-[12px] font-semibold text-slate-500">Daily progress</span>
@@ -1221,13 +1186,9 @@ export default function TerritoryTab({
                 </span>
               </div>
             </div>
-
-            {/* Middle Row: Progress Bar */}
             <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-3">
               <div className="h-full bg-[#97C22A] rounded-full transition-all duration-700 ease-out" style={{ width: `${progress}%` }} />
             </div>
-
-            {/* Bottom Row: Stats */}
             <div className="flex divide-x divide-slate-100">
               {[
                 { label: 'Total Shops', val: totalCount },
@@ -1240,7 +1201,6 @@ export default function TerritoryTab({
                 </div>
               ))}
             </div>
-            
           </div>
         )}
      
@@ -1276,7 +1236,7 @@ export default function TerritoryTab({
             <div className="w-14 h-14 rounded-2xl bg-[#97C22A]/10 flex items-center justify-center mb-3 border border-[#97C22A]/20 relative">
               {isLocating && <div className="absolute inset-0 border-2 border-[#97C22A] rounded-3xl animate-ping opacity-30" />}
               <svg className="w-7 h-7 text-[#5C7A1A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
               </svg>
             </div>
             <p className="text-[12px] font-semibold text-[#97C22A] mb-1.5">Security check 🛡️</p>
@@ -1284,35 +1244,26 @@ export default function TerritoryTab({
             <p className="text-[13px] text-slate-500 leading-relaxed mb-3 max-w-[300px]">
               Take a photo of the shop in <span className="font-semibold text-[#fc2666]">{selectedArea}</span>. GPS will auto-detect your location.
             </p>
-            
 
-            {/* 🚨 DESKTOP BLOCKER CONDITIONAL BUTTON & INSTRUCTIONS 🚨 */}
             {isMobile ? (
               <div className="space-y-3">
                 <button 
                   onClick={() => fileInputRef.current?.click()} 
                   disabled={isLocating} 
-                  className={`w-full px-5 py-4 rounded-2xl text-[14px] font-semibold 
-                    flex items-center justify-center gap-3 transition-all shadow-sm text-left ${
+                  className={`w-full px-5 py-4 rounded-2xl text-[14px] font-semibold flex items-center justify-center gap-3 transition-all shadow-sm text-left ${
                     isLocating ? 'bg-slate-800 text[#b8ed3b] cursor-not-allowed' : 'bg-[#0a0f1c] text-white active:scale-[0.98]'
                   }`}
                 >
                   <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
-                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
                   </svg>
                   {isLocating ? 'Analyzing GPS...' : 'Take photo to unlock'}
                 </button>
 
-                {/* Mobile Instructions & Warning */}
                 <div className="bg-amber-50/80 border border-amber-200/60 rounded-xl p-3.5 flex items-start gap-3 text-left">
-                  
                   <div>
-                    <p className="text-[12px] font-bold flex gap-2 text-[#6e2600] mb-1">
-                      
-                ⚠️ Strict GPS Protocol Active</p>
-                    <ul className="text-[11px] font-medium text-[#6e2600]/60 
-                    space-y-1 list-disc pl-5">
+                    <p className="text-[12px] font-bold flex gap-2 text-[#6e2600] mb-1">⚠️ Strict GPS Protocol Active</p>
+                    <ul className="text-[11px] font-medium text-[#6e2600]/60 space-y-1 list-disc pl-5">
                       <li>You must be exactly at the shop location.</li>
                       <li>Photo must clearly show the shop's front board.</li>
                       <li>All check-ins are recorded and audited.</li>
@@ -1338,7 +1289,6 @@ export default function TerritoryTab({
         ) : (
           <div className="animate-in slide-in-from-bottom-4 duration-300 mt-2 flex flex-col gap-4">
             
-            {/* Verified Photo Card */}
             <div className="bg-white p-3.5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
               <img src={localPhoto} alt="Captured" className="w-14 h-14 rounded-2xl object-cover border border-slate-200 shadow-sm" />
               <div className="flex-1">
@@ -1355,7 +1305,6 @@ export default function TerritoryTab({
               </div>
             </div>
 
-            {/* Visit Form */}
             <form onSubmit={handleSubmitVisit} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
               
               <div className="mb-5">
@@ -1378,49 +1327,60 @@ export default function TerritoryTab({
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                   </div>
                 </div>
-                {selectedShopId && nearbyShops.find(s => s.id.toString() === selectedShopId)?.isNewAnchor && (
-                  <p className="text-[11px] text-[#5C7A1A] mt-2 font-medium bg-[#97C22A]/10 p-2 rounded-2xl border border-[#97C22A]/20">
-                    First visit: Submitting will lock its GPS coordinates here.
-                  </p>
-                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3 mb-5">
+              {/* 🚨 RESTORED: Order Volume properly tracking to orderAmount */}
+              <div className="mb-4">
+                <label className="block text-[12px] font-semibold text-slate-500 mb-1.5">
+                  Order / Sales Volume (₹) <span className="font-normal text-slate-400">- New Orders Taken</span>
+                </label>
+                <input
+                  type="number"
+                  value={formData.orderAmount}
+                  onChange={(e) => setFormData({...formData, orderAmount: e.target.value})}
+                  placeholder="0"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 text-[15px] font-bold text-slate-800 outline-none focus:border-slate-400 focus:bg-white transition-colors"
+                />
+              </div>
+
+              {/* 🚨 NEW: Split Collection Inputs */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
                 <div>
-                  <label className="block text-[12px] font-semibold text-slate-500 mb-2">Cash Collection (₹)</label>
+                  <label className="block text-[12px] font-semibold text-[#5C7A1A] mb-1.5">Cash Collection (₹)</label>
                   <input
                     type="number"
-                    value={formData.orderAmount}
-                    onChange={(e) => setFormData({...formData, orderAmount: e.target.value})}
-                    placeholder="0"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 text-[15px] font-bold text-slate-800 outline-none focus:border-slate-400 focus:bg-white transition-colors"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-semibold text-[#5C7A1A] mb-2">Collection (₹)</label>
-                  <input
-                    type="number"
-                    value={formData.collectionAmount}
-                    onChange={(e) => setFormData({...formData, collectionAmount: e.target.value})}
+                    value={formData.cashAmount}
+                    onChange={(e) => setFormData({...formData, cashAmount: e.target.value})}
                     placeholder="0"
                     className="w-full bg-[#97C22A]/10 border border-[#97C22A]/30 rounded-2xl px-4 py-3.5 text-[15px] font-bold text-slate-900 outline-none focus:bg-[#97C22A]/20 transition-colors"
                   />
                 </div>
+                <div>
+                  <label className="block text-[12px] font-semibold text-blue-600 mb-1.5">Other Collection (₹)</label>
+                  <input
+                    type="number"
+                    value={formData.otherAmount}
+                    onChange={(e) => setFormData({...formData, otherAmount: e.target.value})}
+                    placeholder="0"
+                    className="w-full bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3.5 text-[15px] font-bold text-slate-900 outline-none focus:bg-blue-100 transition-colors"
+                  />
+                </div>
               </div>
 
-              <div className="mb-5">
-                <label className="block text-[12px] font-semibold text-slate-500 mb-2">Payment method of <span className=" text-[12px] font-semibold text-[#97C22A] ">Collection</span></label>
-                <div className="grid grid-cols-4 gap-2">
+              {/* Only show Payment Method buttons if they actually collected 'Other' funds */}
+              <div className="mb-5" style={{ opacity: formData.otherAmount > 0 ? 1 : 0.4, pointerEvents: formData.otherAmount > 0 ? 'auto' : 'none' }}>
+                <label className="block text-[12px] font-semibold text-slate-500 mb-2">Method for 'Other Collection'</label>
+                <div className="grid grid-cols-3 gap-2">
                   {['UPI', 'Cheque', 'Credit'].map((method) => {
-                    const active = formData.paymentMethod === method;
+                    const active = formData.otherMethod === method;
                     return (
                       <button
                         key={method}
                         type="button"
-                        onClick={() => setFormData({...formData, paymentMethod: method})}
+                        onClick={() => setFormData({...formData, otherMethod: method})}
                         className={`py-2.5 text-[12px] font-semibold rounded-2xl transition-all border ${
                           active 
-                            ? 'bg-[#0a0f1c] text-[#97C22A] border-[#0a0f1c] shadow-sm' 
+                            ? 'bg-[#0a0f1c] text-white border-[#0a0f1c] shadow-sm' 
                             : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
                         }`}
                       >
