@@ -725,6 +725,7 @@
 
 'use client';
 import { useState, useRef, useMemo, useEffect } from 'react';
+import toast from 'react-hot-toast';
 
 function getDistance(lat1, lon1, lat2, lon2) {
   if (!lat1 || !lon1 || !lat2 || !lon2) return 999999;
@@ -761,6 +762,7 @@ export default function TerritoryTab({
   const [cachedLocation, setCachedLocation] = useState(null);
   const [nearbyShops, setNearbyShops] = useState([]);
   const [selectedShopId, setSelectedShopId] = useState('');
+  const [localPhotoCrushed, setLocalPhotoCrushed] = useState(null);
   
   // 🚨 FIX: Updated State to handle split collections safely
   const [formData, setFormData] = useState({
@@ -856,69 +858,35 @@ export default function TerritoryTab({
   const safeCollection = totalCollection || 0;
   const progress = totalCount > 0 ? Math.round((visitedCount / totalCount) * 100) : 0;
 
-  const handleCapture = (e) => {
+const handleCapture = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     
+    // 🚨 SECURITY LAYER 1: Gallery Blocker (with Localhost Bypass)
+    const fileAgeInSeconds = (Date.now() - file.lastModified) / 1000;
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+    if (fileAgeInSeconds > 30 && !isLocalhost) {
+      toast.error("Gallery uploads are forbidden. Please capture a live photo right now.");
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return; 
+    }
+
     setIsLocating(true);
-    const img = new Image();
-    
-    img.onload = () => {
-      const MAX_WIDTH = 600; 
-      const MAX_HEIGHT = 600;
-      let width = img.width;
-      let height = img.height;
-
-      if (width > height) {
-        if (width > MAX_WIDTH) { 
-          height = Math.round((height * MAX_WIDTH) / width); 
-          width = MAX_WIDTH; 
-        }
-      } else {
-        if (height > MAX_HEIGHT) { 
-          width = Math.round((width * MAX_HEIGHT) / height); 
-          height = MAX_HEIGHT; 
-        }
-      }
-
-      const canvas = document.createElement('canvas');
-      canvas.width = width; 
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, width, height);
-      ctx.drawImage(img, 0, 0, width, height);
-
-      const compressedPhoto = canvas.toDataURL('image/jpeg', 0.5);
-      
-      setLocalPhoto(compressedPhoto);
-      if (setPhotoUri) setPhotoUri(compressedPhoto);
-      
-      URL.revokeObjectURL(img.src);
-      if (fileInputRef.current) fileInputRef.current.value = ''; 
-      
-      verifyGeofence();
-    };
-
-    img.onerror = () => {
-      alert("⚠️ Error processing the photo.");
-      setIsLocating(false);
-      if (fileInputRef.current) fileInputRef.current.value = ''; 
-    };
-    
-    img.src = URL.createObjectURL(file);
+    // Pass the file to verifyGeofence FIRST, so we can get the GPS before watermarking!
+    verifyGeofence(file);
   };
-  
-  const verifyGeofence = () => {
+
+  const verifyGeofence = (file) => {
     if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-      alert("🚨 GPS requires a secure HTTPS connection.");
+      toast.error("GPS requires a secure HTTPS connection.");
       setIsLocating(false);
       setStep('camera');
       return;
     }
 
-    const processLocation = (lat, lng) => {
+    const processLocation = async (lat, lng) => {
+      // 1. Find the closest shop
       const shopsWithGps = activeTargets.filter(s => s.latitude && s.longitude);
       let closestShop = null;
       let minDistance = Infinity;
@@ -950,20 +918,112 @@ export default function TerritoryTab({
          return 0;
       });
 
-      setLocation({ lat, lng });
-      setNearbyShops(availableOptions);
-      setSelectedShopId(autoSelectId);
-      setIsLocating(false);
-      setStep('form');
+      // 🚨 2. Reverse Geocode to get the Exact Address
+      let streetAddress = "Address location not found";
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+        const data = await res.json();
+        if (data && data.display_name) {
+          streetAddress = data.display_name.length > 65 
+            ? data.display_name.substring(0, 62) + "..." 
+            : data.display_name;
+        }
+      } catch (err) {
+        console.warn("Could not fetch street address", err);
+      }
+
+      // 🚨 3. Draw Watermark & Generate DUAL Photos (Standard + Crushed)
+      const img = new Image();
+      img.onload = () => {
+        const MAX_WIDTH = 400; 
+        const MAX_HEIGHT = 400;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
+        } else {
+          if (height > MAX_HEIGHT) { width = Math.round((width * MAX_HEIGHT) / height); height = MAX_HEIGHT; }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width; 
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Draw a taller dark banner to fit 3 lines of text
+        ctx.fillStyle = 'rgba(10, 15, 26, 0.8)'; 
+        ctx.fillRect(0, height - 55, width, 55); 
+
+        // Line 1: Area & Time
+        ctx.fillStyle = '#97C22A'; 
+        ctx.font = 'bold 11px sans-serif';
+        const timeStr = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+        ctx.fillText(`${selectedArea.toUpperCase()} • ${timeStr}`, 10, height - 38);
+
+        // Line 2: GPS Coordinates
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '9px sans-serif';
+        ctx.fillText(`GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`, 10, height - 24);
+
+        // Line 3: Exact Street Address
+        ctx.fillStyle = '#E2E8F0';
+        ctx.font = '9px sans-serif';
+        ctx.fillText(streetAddress, 10, height - 10);
+
+        // ─────────────────────────────────────────────────────────
+        // 🚨 PHOTO 1: STANDARD QUALITY (For Baseline & History)
+        // ─────────────────────────────────────────────────────────
+        const standardPhoto = canvas.toDataURL('image/jpeg', 0.7);
+
+        // ─────────────────────────────────────────────────────────
+        // 🚨 PHOTO 2: CRUSHED QUALITY (<20KB for photoUrl2)
+        // ─────────────────────────────────────────────────────────
+        let quality = 0.7;
+        let crushedPhoto = canvas.toDataURL('image/jpeg', quality);
+        let sizeInKb = (crushedPhoto.length * 0.75) / 1024;
+
+        while (sizeInKb > 20 && quality > 0.1) {
+          quality -= 0.1;
+          crushedPhoto = canvas.toDataURL('image/jpeg', Math.max(0.1, quality));
+          sizeInKb = (crushedPhoto.length * 0.75) / 1024;
+        }
+        
+        // Save both versions to state!
+        setLocalPhoto(standardPhoto);
+        setLocalPhotoCrushed(crushedPhoto); 
+
+        if (setPhotoUri) setPhotoUri(standardPhoto); // Show standard in the UI preview
+        
+        URL.revokeObjectURL(img.src);
+        if (fileInputRef.current) fileInputRef.current.value = ''; 
+        
+        // Finalize state
+        setLocation({ lat, lng });
+        setNearbyShops(availableOptions);
+        setSelectedShopId(autoSelectId);
+        setIsLocating(false);
+        setStep('form');
+        
+        // 🚨 Success Toast
+        toast.success("Location verified and photo captured!");
+      };
+      
+      img.src = URL.createObjectURL(file);
     };
 
+    // 🚨 4. The actual GPS trigger (Your existing logic)
     if (cachedLocation) {
       processLocation(cachedLocation.lat, cachedLocation.lng);
       return; 
     }
 
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      toast.error('Geolocation is not supported by your browser.');
       setIsLocating(false);
       return;
     }
@@ -972,7 +1032,7 @@ export default function TerritoryTab({
     const killSwitchTimer = setTimeout(() => {
       if (!isResolved) {
         isResolved = true;
-        alert("⚠️ GPS is completely unresponsive.\n\nPlease check your phone settings:\n1. Ensure 'Location' is turned ON.\n2. Ensure your browser has permission to use Location.");
+        toast.error("GPS is unresponsive. Please check your phone location settings.");
         setIsLocating(false);
         setStep('camera');
       }
@@ -989,14 +1049,19 @@ export default function TerritoryTab({
         if (isResolved) return;
         isResolved = true;
         clearTimeout(killSwitchTimer);
+        
+        if (error.code === 1) toast.error("Permission Denied! Please allow location access.");
+        else if (error.code === 2) toast.error("GPS is OFF! Please turn ON 'Location' in your phone settings.");
+        else toast.error("Signal Lost! Please step outside or near a window.");
+        
         setIsLocating(false);
-        setLocalPhoto(null);
-        if (setPhotoUri) setPhotoUri(null);
         setStep('camera');
       },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     );
   };
+  
+;
 
 const handleSubmitVisit = async (e) => {
     e.preventDefault();

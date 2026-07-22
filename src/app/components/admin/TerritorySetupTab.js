@@ -29,7 +29,7 @@ const ListItem = React.memo(({ item, isSelected, onClick, type, onVerify, onView
         <div className="shrink-0">
           {item.hasPhoto ? (
             <div 
-              onClick={(e) => { e.stopPropagation(); onViewPhoto(item.id); }} 
+              onClick={(e) => { e.stopPropagation(); onViewPhoto(item.id, item.isVerified); }} 
               className="w-10 h-10 rounded-lg bg-[#97c22a]/10 border border-[#97c22a]/30 flex flex-col items-center justify-center text-[9px] text-[#5c7a1a] font-bold text-center leading-tight shadow-sm cursor-pointer hover:bg-[#97c22a]/20 transition-colors"
             >
               <svg className="w-4 h-4 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
@@ -247,15 +247,19 @@ const handleFileUpload = async (e) => {
     } catch (err) { alert(err.message); }
   }, []);
 
-  const handleViewPhoto = useCallback(async (shopId) => {
+const handleViewPhoto = useCallback(async (shopId, isVerified) => {
     setIsFetchingPhoto(true);
     try {
       const res = await fetch(`/api/admin/territories/photo?id=${shopId}`);
       if (!res.ok) throw new Error("Could not load photo");
       const data = await res.json();
-      setFullImage(data.photoUrl); 
+      
+      // 🚨 NEW LOGIC: If verified, show photoUrl2. If not verified (or if photoUrl2 is missing), show photoUrl.
+      const imageToShow = isVerified ? (data.photoUrl2 || data.photoUrl) : data.photoUrl;
+      
+      setFullImage(imageToShow); 
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message); // Updated to use toast instead of alert
     } finally {
       setIsFetchingPhoto(false);
     }

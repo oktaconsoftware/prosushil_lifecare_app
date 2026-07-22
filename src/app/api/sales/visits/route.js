@@ -99,10 +99,15 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { agentId, targetId, photoUrl, orderAmount, collectionAmount, remark, latitude, longitude } = body;
+    // 🚨 Added photoUrlCrushed to the destructuring
+    const { agentId, targetId, photoUrl, photoUrlCrushed, orderAmount, collectionAmount, remark, latitude, longitude } = body;
 
     // 🚨 SMART EXTRACTOR: Grabs payment method regardless of how the frontend sends it
     const finalPaymentMethod = body.paymentMethod || body.paymentType || body.payment_method || 'Cash';
+
+    // Figure out which photos to use (Fallback to photoUrl if photoUrlCrushed isn't sent)
+    const incomingBaseline = photoUrl || null;
+    const incomingCrushed = photoUrlCrushed || photoUrl || null;
 
     if (!agentId || !targetId) return NextResponse.json({ error: 'Agent ID and Target ID are required' }, { status: 400 });
 
@@ -125,41 +130,44 @@ export async function POST(request) {
     const cleanCollectionAmt = parseFloat(collectionAmount) || 0;
 
     // ─────────────────────────────────────────────────────────
-    // 🚨 ACTION 1: DRIZZLE INSERT (Fixes the Payment Method Bug) 🚨
-    // Using Drizzle's `insert()` maps the keys directly to the schema
+    // 🚨 ACTION 1: DRIZZLE INSERT (Log the Visit History)
     // ─────────────────────────────────────────────────────────
     const insertRes = await db.insert(visits).values({
       agentId: String(agentId),
       medicalShopId: cleanTargetId,
-      photoUrl: photoUrl || null,
+      photoUrl: incomingBaseline, // Store standard quality in visit history
       orderAmount: String(cleanOrderAmt),
       collectionAmount: String(cleanCollectionAmt),
-      paymentMethod: finalPaymentMethod, // Perfectly mapped to DB schema
+      paymentMethod: finalPaymentMethod, 
       remark: remark || '',
-      latitude: String(body.latitude),   // 🚨 Make sure this is saving
-      longitude: String(body.longitude)  // 🚨 Make sure this is saving
+      latitude: latitude ? String(latitude) : null,
+      longitude: longitude ? String(longitude) : null
     }).returning({ id: visits.id });
     
     const newVisitId = insertRes[0].id;
 
     // ─────────────────────────────────────────────────────────
-    // ACTION 2: 20KM SHIELD & SHOP UPDATE
+    // ACTION 2: 20KM SHIELD & BASELINE VS CURRENT LOGIC
     // ─────────────────────────────────────────────────────────
     if (latitude && longitude) {
       
+      // 1. Fetch current shop state (Including photo and verification status)
       const shopData = await db.select({
         savedLat: medicalShops.latitude,
         savedLng: medicalShops.longitude,
+        savedPhotoUrl: medicalShops.photoUrl,
+        isVerified: medicalShops.isVerified // Assuming this is your Drizzle schema key
       })
       .from(medicalShops)
       .where(eq(medicalShops.id, cleanTargetId))
       .limit(1);
 
       if (shopData.length > 0) {
-        const { savedLat, savedLng } = shopData[0];
+        const shop = shopData[0];
 
-        if (savedLat && savedLng) {
-          const distanceToShop = getDistance(latitude, longitude, Number(savedLat), Number(savedLng));
+        // 2. Check 20km Geofence distance
+        if (shop.savedLat && shop.savedLng) {
+          const distanceToShop = getDistance(latitude, longitude, Number(shop.savedLat), Number(shop.savedLng));
           
           if (distanceToShop > 20000) { 
             return NextResponse.json({ 
@@ -167,17 +175,31 @@ export async function POST(request) {
             }, { status: 403 });
           }
         }
-      }
 
-      // Update the Medical Shop with new GPS and Image IF it's not verified yet
-      await db.execute(sql`
-        UPDATE medical_shops 
-        SET latitude = ${String(latitude)}, 
-            longitude = ${String(longitude)}, 
-            photo_url = ${photoUrl || null}
-        WHERE id = ${cleanTargetId} 
-          AND (is_verified IS NULL OR is_verified = false)
-      `);
+        // 🚨 3. STRICT BASELINE VS CURRENT IMAGE LOGIC
+        const isVerified = shop.isVerified === true;
+
+        if (isVerified) {
+        
+          await db.update(medicalShops)
+            .set({ 
+              photoUrl2: incomingCrushed 
+            })
+            .where(eq(medicalShops.id, cleanTargetId));
+            
+        } else {
+          // FIRST VISIT: Not verified and no baseline photo exists.
+          // Action: Lock in the GPS, save Baseline, AND save Latest.
+          await db.update(medicalShops)
+            .set({ 
+              latitude: String(latitude),
+              longitude: String(longitude),
+              photoUrl: incomingBaseline,  // Locks the baseline
+              photoUrl2: incomingCrushed   // Updates the latest
+            })
+            .where(eq(medicalShops.id, cleanTargetId));
+        }
+      }
     }
 
     return NextResponse.json({ 

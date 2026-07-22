@@ -77,5 +77,6 @@ export const medicalShops = pgTable('medical_shops', {
   
   // 🚨 ADDED COLUMNS:
   photoUrl: text('photo_url'), // Stores the permanent master image of the shop
+  photoUrl2: text('photo_url_2'),
   isVerified: boolean('is_verified').default(false) // Automatically false until mapped
 });
