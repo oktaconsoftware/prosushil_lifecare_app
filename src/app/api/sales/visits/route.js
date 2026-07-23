@@ -251,12 +251,57 @@ function getSupabaseClient() {
     return null;
   }
 }
+
+// async function uploadToSupabase(base64String, filename) {
+//   if (!base64String || !base64String.startsWith('data:image')) return null;
+  
+//   const supabase = getSupabaseClient();
+//   if (!supabase) return null; // Fails safely if keys are missing
+  
+//   try {
+//     // 1. Strip the "data:image/jpeg;base64," prefix
+//     const base64Data = base64String.replace(/^data:image\/\w+;base64,/, "");
+//     // 2. Convert to a Buffer
+//     const buffer = Buffer.from(base64Data, 'base64');
+
+//     // 3. Upload to the 'shop_photos' bucket
+//     const { data, error } = await supabase.storage
+//       .from('shop_photos')
+//       .upload(filename, buffer, {
+//         contentType: 'image/jpeg',
+//         upsert: true
+//       });
+
+//     if (error) throw error;
+
+//     // 4. Return the tiny public URL
+//     const { data: publicUrlData } = supabase.storage
+//       .from('shop_photos')
+//       .getPublicUrl(filename);
+
+//     return publicUrlData.publicUrl;
+//   } catch (err) {
+//     console.error("Supabase Upload Error:", err);
+//     return null; // Fallback to null if upload fails safely
+//   }
+// }
+
+
 // ─────────────────────────────────────────────────────────
-// SUPABASE STORAGE UPLOAD HELPER
+// SUPABASE STORAGE UPLOAD HELPER (WITH LOCAL BYPASS)
 // ─────────────────────────────────────────────────────────
 async function uploadToSupabase(base64String, filename) {
   if (!base64String || !base64String.startsWith('data:image')) return null;
   
+  // 🚨 THE MAGIC SWITCH: Local Development Bypass
+  if (process.env.NODE_ENV === 'development') {
+    console.log("🛠️ LOCAL MODE DETECTED: Bypassing Supabase and saving Base64 directly.");
+    // Returning the raw Base64 string means it saves straight to your local PostgreSQL
+    // and your frontend <img> tags will still render it perfectly!
+    return base64String; 
+  }
+
+  // 🌍 PRODUCTION MODE: Proceed with normal Supabase upload
   const supabase = getSupabaseClient();
   if (!supabase) return null; // Fails safely if keys are missing
   
@@ -284,7 +329,7 @@ async function uploadToSupabase(base64String, filename) {
     return publicUrlData.publicUrl;
   } catch (err) {
     console.error("Supabase Upload Error:", err);
-    return null; // Fallback to null if upload fails safely
+    return null; 
   }
 }
 
@@ -466,9 +511,10 @@ export async function POST(request) {
         if (shop.savedLat && shop.savedLng) {
           const distanceToShop = getDistance(latitude, longitude, Number(shop.savedLat), Number(shop.savedLng));
           
-          if (distanceToShop > 20000) { 
+          // 🚨 TIGHTENED TO 50 METERS
+          if (distanceToShop > 50) { 
             return NextResponse.json({ 
-              error: `🚨 MISMATCH: You are ${(distanceToShop / 1000).toFixed(1)}km away from the shop's official location.` 
+              error: `🚨 MISMATCH: GPS verification failed at server level. You are ${distanceToShop}m away.` 
             }, { status: 403 });
           }
         }

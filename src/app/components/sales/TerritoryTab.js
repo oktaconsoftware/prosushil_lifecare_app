@@ -721,8 +721,6 @@
 // }
 
 
-
-
 'use client';
 import { useState, useRef, useMemo, useEffect } from 'react';
 import toast from 'react-hot-toast';
@@ -764,7 +762,6 @@ export default function TerritoryTab({
   const [selectedShopId, setSelectedShopId] = useState('');
   const [localPhotoCrushed, setLocalPhotoCrushed] = useState(null);
   
-  // 🚨 FIX: Updated State to handle split collections safely
   const [formData, setFormData] = useState({
     orderAmount: '',
     cashAmount: '',
@@ -775,7 +772,9 @@ export default function TerritoryTab({
 
   const fileInputRef = useRef(null);
   const dropdownRef = useRef(null);
-  const GEOFENCE_RADIUS_METERS = 30; 
+  
+  // 🚨 Set precisely to 20 meters based on your request
+  const GEOFENCE_RADIUS_METERS = 20; 
 
   const uniqueAreas = useMemo(() => {
     const fromMasterTerritories = Array.isArray(masterTerritories) ? masterTerritories.map(a => a.name) : [];
@@ -858,11 +857,10 @@ export default function TerritoryTab({
   const safeCollection = totalCollection || 0;
   const progress = totalCount > 0 ? Math.round((visitedCount / totalCount) * 100) : 0;
 
-const handleCapture = (e) => {
+  const handleCapture = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     
-    // 🚨 SECURITY LAYER 1: Gallery Blocker (with Localhost Bypass)
     const fileAgeInSeconds = (Date.now() - file.lastModified) / 1000;
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
@@ -873,7 +871,6 @@ const handleCapture = (e) => {
     }
 
     setIsLocating(true);
-    // Pass the file to verifyGeofence FIRST, so we can get the GPS before watermarking!
     verifyGeofence(file);
   };
 
@@ -886,25 +883,44 @@ const handleCapture = (e) => {
     }
 
     const processLocation = async (lat, lng) => {
-      // 1. Find the closest shop
-      const shopsWithGps = activeTargets.filter(s => s.latitude && s.longitude);
+      
       let closestShop = null;
       let minDistance = Infinity;
 
-      shopsWithGps.forEach((s) => {
-        const d = getDistance(lat, lng, Number(s.latitude), Number(s.longitude));
-        if (d < minDistance) { minDistance = d; closestShop = s; }
-      });
-
+      // 🚨 1. Calculate distances and build the list of available options
       let availableOptions = activeTargets.map(s => {
         const hasGps = s.latitude && s.longitude;
         let dist = hasGps ? getDistance(lat, lng, Number(s.latitude), Number(s.longitude)) : undefined;
+        
+        // Track the absolute closest shop for auto-selection
+        if (hasGps && dist < minDistance) {
+          minDistance = dist;
+          closestShop = s;
+        }
+
         return { ...s, isNewAnchor: !hasGps, distance: dist };
+      }).filter(s => {
+        // 🚨 2. GEOFENCE FILTERING RULES
+
+        // RULE A: Always show UNVERIFIED shops (so the agent can lock them in)
+        if (!s.isVerified) return true;
+
+        // RULE B: For VERIFIED shops, only show if they are within 20 meters
+        if (s.isVerified && s.distance !== undefined && s.distance <= GEOFENCE_RADIUS_METERS) {
+          return true;
+        }
+
+        // Hide everything else
+        return false;
       });
       
       let autoSelectId = "";
+      // Only auto-select if the closest shop is within 20m AND passed our filter
       if (closestShop && minDistance <= GEOFENCE_RADIUS_METERS) {
-        autoSelectId = closestShop.id.toString();
+        const shopInFilteredList = availableOptions.find(s => s.id === closestShop.id);
+        if (shopInFilteredList) {
+          autoSelectId = closestShop.id.toString();
+        }
       }
 
       availableOptions.sort((a, b) => {
@@ -918,7 +934,11 @@ const handleCapture = (e) => {
          return 0;
       });
 
-      // 🚨 2. Reverse Geocode to get the Exact Address
+      if (availableOptions.length === 0) {
+        toast.error(`You are not within 20m of any verified shop. Ensure you are at the correct location.`);
+      }
+
+      // Reverse Geocode to get the Exact Address
       let streetAddress = "Address location not found";
       try {
         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
@@ -932,11 +952,12 @@ const handleCapture = (e) => {
         console.warn("Could not fetch street address", err);
       }
 
-      // 🚨 3. Draw Watermark & Generate DUAL Photos (Standard + Crushed)
+// Draw Watermark & Generate DUAL Photos
       const img = new Image();
       img.onload = () => {
-        const MAX_WIDTH = 400; 
-        const MAX_HEIGHT = 400;
+        // 🚨 Increased slightly from 400 to 500 to protect text readability on mobile
+        const MAX_WIDTH = 500; 
+        const MAX_HEIGHT = 500;
         let width = img.width;
         let height = img.height;
 
@@ -951,72 +972,78 @@ const handleCapture = (e) => {
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         
+        // Draw the image first
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Draw a taller dark banner to fit 3 lines of text
-        ctx.fillStyle = 'rgba(10, 15, 26, 0.8)'; 
-        ctx.fillRect(0, height - 55, width, 55); 
+        // 🚨 DRAW TALLER BANNER (70px instead of 55px to fit 4 lines)
+        ctx.fillStyle = 'rgba(10, 15, 26, 0.85)'; 
+        ctx.fillRect(0, height - 70, width, 70); 
 
         // Line 1: Area & Time
         ctx.fillStyle = '#97C22A'; 
-        ctx.font = 'bold 11px sans-serif';
+        ctx.font = 'bold 12px sans-serif';
         const timeStr = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
-        ctx.fillText(`${selectedArea.toUpperCase()} • ${timeStr}`, 10, height - 38);
+        ctx.fillText(`${selectedArea.toUpperCase()} • ${timeStr}`, 10, height - 52);
 
-        // Line 2: GPS Coordinates
+        // Line 2: Current Physical GPS (Where the agent is standing right now)
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = '9px sans-serif';
-        ctx.fillText(`GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`, 10, height - 24);
+        ctx.font = '10px sans-serif';
+        ctx.fillText(`Current GPS : ${lat.toFixed(6)}, ${lng.toFixed(6)}`, 10, height - 38);
 
-        // Line 3: Exact Street Address
+       // 🚨 Line 3: Original Verified GPS (From the Database)
+        ctx.fillStyle = '#FFB020'; // Highlighted in orange to stand out
+        ctx.font = '10px sans-serif';
+        
+        let originalText = "Original DB GPS : NO"; 
+        
+        // If the closest shop has latitude and longitude in the DB, show it. Otherwise, keep it as "NO".
+        if (closestShop && closestShop.latitude && closestShop.longitude) {
+          originalText = `Original DB GPS : ${Number(closestShop.latitude).toFixed(6)}, ${Number(closestShop.longitude).toFixed(6)}`;
+        }
+        
+        ctx.fillText(originalText, 10, height - 24);
+
+        // Line 4: Street Address
         ctx.fillStyle = '#E2E8F0';
         ctx.font = '9px sans-serif';
         ctx.fillText(streetAddress, 10, height - 10);
 
-        // ─────────────────────────────────────────────────────────
-        // 🚨 PHOTO 1: STANDARD QUALITY (For Baseline & History)
-        // ─────────────────────────────────────────────────────────
-        const standardPhoto = canvas.toDataURL('image/jpeg', 0.7);
+        // Export Standard Photo (Bumped to 0.8 quality to preserve watermark)
+        const standardPhoto = canvas.toDataURL('image/jpeg', 0.8);
 
-        // ─────────────────────────────────────────────────────────
-        // 🚨 PHOTO 2: CRUSHED QUALITY (<20KB for photoUrl2)
-        // ─────────────────────────────────────────────────────────
+        // Export Crushed Photo (Allowed up to 30KB instead of 20KB to protect text)
         let quality = 0.7;
         let crushedPhoto = canvas.toDataURL('image/jpeg', quality);
         let sizeInKb = (crushedPhoto.length * 0.75) / 1024;
 
-        while (sizeInKb > 20 && quality > 0.1) {
+        while (sizeInKb > 30 && quality > 0.1) {
           quality -= 0.1;
           crushedPhoto = canvas.toDataURL('image/jpeg', Math.max(0.1, quality));
           sizeInKb = (crushedPhoto.length * 0.75) / 1024;
         }
         
-        // Save both versions to state!
         setLocalPhoto(standardPhoto);
         setLocalPhotoCrushed(crushedPhoto); 
 
-        if (setPhotoUri) setPhotoUri(standardPhoto); // Show standard in the UI preview
+        if (setPhotoUri) setPhotoUri(standardPhoto); 
         
         URL.revokeObjectURL(img.src);
         if (fileInputRef.current) fileInputRef.current.value = ''; 
         
-        // Finalize state
         setLocation({ lat, lng });
         setNearbyShops(availableOptions);
         setSelectedShopId(autoSelectId);
         setIsLocating(false);
         setStep('form');
         
-        // 🚨 Success Toast
         toast.success("Location verified and photo captured!");
       };
       
       img.src = URL.createObjectURL(file);
     };
 
-    // 🚨 4. The actual GPS trigger (Your existing logic)
     if (cachedLocation) {
       processLocation(cachedLocation.lat, cachedLocation.lng);
       return; 
@@ -1060,12 +1087,34 @@ const handleCapture = (e) => {
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     );
   };
-  
-;
 
 const handleSubmitVisit = async (e) => {
     e.preventDefault();
     if (!selectedShopId) return alert("Please select a medical shop.");
+
+    // ─────────────────────────────────────────────────────────
+    // 🚨 GEOFENCE SPOOFING SHIELD
+    // ─────────────────────────────────────────────────────────
+    const selectedShop = nearbyShops.find(s => s.id.toString() === selectedShopId.toString());
+    
+    // Check if the agent is standing directly on top of an already verified shop
+    const closeVerifiedShops = nearbyShops.filter(s => 
+      s.isVerified && s.distance !== undefined && s.distance <= GEOFENCE_RADIUS_METERS
+    );
+
+    // If they are physically at a verified shop...
+    if (closeVerifiedShops.length > 0) {
+      // ...but they selected a DIFFERENT shop from the dropdown
+      const isSelectedShopValid = closeVerifiedShops.some(s => s.id.toString() === selectedShopId.toString());
+      
+      if (!isSelectedShopValid) {
+        toast.error(
+          `Location Mismatch! 🚨 You are physically standing at "${closeVerifiedShops[0].name}". You cannot log a visit for "${selectedShop?.name}" here.`, 
+          { duration: 6000, style: { minWidth: '300px' } }
+        );
+        return; // 🛑 BLOCKS THE SUBMISSION
+      }
+    }
 
     setIsSubmitting(true);
     try {
@@ -1084,16 +1133,16 @@ const handleSubmitVisit = async (e) => {
         finalMethod = formData.otherMethod;
       }
 
-      // 🚨 CRITICAL FIX: Cast latitude and longitude safely to Strings for the varchar schema
       const payload = {
         agentId: agentId,
         targetId: selectedShopId,
         latitude: location?.lat ? String(location.lat) : null,
         longitude: location?.lng ? String(location.lng) : null,
         photoUrl: localPhoto || null,
+        photoUrlCrushed: localPhotoCrushed || null,
         orderAmount: parseFloat(formData.orderAmount) || 0,
         collectionAmount: totalCollectionVal, 
-        paymentMethod: finalMethod,           
+        paymentMethod: finalMethod,          
         remark: formData.remark || ''
       };
 
@@ -1108,6 +1157,7 @@ const handleSubmitVisit = async (e) => {
 
       setStep('camera');
       setLocalPhoto(null);
+      setLocalPhotoCrushed(null);
       setLocation(null);
       setFormData({ orderAmount: '', cashAmount: '', otherAmount: '', otherMethod: 'UPI', remark: '' });
 
@@ -1116,7 +1166,7 @@ const handleSubmitVisit = async (e) => {
 
     } catch (err) {
       console.error("Submission Error:", err);
-      alert(`Error: ${err.message}`);
+      toast.error(`Error: ${err.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -1127,14 +1177,15 @@ const handleSubmitVisit = async (e) => {
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 relative pb-24" style={{ WebkitOverflowScrolling: 'touch' }}>
 
-  <input 
-    type="file" 
-    accept="image/jpeg, image/png, image/jpg" 
-    capture="environment" 
-    ref={fileInputRef} 
-    onChange={handleCapture} 
-    className="hidden" 
-  />
+      <input 
+        type="file" 
+        accept="image/jpeg, image/png, image/jpg" 
+        capture="environment" 
+        ref={fileInputRef} 
+        onChange={handleCapture} 
+        className="hidden" 
+      />
+      
       {/* Floating Header Component */}
       <div ref={dropdownRef} className="sticky top-0 z-30 bg-slate-100 px-5 pt-4 pb-5 rounded-b-xl shadow-md border-b border-white/5 transition-all">
         <div className="flex items-start justify-between gap-3">
@@ -1161,12 +1212,9 @@ const handleSubmitVisit = async (e) => {
                     : 'bg-slate-200 text-blue-500 hover:bg-blue-500/20'
                 }`}
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor"
-                 viewBox="0 0 24 24">
-                  {isAreaDropdownOpen ? <path strokeLinecap="round" 
-                  strokeLinejoin="round" strokeWidth="2.5" d="M5 15l7-7 7 7" /> :
-                   <path strokeLinecap="round" strokeLinejoin="round"
-                    strokeWidth="2.5" d="M19 9l-7 7-7-7" />}
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {isAreaDropdownOpen ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 15l7-7 7 7" /> :
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />}
                 </svg>
                 {selectedArea ? (isAreaDropdownOpen ? 'Close' : 'Change') : 'Select'}
               </button>
@@ -1382,11 +1430,15 @@ const handleSubmitVisit = async (e) => {
                     className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 text-[14px] font-semibold text-slate-800 appearance-none outline-none focus:border-slate-400 focus:bg-white transition-colors"
                   >
                     <option value="" disabled>Select a shop in {selectedArea}...</option>
-                    {nearbyShops.map((shop) => (
-                      <option key={shop.id} value={shop.id}>
-                        {shop.isNewAnchor ? 'First Visit - ' : ''}{shop.name} {shop.distance !== undefined && shop.distance < 999999 ? `(${ (shop.distance / 1000).toFixed(2) }km)` : ''}
-                      </option>
-                    ))}
+                    {nearbyShops.length === 0 ? (
+                      <option value="" disabled>No shops found within 20m.</option>
+                    ) : (
+                      nearbyShops.map((shop) => (
+                        <option key={shop.id} value={shop.id}>
+                          {shop.isNewAnchor ? 'First Visit - ' : ''}{shop.name} {shop.distance !== undefined && shop.distance < 999999 ? `(${ (shop.distance).toFixed(0) }m away)` : ''}
+                        </option>
+                      ))
+                    )}
                   </select>
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
@@ -1394,7 +1446,6 @@ const handleSubmitVisit = async (e) => {
                 </div>
               </div>
 
-              {/* 🚨 RESTORED: Order Volume properly tracking to orderAmount */}
               <div className="mb-4">
                 <label className="block text-[12px] font-semibold text-slate-500 mb-1.5">
                   Order / Sales Volume (₹) <span className="font-normal text-slate-400">- New Orders Taken</span>
@@ -1408,7 +1459,6 @@ const handleSubmitVisit = async (e) => {
                 />
               </div>
 
-              {/* 🚨 NEW: Split Collection Inputs */}
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div>
                   <label className="block text-[12px] font-semibold text-[#5C7A1A] mb-1.5">Cash Collection (₹)</label>
@@ -1432,7 +1482,6 @@ const handleSubmitVisit = async (e) => {
                 </div>
               </div>
 
-              {/* Only show Payment Method buttons if they actually collected 'Other' funds */}
               <div className="mb-5" style={{ opacity: formData.otherAmount > 0 ? 1 : 0.4, pointerEvents: formData.otherAmount > 0 ? 'auto' : 'none' }}>
                 <label className="block text-[12px] font-semibold text-slate-500 mb-2">Method for 'Other Collection'</label>
                 <div className="grid grid-cols-3 gap-2">
