@@ -761,6 +761,30 @@ export default function TerritoryTab({
   const [nearbyShops, setNearbyShops] = useState([]);
   const [selectedShopId, setSelectedShopId] = useState('');
   const [localPhotoCrushed, setLocalPhotoCrushed] = useState(null);
+  const [isShopDropdownOpen, setIsShopDropdownOpen] = useState(false);
+  const [shopSearchQuery, setShopSearchQuery] = useState('');
+  const shopDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsAreaDropdownOpen(false);
+      }
+      // 🚨 NEW: Closes the shop dropdown if you click outside of it
+      if (shopDropdownRef.current && !shopDropdownRef.current.contains(e.target)) {
+        setIsShopDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filteredNearbyShops = useMemo(() => {
+    if (!shopSearchQuery) return nearbyShops;
+    return nearbyShops.filter(shop => 
+      shop.name.toLowerCase().includes(shopSearchQuery.toLowerCase())
+    );
+  }, [nearbyShops, shopSearchQuery]);
   
   const [formData, setFormData] = useState({
     orderAmount: '',
@@ -773,7 +797,6 @@ export default function TerritoryTab({
   const fileInputRef = useRef(null);
   const dropdownRef = useRef(null);
   
-  // 🚨 Set precisely to 20 meters based on your request
   const GEOFENCE_RADIUS_METERS = 20; 
 
   const uniqueAreas = useMemo(() => {
@@ -952,7 +975,6 @@ export default function TerritoryTab({
         console.warn("Could not fetch street address", err);
       }
 
-// Draw Watermark & Generate DUAL Photos
       const img = new Image();
       img.onload = () => {
         // 🚨 Increased slightly from 400 to 500 to protect text readability on mobile
@@ -1088,21 +1110,16 @@ export default function TerritoryTab({
     );
   };
 
-const handleSubmitVisit = async (e) => {
+  const handleSubmitVisit = async (e) => {
     e.preventDefault();
     if (!selectedShopId) return alert("Please select a medical shop.");
 
-    // ─────────────────────────────────────────────────────────
-    // 🚨 GEOFENCE SPOOFING SHIELD
-    // ─────────────────────────────────────────────────────────
     const selectedShop = nearbyShops.find(s => s.id.toString() === selectedShopId.toString());
-    
-    // Check if the agent is standing directly on top of an already verified shop
+
     const closeVerifiedShops = nearbyShops.filter(s => 
       s.isVerified && s.distance !== undefined && s.distance <= GEOFENCE_RADIUS_METERS
     );
 
-    // If they are physically at a verified shop...
     if (closeVerifiedShops.length > 0) {
       // ...but they selected a DIFFERENT shop from the dropdown
       const isSelectedShopValid = closeVerifiedShops.some(s => s.id.toString() === selectedShopId.toString());
@@ -1420,29 +1437,95 @@ const handleSubmitVisit = async (e) => {
 
             <form onSubmit={handleSubmitVisit} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
               
-              <div className="mb-5">
+          <div className="mb-5">
                 <label className="block text-[12px] font-semibold text-slate-500 mb-2">Selected medical shop</label>
-                <div className="relative">
-                  <select
-                    value={selectedShopId}
-                    onChange={(e) => setSelectedShopId(e.target.value)}
-                    required
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 text-[14px] font-semibold text-slate-800 appearance-none outline-none focus:border-slate-400 focus:bg-white transition-colors"
+                
+                {/* 🚨 CUSTOM MOBILE-OPTIMIZED SEARCHABLE DROPDOWN */}
+                <div className="relative" ref={shopDropdownRef}>
+                  
+                  {/* The Trigger Button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsShopDropdownOpen(!isShopDropdownOpen)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 text-[14px] font-semibold text-slate-800 flex items-center justify-between transition-colors focus:border-[#97C22A] focus:bg-white"
                   >
-                    <option value="" disabled>Select a shop in {selectedArea}...</option>
-                    {nearbyShops.length === 0 ? (
-                      <option value="" disabled>No shops found within 20m.</option>
-                    ) : (
-                      nearbyShops.map((shop) => (
-                        <option key={shop.id} value={shop.id}>
-                          {shop.isNewAnchor ? 'First Visit - ' : ''}{shop.name} {shop.distance !== undefined && shop.distance < 999999 ? `(${ (shop.distance).toFixed(0) }m away)` : ''}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                  </div>
+                    <span className="truncate">
+                      {selectedShopId 
+                        ? (() => {
+                            const s = nearbyShops.find(x => x.id.toString() === selectedShopId.toString());
+                            return s ? `${s.isNewAnchor ? 'First Visit - ' : ''}${s.name} ${s.distance !== undefined ? `(${(s.distance).toFixed(0)}m)` : ''}` : 'Select a shop...';
+                          })()
+                        : `Select a shop in ${selectedArea}...`}
+                    </span>
+                    <svg className={`w-5 h-5 text-slate-400 shrink-0 transition-transform duration-200 ${isShopDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+
+                  {/* The Dropdown Menu */}
+                  {isShopDropdownOpen && (
+                    <div className="absolute top-[100%] left-0 right-0 mt-2 bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                      
+                      {/* Sticky Search Bar */}
+                      <div className="p-3 border-b border-slate-100 bg-slate-50/90 backdrop-blur-sm sticky top-0 z-10">
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Search shops..."
+                            value={shopSearchQuery}
+                            onChange={(e) => setShopSearchQuery(e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-[14px] font-medium text-slate-800 outline-none focus:border-[#97C22A] focus:ring-1 focus:ring-[#97C22A] transition-all"
+                            autoFocus // Instantly focuses the keyboard on mobile
+                          />
+                        </div>
+                      </div>
+
+                      {/* Scrollable Shop List */}
+                      <div className="max-h-[40vh] overflow-y-auto p-2 overscroll-contain">
+                        {filteredNearbyShops.length === 0 ? (
+                          <div className="p-4 text-center text-[13px] text-slate-500 font-medium">
+                            No shops found matching "{shopSearchQuery}"
+                          </div>
+                        ) : (
+                          filteredNearbyShops.map((shop) => {
+                            const isSelected = selectedShopId === shop.id.toString();
+                            return (
+                              <button
+                                key={shop.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedShopId(shop.id.toString());
+                                  setIsShopDropdownOpen(false);
+                                  setShopSearchQuery(''); // Reset search after picking
+                                }}
+                                className={`w-full text-left px-3.5 py-3 rounded-xl mb-1 text-[14px] font-semibold flex items-center justify-between transition-colors ${
+                                  isSelected 
+                                    ? 'bg-[#97C22A]/10 text-[#5C7A1A]' 
+                                    : 'text-slate-700 hover:bg-slate-50'
+                                }`}
+                              >
+                                <span className="truncate pr-2 flex items-center gap-2">
+                                  {shop.isNewAnchor && (
+                                    <span className="shrink-0 text-[#fc2666] text-[10px] font-bold px-1.5 py-0.5 rounded-md border border-[#fc2666]/30 bg-[#fc2666]/10">
+                                      NEW
+                                    </span>
+                                  )}
+                                  <span className="truncate">{shop.name}</span>
+                                </span>
+                                
+                                {shop.distance !== undefined && shop.distance < 999999 && (
+                                  <span className={`text-[12px] font-medium shrink-0 ${isSelected ? 'text-[#5C7A1A]' : 'text-slate-400'}`}>
+                                    {shop.distance.toFixed(0)}m
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

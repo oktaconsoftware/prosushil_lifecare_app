@@ -2,36 +2,16 @@ import { pgTable, serial, text, timestamp, integer, decimal, boolean , varchar ,
   , numeric
  } from 'drizzle-orm/pg-core';
 
-
-// export const users = pgTable('users', {
-//   id: serial('id').primaryKey(),
-//   employeeId: text('employee_id').notNull().unique(), // e.g., 'PL-1042'
-//   name: text('name').notNull(),
-//   passwordHash: text('password_hash').notNull(),
-//   role: text('role').notNull(), // 'ADMIN' or 'AGENT'
-//   isActive: boolean('is_active').default(true),
-  
-//   // 🚨 NEW: Device Binding Columns 🚨
-//   deviceId: text('device_id'), 
-//   deviceEnv: text('device_env'),
-//   pendingDeviceId: text('pending_device_id'),
-//   pendingDeviceEnv: text('pending_device_env'),
-  
-//   createdAt: timestamp('created_at').defaultNow(),
-// });
-
-
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
-  employeeId: text('employee_id').notNull().unique(), // e.g., 'PL-1042'
+  employeeId: text('employee_id').notNull().unique(), 
   name: text('name').notNull(),
   passwordHash: text('password_hash').notNull(),
-  role: text('role').notNull(), // 'ADMIN' or 'AGENT'
+  role: text('role').notNull(), 
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
-// 2. Targets Table (Medical Shops / Pharmacies to visit)
 export const targets = pgTable('targets', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
@@ -65,8 +45,6 @@ export const routeAssignments = pgTable('route_assignments', {
   targetId: integer('target_id').notNull(), 
 });
 
-// New Changes
-
 export const areas = pgTable('areas', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
@@ -80,14 +58,12 @@ export const places = pgTable('places', {
 
 export const medicalShops = pgTable('medical_shops', {
   id: serial('id').primaryKey(),
-  placeId: integer('place_id').references(() => places.id), // Links the medical shop to the place
+  placeId: integer('place_id').references(() => places.id), 
   name: varchar('name', { length: 255 }).notNull(),
   address: text('address'),
-  latitude: numeric('latitude'),  // The exact door of the pharmacy
-  longitude: numeric('longitude'), // The exact door of the pharmacy
-  
-  // 🚨 ADDED COLUMNS:
-  photoUrl: text('photo_url'), // Stores the permanent master image of the shop
+  latitude: numeric('latitude'),  
+  longitude: numeric('longitude'), 
+  photoUrl: text('photo_url'), 
   photoUrl2: text('photo_url_2'),
-  isVerified: boolean('is_verified').default(false) // Automatically false until mapped
+  isVerified: boolean('is_verified').default(false) 
 });
