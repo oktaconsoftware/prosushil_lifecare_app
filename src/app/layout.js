@@ -23,6 +23,14 @@ import './globals.css';
 import PwaInit from './PwaInit';
 import { Toaster } from 'react-hot-toast';
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover', 
+};
+
 export const metadata = {
   title: 'Prosushil Lifecare | Field Force Tracker',
   description: 'Official Field Force Management and GPS Tracking system for Prosushil Lifecare.',
