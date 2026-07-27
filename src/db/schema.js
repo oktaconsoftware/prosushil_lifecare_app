@@ -3,6 +3,24 @@ import { pgTable, serial, text, timestamp, integer, decimal, boolean , varchar ,
  } from 'drizzle-orm/pg-core';
 
 
+// export const users = pgTable('users', {
+//   id: serial('id').primaryKey(),
+//   employeeId: text('employee_id').notNull().unique(), // e.g., 'PL-1042'
+//   name: text('name').notNull(),
+//   passwordHash: text('password_hash').notNull(),
+//   role: text('role').notNull(), // 'ADMIN' or 'AGENT'
+//   isActive: boolean('is_active').default(true),
+  
+//   // 🚨 NEW: Device Binding Columns 🚨
+//   deviceId: text('device_id'), 
+//   deviceEnv: text('device_env'),
+//   pendingDeviceId: text('pending_device_id'),
+//   pendingDeviceEnv: text('pending_device_env'),
+  
+//   createdAt: timestamp('created_at').defaultNow(),
+// });
+
+
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   employeeId: text('employee_id').notNull().unique(), // e.g., 'PL-1042'
@@ -10,13 +28,6 @@ export const users = pgTable('users', {
   passwordHash: text('password_hash').notNull(),
   role: text('role').notNull(), // 'ADMIN' or 'AGENT'
   isActive: boolean('is_active').default(true),
-  
-  // 🚨 NEW: Device Binding Columns 🚨
-  deviceId: text('device_id'), 
-  deviceEnv: text('device_env'),
-  pendingDeviceId: text('pending_device_id'),
-  pendingDeviceEnv: text('pending_device_env'),
-  
   createdAt: timestamp('created_at').defaultNow(),
 });
 
