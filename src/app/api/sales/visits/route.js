@@ -536,7 +536,9 @@ export async function POST(request) {
               latitude: String(latitude),
               longitude: String(longitude),
               photoUrl: finalBaselineUrl,  
-              photoUrl2: finalCrushedUrl   
+              photoUrl2: finalCrushedUrl ,
+              // 🚨 THE CRITICAL ACTION: Lock the shop so the shield works next time!
+              isVerified: true 
             })
             .where(eq(medicalShops.id, cleanTargetId));
         }

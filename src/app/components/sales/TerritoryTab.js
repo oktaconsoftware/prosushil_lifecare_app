@@ -907,13 +907,12 @@ const verifyGeofence = (file) => {
 
     const processLocation = async (lat, lng) => {
       
-      // ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
       // 🚨 GLOBAL ANTI-SPOOFING SHIELD (Cross-Area Validation)
       // ─────────────────────────────────────────────────────────
       let globalClosestShop = null;
       let minGlobalDist = Infinity;
 
-      // Scan all targets globally to detect if the agent is standing in a different area
       if (Array.isArray(targets)) {
         targets.forEach(t => {
           if (t.isVerified && t.latitude && t.longitude) {
@@ -926,8 +925,8 @@ const verifyGeofence = (file) => {
         });
       }
 
-      // If standing within 50 meters of a verified shop in a different area, block it!
-      if (globalClosestShop && minGlobalDist <= 50) {
+      // 🚨 FIX: Increased shield from 50m to 200m to prevent GPS drift bypasses
+      if (globalClosestShop && minGlobalDist <= 200) {
         if (globalClosestShop.areaName && globalClosestShop.areaName !== selectedArea) {
           toast.error(
             `🚨 Area Mismatch! GPS shows you are in "${globalClosestShop.areaName}". You cannot map shops for "${selectedArea}" from this location.`, 
@@ -939,6 +938,7 @@ const verifyGeofence = (file) => {
           return; 
         }
       }
+ 
       // ─────────────────────────────────────────────────────────
 
       let closestShop = null;
