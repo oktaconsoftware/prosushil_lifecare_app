@@ -897,7 +897,7 @@ export default function TerritoryTab({
     verifyGeofence(file);
   };
 
-  const verifyGeofence = (file) => {
+const verifyGeofence = (file) => {
     if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
       toast.error("GPS requires a secure HTTPS connection.");
       setIsLocating(false);
@@ -907,6 +907,40 @@ export default function TerritoryTab({
 
     const processLocation = async (lat, lng) => {
       
+      // ─────────────────────────────────────────────────────────
+      // 🚨 GLOBAL ANTI-SPOOFING SHIELD (Cross-Area Validation)
+      // ─────────────────────────────────────────────────────────
+      let globalClosestShop = null;
+      let minGlobalDist = Infinity;
+
+      // Scan all targets globally to detect if the agent is standing in a different area
+      if (Array.isArray(targets)) {
+        targets.forEach(t => {
+          if (t.isVerified && t.latitude && t.longitude) {
+            const d = getDistance(lat, lng, Number(t.latitude), Number(t.longitude));
+            if (d < minGlobalDist) {
+              minGlobalDist = d;
+              globalClosestShop = t;
+            }
+          }
+        });
+      }
+
+      // If standing within 50 meters of a verified shop in a different area, block it!
+      if (globalClosestShop && minGlobalDist <= 50) {
+        if (globalClosestShop.areaName && globalClosestShop.areaName !== selectedArea) {
+          toast.error(
+            `🚨 Area Mismatch! GPS shows you are in "${globalClosestShop.areaName}". You cannot map shops for "${selectedArea}" from this location.`, 
+            { duration: 6000, style: { minWidth: '300px' } }
+          );
+          setIsLocating(false);
+          setStep('camera');
+          if (fileInputRef.current) fileInputRef.current.value = '';
+          return; 
+        }
+      }
+      // ─────────────────────────────────────────────────────────
+
       let closestShop = null;
       let minDistance = Infinity;
 
