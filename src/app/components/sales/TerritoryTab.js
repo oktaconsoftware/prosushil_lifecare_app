@@ -898,251 +898,428 @@ export default function TerritoryTab({
   };
 
 const verifyGeofence = (file) => {
+
     if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+
       toast.error("GPS requires a secure HTTPS connection.");
+
       setIsLocating(false);
+
       setStep('camera');
+
       return;
+
     }
+
+
 
     const processLocation = async (lat, lng) => {
-      
-// ─────────────────────────────────────────────────────────
-      // 🚨 GLOBAL ANTI-SPOOFING SHIELD (Cross-Area Validation)
-      // ─────────────────────────────────────────────────────────
-      let globalClosestShop = null;
-      let minGlobalDist = Infinity;
 
-      if (Array.isArray(targets)) {
-        targets.forEach(t => {
-          if (t.isVerified && t.latitude && t.longitude) {
-            const d = getDistance(lat, lng, Number(t.latitude), Number(t.longitude));
-            if (d < minGlobalDist) {
-              minGlobalDist = d;
-              globalClosestShop = t;
-            }
-          }
-        });
-      }
-
-      // 🚨 FIX: Increased shield from 50m to 200m to prevent GPS drift bypasses
-      if (globalClosestShop && minGlobalDist <= 200) {
-        if (globalClosestShop.areaName && globalClosestShop.areaName !== selectedArea) {
-          toast.error(
-            `🚨 Area Mismatch! GPS shows you are in "${globalClosestShop.areaName}". You cannot map shops for "${selectedArea}" from this location.`, 
-            { duration: 6000, style: { minWidth: '300px' } }
-          );
-          setIsLocating(false);
-          setStep('camera');
-          if (fileInputRef.current) fileInputRef.current.value = '';
-          return; 
-        }
-      }
- 
-      // ─────────────────────────────────────────────────────────
+     
 
       let closestShop = null;
+
       let minDistance = Infinity;
 
+
+
       // 🚨 1. Calculate distances and build the list of available options
+
       let availableOptions = activeTargets.map(s => {
+
         const hasGps = s.latitude && s.longitude;
+
         let dist = hasGps ? getDistance(lat, lng, Number(s.latitude), Number(s.longitude)) : undefined;
-        
+
+       
+
         // Track the absolute closest shop for auto-selection
+
         if (hasGps && dist < minDistance) {
+
           minDistance = dist;
+
           closestShop = s;
+
         }
+
+
 
         return { ...s, isNewAnchor: !hasGps, distance: dist };
+
       }).filter(s => {
+
         // 🚨 2. GEOFENCE FILTERING RULES
 
+
+
         // RULE A: Always show UNVERIFIED shops (so the agent can lock them in)
+
         if (!s.isVerified) return true;
 
+
+
         // RULE B: For VERIFIED shops, only show if they are within 20 meters
+
         if (s.isVerified && s.distance !== undefined && s.distance <= GEOFENCE_RADIUS_METERS) {
+
           return true;
+
         }
+
+
 
         // Hide everything else
+
         return false;
+
       });
-      
+
+     
+
       let autoSelectId = "";
+
       // Only auto-select if the closest shop is within 20m AND passed our filter
+
       if (closestShop && minDistance <= GEOFENCE_RADIUS_METERS) {
+
         const shopInFilteredList = availableOptions.find(s => s.id === closestShop.id);
+
         if (shopInFilteredList) {
+
           autoSelectId = closestShop.id.toString();
+
         }
+
       }
+
+
 
       availableOptions.sort((a, b) => {
+
          if (autoSelectId) {
+
            if (a.id.toString() === autoSelectId) return -1;
+
            if (b.id.toString() === autoSelectId) return 1;
+
          }
+
          if (a.isNewAnchor && !b.isNewAnchor) return -1;
+
          if (!a.isNewAnchor && b.isNewAnchor) return 1;
+
          if (!a.isNewAnchor && !b.isNewAnchor) return a.distance - b.distance;
+
          return 0;
+
       });
 
+
+
       if (availableOptions.length === 0) {
+
         toast.error(`You are not within 20m of any verified shop. Ensure you are at the correct location.`);
+
       }
+
+
 
       // Reverse Geocode to get the Exact Address
+
       let streetAddress = "Address location not found";
+
       try {
+
         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+
         const data = await res.json();
+
         if (data && data.display_name) {
-          streetAddress = data.display_name.length > 65 
-            ? data.display_name.substring(0, 62) + "..." 
+
+          streetAddress = data.display_name.length > 65
+
+            ? data.display_name.substring(0, 62) + "..."
+
             : data.display_name;
+
         }
+
       } catch (err) {
+
         console.warn("Could not fetch street address", err);
+
       }
+
+
 
       const img = new Image();
+
       img.onload = () => {
+
         // 🚨 Increased slightly from 400 to 500 to protect text readability on mobile
-        const MAX_WIDTH = 500; 
+
+        const MAX_WIDTH = 500;
+
         const MAX_HEIGHT = 500;
+
         let width = img.width;
+
         let height = img.height;
 
+
+
         if (width > height) {
+
           if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
+
         } else {
+
           if (height > MAX_HEIGHT) { width = Math.round((width * MAX_HEIGHT) / height); height = MAX_HEIGHT; }
+
         }
+
+
 
         const canvas = document.createElement('canvas');
-        canvas.width = width; 
+
+        canvas.width = width;
+
         canvas.height = height;
+
         const ctx = canvas.getContext('2d');
-        
+
+       
+
         // Draw the image first
+
         ctx.fillStyle = '#FFFFFF';
+
         ctx.fillRect(0, 0, width, height);
+
         ctx.drawImage(img, 0, 0, width, height);
 
+
+
         // 🚨 DRAW TALLER BANNER (70px instead of 55px to fit 4 lines)
-        ctx.fillStyle = 'rgba(10, 15, 26, 0.85)'; 
-        ctx.fillRect(0, height - 70, width, 70); 
+
+        ctx.fillStyle = 'rgba(10, 15, 26, 0.85)';
+
+        ctx.fillRect(0, height - 70, width, 70);
+
+
 
         // Line 1: Area & Time
-        ctx.fillStyle = '#97C22A'; 
+
+        ctx.fillStyle = '#97C22A';
+
         ctx.font = 'bold 12px sans-serif';
+
         const timeStr = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+
         ctx.fillText(`${selectedArea.toUpperCase()} • ${timeStr}`, 10, height - 52);
 
+
+
         // Line 2: Current Physical GPS (Where the agent is standing right now)
+
         ctx.fillStyle = '#FFFFFF';
+
         ctx.font = '10px sans-serif';
+
         ctx.fillText(`Current GPS : ${lat.toFixed(6)}, ${lng.toFixed(6)}`, 10, height - 38);
 
+
+
        // 🚨 Line 3: Original Verified GPS (From the Database)
+
         ctx.fillStyle = '#FFB020'; // Highlighted in orange to stand out
+
         ctx.font = '10px sans-serif';
-        
-        let originalText = "Original DB GPS : NO"; 
-        
+
+       
+
+        let originalText = "Original DB GPS : NO";
+
+       
+
         // If the closest shop has latitude and longitude in the DB, show it. Otherwise, keep it as "NO".
+
         if (closestShop && closestShop.latitude && closestShop.longitude) {
+
           originalText = `Original DB GPS : ${Number(closestShop.latitude).toFixed(6)}, ${Number(closestShop.longitude).toFixed(6)}`;
+
         }
-        
+
+       
+
         ctx.fillText(originalText, 10, height - 24);
 
+
+
         // Line 4: Street Address
+
         ctx.fillStyle = '#E2E8F0';
+
         ctx.font = '9px sans-serif';
+
         ctx.fillText(streetAddress, 10, height - 10);
 
+
+
         // Export Standard Photo (Bumped to 0.8 quality to preserve watermark)
+
         const standardPhoto = canvas.toDataURL('image/jpeg', 0.8);
 
+
+
         // Export Crushed Photo (Allowed up to 30KB instead of 20KB to protect text)
+
         let quality = 0.7;
+
         let crushedPhoto = canvas.toDataURL('image/jpeg', quality);
+
         let sizeInKb = (crushedPhoto.length * 0.75) / 1024;
 
-        while (sizeInKb > 30 && quality > 0.1) {
-          quality -= 0.1;
-          crushedPhoto = canvas.toDataURL('image/jpeg', Math.max(0.1, quality));
-          sizeInKb = (crushedPhoto.length * 0.75) / 1024;
-        }
-        
-        setLocalPhoto(standardPhoto);
-        setLocalPhotoCrushed(crushedPhoto); 
 
-        if (setPhotoUri) setPhotoUri(standardPhoto); 
-        
+
+        while (sizeInKb > 30 && quality > 0.1) {
+
+          quality -= 0.1;
+
+          crushedPhoto = canvas.toDataURL('image/jpeg', Math.max(0.1, quality));
+
+          sizeInKb = (crushedPhoto.length * 0.75) / 1024;
+
+        }
+
+       
+
+        setLocalPhoto(standardPhoto);
+
+        setLocalPhotoCrushed(crushedPhoto);
+
+
+
+        if (setPhotoUri) setPhotoUri(standardPhoto);
+
+       
+
         URL.revokeObjectURL(img.src);
-        if (fileInputRef.current) fileInputRef.current.value = ''; 
-        
+
+        if (fileInputRef.current) fileInputRef.current.value = '';
+
+       
+
         setLocation({ lat, lng });
+
         setNearbyShops(availableOptions);
+
         setSelectedShopId(autoSelectId);
+
         setIsLocating(false);
+
         setStep('form');
-        
+
+       
+
         toast.success("Location verified and photo captured!");
+
       };
-      
+
+     
+
       img.src = URL.createObjectURL(file);
+
     };
 
+
+
     if (cachedLocation) {
+
       processLocation(cachedLocation.lat, cachedLocation.lng);
-      return; 
+
+      return;
+
     }
+
+
 
     if (!navigator.geolocation) {
+
       toast.error('Geolocation is not supported by your browser.');
+
       setIsLocating(false);
+
       return;
+
     }
 
+
+
     let isResolved = false;
+
     const killSwitchTimer = setTimeout(() => {
+
       if (!isResolved) {
+
         isResolved = true;
+
         toast.error("GPS is unresponsive. Please check your phone location settings.");
+
         setIsLocating(false);
+
         setStep('camera');
+
       }
-    }, 10000); 
+
+    }, 10000);
+
+
 
     navigator.geolocation.getCurrentPosition(
+
       (pos) => {
+
         if (isResolved) return;
+
         isResolved = true;
+
         clearTimeout(killSwitchTimer);
+
         processLocation(pos.coords.latitude, pos.coords.longitude);
+
       },
+
       (error) => {
+
         if (isResolved) return;
+
         isResolved = true;
+
         clearTimeout(killSwitchTimer);
-        
+
+       
+
         if (error.code === 1) toast.error("Permission Denied! Please allow location access.");
+
         else if (error.code === 2) toast.error("GPS is OFF! Please turn ON 'Location' in your phone settings.");
+
         else toast.error("Signal Lost! Please step outside or near a window.");
-        
+
+       
+
         setIsLocating(false);
+
         setStep('camera');
+
       },
+
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+
     );
-  };
+
+  }; 
 
   const handleSubmitVisit = async (e) => {
     e.preventDefault();
