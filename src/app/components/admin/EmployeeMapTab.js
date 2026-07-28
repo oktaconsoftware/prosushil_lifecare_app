@@ -13,12 +13,28 @@ const MapWrapper = dynamic(() => import('./MapWrapper'), {
   )
 });
 
+// 🚨 TIMEZONE FIX: Helper to accurately get YYYY-MM-DD in Local Time (IST), NOT UTC!
+const getLocalYYYYMMDD = (dateInput) => {
+  const d = dateInput ? new Date(dateInput) : new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function EmployeeMapTab() {
+  // Use the new local time helper instead of .toISOString()
+  const [selectedDate, setSelectedDate] = useState(''); 
   const [agents, setAgents] = useState([]);
   const [selectedAgentId, setSelectedAgentId] = useState('');
   const [visits, setVisits] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFetchingVisits, setIsFetchingVisits] = useState(false);
+
+  // Set initial date on mount to prevent Next.js Hydration Mismatch errors
+  useEffect(() => {
+    setSelectedDate(getLocalYYYYMMDD());
+  }, []);
 
   // 1. Fetch the list of agents on load
   useEffect(() => {
@@ -54,7 +70,14 @@ export default function EmployeeMapTab() {
       });
   }, [selectedAgentId]);
 
-  const validPinsCount = visits.filter(v => v.latitude && v.longitude).length;
+  // 🚨 FILTER LOGIC: Now accurately comparing IST dates
+  const filteredVisits = visits.filter(visit => {
+    if (!visit.time || !selectedDate) return false;
+    const visitDate = getLocalYYYYMMDD(visit.time);
+    return visitDate === selectedDate;
+  });
+
+  const validPinsCount = filteredVisits.filter(v => v.latitude && v.longitude).length;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 animate-in fade-in duration-300">
@@ -64,17 +87,25 @@ export default function EmployeeMapTab() {
         <div className="bg-[#0a0f1a] rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-xl shrink-0">
           <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-[#97c22a]/20 rounded-full blur-[60px] -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
           
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div>
               <p className="text-[10px] font-bold tracking-widest text-[#97c22a] uppercase mb-1.5">Geographic Tracking</p>
-              <h3 className="text-xl md:text-2xl font-bold text-white tracking-tight">Employee Visit Map</h3>
+              <h3 className="text-xl md:text-2xl font-bold text-white tracking-tight">Day-Wise Route Map</h3>
             </div>
             
-            <div className="w-full md:w-80 shrink-0">
+            <div className="flex flex-col sm:flex-row w-full lg:w-auto shrink-0 gap-3">
+              {/* 🚨 DATE PICKER */}
+              <input 
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full sm:w-44 px-4 py-3.5 bg-white/10 border border-white/20 text-white rounded-xl text-[14px] font-bold outline-none transition-all cursor-pointer focus:border-[#97c22a] focus:bg-white/15"
+              />
+
               <select 
                 value={selectedAgentId} 
                 onChange={(e) => setSelectedAgentId(e.target.value)}
-                className="w-full px-4 py-3.5 bg-white/10 border border-white/20 text-white rounded-xl text-[14px] font-bold outline-none transition-all appearance-none cursor-pointer focus:border-[#97c22a] focus:bg-white/15"
+                className="w-full sm:w-72 px-4 py-3.5 bg-white/10 border border-white/20 text-white rounded-xl text-[14px] font-bold outline-none transition-all appearance-none cursor-pointer focus:border-[#97c22a] focus:bg-white/15"
                 style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2397c22a'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1.2rem center', backgroundSize: '1.2em' }}
               >
                 <option value="" disabled className="text-slate-500 bg-white">Select an Employee...</option>
@@ -92,11 +123,11 @@ export default function EmployeeMapTab() {
         <div className="flex-1 bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden relative min-h-[400px]">
           
           {/* Floating Status Badge */}
-          {selectedAgentId && (
+          {selectedAgentId && selectedDate && (
             <div className="absolute top-4 right-4 z-[20] bg-white/90 backdrop-blur-sm px-4 py-2 rounded-xl shadow-lg border border-slate-200 flex items-center gap-3">
-              <div className="w-2.5 h-2.5 rounded-full bg-[#97c22a] animate-pulse"></div>
+              <div className={`w-2.5 h-2.5 rounded-full ${validPinsCount > 0 ? 'bg-[#97c22a] animate-pulse' : 'bg-red-500'}`}></div>
               <p className="text-[12px] font-bold text-slate-700">
-                {isFetchingVisits ? 'Plotting pins...' : `${validPinsCount} Valid Locations Pinned`}
+                {isFetchingVisits ? 'Plotting pins...' : `${validPinsCount} Pinned on ${new Date(selectedDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}`}
               </p>
             </div>
           )}
@@ -115,7 +146,8 @@ export default function EmployeeMapTab() {
               </p>
             </div>
           ) : (
-            <MapWrapper visits={visits} />
+            /* Pass the FILTERED visits to the map */
+            <MapWrapper visits={filteredVisits} />
           )}
 
         </div>

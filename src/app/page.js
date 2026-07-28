@@ -676,7 +676,7 @@ export default function LoginPage() {
                 ) : 'Sign in'}
               </button>
             </form>
-            <p className="text-[9px] font-base text-center mt-3" style={{ color: '#94a3b8' }}>Secured by Oktacon Softwares · All access logged</p>
+            <p className="text-[9px] font-base text-center mt-3" style={{ color: '#94a3b8' }}>Developed by Oktacon Softwares · All access logged</p>
           </div>
         </div>
       </div>
@@ -734,7 +734,7 @@ export default function LoginPage() {
             </div>
 
             <div className="flex items-center justify-between text-slate-500 text-xs font-medium pt-8 mt-8 border-t border-slate-800">
-              <span>Powered by Oktacon Softwares</span>
+              <span>Developed by Oktacon Softwares</span>
               <span>© {new Date().getFullYear()} Restricted System</span>
             </div>
           </div>

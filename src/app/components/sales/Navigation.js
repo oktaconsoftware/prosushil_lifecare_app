@@ -145,46 +145,61 @@ export function BottomNav({ mobileNav, setMobileNav }) {
   ];
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-xl border-t border-slate-100 shadow-[0_-10px_40px_rgba(0,0,0,0.04)] pb-[env(safe-area-inset-bottom)] transform-gpu will-change-transform">
-      <div className="flex items-center justify-around h-[72px] px-2">
-        {items.map((n) => {
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white shadow-[0_-4px_25px_rgba(0,0,0,0.06)] pb-[env(safe-area-inset-bottom)]">
+      <div className="flex items-center justify-between h-[65px] px-10 w-full max-w-md mx-auto relative">
+        
+        {items.map((n, index) => {
           const isActive = mobileNav === n.id;
-          
+          const isCenterTab = index === 1; // The "Add Shop" button
+
+          // ── SPECIAL STYLING FOR THE CENTER BUTTON ──
+          if (isCenterTab) {
+            return (
+              <div key={n.id} className="absolute left-1/2 -translate-x-1/2 -top-6 flex flex-col items-center">
+                <button 
+                  onClick={() => setMobileNav(n.id)}
+                  className={`w-[58px] h-[58px] rounded-full flex items-center justify-center text-white border-[5px] border-white shadow-[0_6px_16px_rgba(151,194,42,0.35)] transition-transform active:scale-90 outline-none ${
+                    isActive ? 'bg-[#7a9d22]' : 'bg-[#97C22A]'
+                  }`}
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d={n.icon} />
+                  </svg>
+                </button>
+                <span className={`text-[10.5px] mt-1.5 transition-colors ${
+                  isActive ? 'font-bold text-[#7a9d22]' : 'font-semibold text-slate-400'
+                }`}>
+                  {n.label}
+                </span>
+              </div>
+            );
+          }
+
+          // ── STYLING FOR THE LEFT & RIGHT BUTTONS ──
           return (
             <button 
               key={n.id} 
               onClick={() => setMobileNav(n.id)} 
-              className="relative flex flex-col items-center justify-center flex-1 h-full gap-1 active:scale-95 transition-transform duration-200 outline-none"
+              className={`flex flex-col items-center justify-center w-16 h-full gap-1 outline-none transition-colors active:scale-95 ${
+                isActive ? 'text-[#97C22A]' : 'text-slate-400 hover:text-slate-500'
+              }`}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              {/* Active Top Bar Indicator */}
-              {isActive && (
-                <span className="absolute top-0 w-10 h-1 bg-[#97C22A] rounded-b-full shadow-[0_2px_8px_rgba(151,194,42,0.4)]" />
-              )}
-              
-              {/* Icon Container */}
-              <div className={`transition-all duration-300 ${
-                isActive 
-                  ? 'text-[#97C22A] scale-110 mt-1' 
-                  : 'text-slate-400 mt-2 hover:text-slate-500'
-              }`}>
-                <svg className="w-[26px] h-[26px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className={`transition-transform duration-300 ${isActive ? '-translate-y-1' : 'translate-y-0'}`}>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isActive ? "2.5" : "2"} d={n.icon} />
                 </svg>
               </div>
-              
-              {/* Text label - ALWAYS VISIBLE */}
-              <span 
-                className={`text-[11px] mb-1 transition-all duration-300 ${
-                  isActive 
-                    ? 'text-[#97C22A] font-bold' 
-                    : 'text-slate-500 font-medium'
-                }`}
-              >
+              <span className={`text-[10.5px] transition-all duration-300 ${
+                isActive ? 'font-bold translate-y-0' : 'font-medium -translate-y-0.5'
+              }`}>
                 {n.label}
               </span>
             </button>
           );
         })}
+
       </div>
     </nav>
   );
