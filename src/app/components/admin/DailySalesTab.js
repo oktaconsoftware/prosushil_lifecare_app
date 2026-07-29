@@ -178,8 +178,10 @@
 //     </div>
 //   );
 // }
+
 'use client';
 import { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx'; // 🚨 IMPORTED XLSX FOR EXCEL EXPORT
 
 export default function DailySalesTab() {
   const today = new Date().toISOString().split('T')[0];
@@ -189,6 +191,12 @@ export default function DailySalesTab() {
   
   // State for Employee Dropdown Filter
   const [selectedAgentId, setSelectedAgentId] = useState('ALL');
+
+  // 🚨 UI STATE: Date Range Export Modal
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportStart, setExportStart] = useState(today);
+  const [exportEnd, setExportEnd] = useState(today);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     setIsLoading(true);
@@ -214,7 +222,7 @@ export default function DailySalesTab() {
     return salesData.find(a => a.id === id);
   });
 
-  // 🚨 CSV EXPORT FUNCTION LOGIC
+  // ── EXPORT 1: CURRENT DAILY VIEW (CSV) ──
   const exportToCSV = () => {
     if (filteredData.length === 0) return alert("No data available to export.");
 
@@ -248,10 +256,43 @@ export default function DailySalesTab() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `Daily_Sales_Report_${date}.csv`);
+    link.setAttribute("download", `Daily_Sales_Summary_${date}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // 🚨 EXPORT 2: DATE RANGE EXPORT (EXCEL)
+  const handleRangeExport = async () => {
+    if (!exportStart || !exportEnd) return alert("Please select both dates.");
+    if (exportStart > exportEnd) return alert("Start Date must be before End Date.");
+
+    setIsExporting(true);
+    try {
+      const res = await fetch(`/api/admin/daily-sales/export?startDate=${exportStart}&endDate=${exportEnd}&agentId=${selectedAgentId}`);
+      if (!res.ok) throw new Error("Export failed");
+      
+      const rawData = await res.json();
+
+      if (!rawData || rawData.length === 0) {
+        alert("No visits found for this date range and selection.");
+        setIsExporting(false);
+        return;
+      }
+
+      // Convert to strict Excel format (.xlsx)
+      const ws = XLSX.utils.json_to_sheet(rawData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Visit_Details");
+      XLSX.writeFile(wb, `Detailed_Visits_${exportStart}_to_${exportEnd}.xlsx`);
+
+      setShowExportModal(false);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to export. Check console for details.");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // Helper function to get initials for modern avatars
@@ -262,6 +303,48 @@ export default function DailySalesTab() {
 
   return (
     <div className="flex-1 overflow-y-auto animate-in fade-in duration-500 bg-[#f8fafc] font-sans text-slate-800">
+      
+      {/* 🚨 MODAL: DATE RANGE SELECTION */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="font-bold text-slate-800">Export Visit Details</h3>
+              <button onClick={() => setShowExportModal(false)} className="text-slate-400 hover:bg-slate-200 hover:text-slate-700 p-1.5 rounded-lg transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Start Date</label>
+                <input 
+                  type="date" 
+                  value={exportStart} 
+                  onChange={e => setExportStart(e.target.value)} 
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:border-[#97c22a]"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">End Date</label>
+                <input 
+                  type="date" 
+                  value={exportEnd} 
+                  onChange={e => setExportEnd(e.target.value)} 
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:border-[#97c22a]"
+                />
+              </div>
+              <button 
+                onClick={handleRangeExport} 
+                disabled={isExporting} 
+                className="w-full py-3 mt-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all shadow-md active:scale-[0.98] disabled:opacity-50"
+              >
+                {isExporting ? 'Generating Excel...' : 'Download Excel Data'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="p-4 md:p-8 space-y-6 pb-24 md:pb-12 max-w-7xl mx-auto w-full">
         
         {/* ── MODERN HEADER & FILTERS ── */}
@@ -301,7 +384,8 @@ export default function DailySalesTab() {
             </div>
           </div>
           
-          <div className="flex items-center gap-3 w-full lg:w-auto">
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
             <button 
               onClick={() => { setDate(today); setSelectedAgentId('ALL'); }}
               className="flex-1 lg:flex-none px-4 py-2.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-600 text-[13px] font-bold rounded-xl transition-all shadow-sm"
@@ -310,10 +394,16 @@ export default function DailySalesTab() {
             </button>
             <button 
               onClick={exportToCSV}
-              className="flex-1 lg:flex-none px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white border border-transparent text-[13px] font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
+              className="flex-1 lg:flex-none px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-[13px] font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-              Export Data
+              Export Day (CSV)
+            </button>
+            <button 
+              onClick={() => setShowExportModal(true)}
+              className="flex-1 lg:flex-none px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white border border-transparent text-[13px] font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+              Export Range
             </button>
           </div>
         </div>
@@ -337,11 +427,7 @@ export default function DailySalesTab() {
             <div className="overflow-x-auto custom-scrollbar">
               
               <table className="w-full text-left whitespace-nowrap">
-                
-                {/* Modern Grouped Header */}
-               {/* Modern Grouped Header */}
                 <thead className="bg-white">
-                  {/* Top Layer (Grouping) */}
                   <tr>
                     <th colSpan="3" className="border-b border-r border-slate-100 bg-white"></th>
                     <th colSpan="4" className="px-4 py-3 text-center border-b border-slate-100 border-r bg-blue-50/30">
@@ -358,31 +444,26 @@ export default function DailySalesTab() {
                     </th>
                   </tr>
                   
-                  {/* Bottom Layer (Actual Columns) */}
                   <tr>
                     <th className="px-5 py-3.5 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider w-16 text-center">Rank</th>
                     <th className="px-4 py-3.5 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Employee</th>
                     <th className="px-4 py-3.5 border-b border-slate-100 border-r text-[11px] font-bold text-slate-400 uppercase tracking-wider">Territory</th>
                     
-                    {/* Today Columns */}
                     <th className="px-4 py-3.5 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center bg-blue-50/10">Visits</th>
                     <th className="px-4 py-3.5 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right bg-blue-50/10">Sales (₹)</th>
                     <th className="px-4 py-3.5 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right bg-blue-50/10">Cash (₹)</th>
                     <th className="px-4 py-3.5 border-b border-r border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider bg-blue-50/10">Method</th>
                     
-                    {/* Monthly Columns */}
                     <th className="px-4 py-3.5 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center bg-emerald-50/10">Visits</th>
                     <th className="px-4 py-3.5 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right bg-emerald-50/10">Sales (₹)</th>
                     <th className="px-5 py-3.5 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right bg-emerald-50/10">Cash (₹)</th>
                   </tr>
                 </thead>
 
-                {/* Table Body */}
                 <tbody className="divide-y divide-slate-100">
                   {filteredData.map((agent, index) => (
                     <tr key={agent.id} className="hover:bg-slate-50/80 transition-colors group">
                       
-                      {/* Rank */}
                       <td className="px-5 py-3 text-center">
                         {index === 0 && selectedAgentId === 'ALL' ? (
                           <div className="w-7 h-7 mx-auto bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-sm shadow-sm ring-2 ring-amber-50">🥇</div>
@@ -395,7 +476,6 @@ export default function DailySalesTab() {
                         )}
                       </td>
 
-                      {/* Employee Profile Cell */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3.5">
                           <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-slate-100 to-slate-200 border border-slate-200 flex items-center justify-center text-slate-600 font-bold text-sm shrink-0">
@@ -408,7 +488,6 @@ export default function DailySalesTab() {
                         </div>
                       </td>
 
-                      {/* Area Pill */}
                       <td className="px-4 py-3 border-r border-slate-100/50">
                         {agent.area ? (
                            <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-[12px] font-semibold rounded-lg border border-slate-200/60 inline-block">
@@ -419,7 +498,6 @@ export default function DailySalesTab() {
                         )}
                       </td>
 
-                      {/* ── TODAY METRICS ── */}
                       <td className="px-4 py-3 text-center bg-blue-50/5 group-hover:bg-transparent">
                         <span className="text-[14px] font-bold text-slate-700">{agent.visitCount || 0}</span>
                       </td>
@@ -443,7 +521,6 @@ export default function DailySalesTab() {
                         )}
                       </td>
 
-                      {/* ── MONTHLY METRICS ── */}
                       <td className="px-4 py-3 text-center bg-emerald-50/10 group-hover:bg-transparent">
                         <span className="text-[14px] font-bold text-slate-700">{agent.monthlyVisitCount || 0}</span>
                       </td>
@@ -465,7 +542,6 @@ export default function DailySalesTab() {
               
             </div>
             
-            {/* Table Footer / Summary (Optional detail to make it look premium) */}
             <div className="bg-slate-50 border-t border-slate-100 p-4 flex justify-between items-center text-[12px] font-semibold text-slate-500">
                <span>Showing {filteredData.length} records</span>
                <span className="flex items-center gap-2">
