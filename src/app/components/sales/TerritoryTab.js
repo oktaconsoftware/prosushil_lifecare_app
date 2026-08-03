@@ -1839,12 +1839,11 @@
 
 
 
-
-
 'use client';
 import { useState, useRef, useMemo, useEffect } from 'react';
 import toast from 'react-hot-toast';
 
+// Highly accurate Haversine distance formula
 function getDistance(lat1, lon1, lat2, lon2) {
   if (!lat1 || !lon1 || !lat2 || !lon2) return 999999;
   const R = 6371e3;
@@ -1878,15 +1877,26 @@ export default function TerritoryTab({
   const [isMounted, setIsMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(true);
   
-  // 🚨 FIX 1: We completely removed cachedLocation state! 
-  // We want a fresh GPS signal every single time to prevent the "1290 meters away" bug.
-  
   const [nearbyShops, setNearbyShops] = useState([]);
   const [selectedShopId, setSelectedShopId] = useState('');
   const [localPhotoCrushed, setLocalPhotoCrushed] = useState(null);
   const [isShopDropdownOpen, setIsShopDropdownOpen] = useState(false);
   const [shopSearchQuery, setShopSearchQuery] = useState('');
+  
   const shopDropdownRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const dropdownRef = useRef(null);
+
+  // 🚨 STANDARD RADIUS FOR INDIAN MARKETS
+  const GEOFENCE_RADIUS_METERS = 60; 
+
+  const [formData, setFormData] = useState({
+    orderAmount: '',
+    cashAmount: '',
+    otherAmount: '',
+    otherMethod: 'UPI',
+    remark: ''
+  });
 
   useEffect(() => {
     const handler = (e) => {
@@ -1905,25 +1915,9 @@ export default function TerritoryTab({
     if (!shopSearchQuery) return nearbyShops;
     return nearbyShops.filter(shop => 
       shop.name.toLowerCase().includes(shopSearchQuery.toLowerCase()) || 
-      (shop.place && shop.place.toLowerCase().includes(shopSearchQuery.toLowerCase())) ||
       (shop.placeName && shop.placeName.toLowerCase().includes(shopSearchQuery.toLowerCase()))
     );
   }, [nearbyShops, shopSearchQuery]);
-  
-  const [formData, setFormData] = useState({
-    orderAmount: '',
-    cashAmount: '',
-    otherAmount: '',
-    otherMethod: 'UPI',
-    remark: ''
-  });
-
-  const fileInputRef = useRef(null);
-  const dropdownRef = useRef(null);
-  
-  // 🚨 FIX 2: Increased radius to 60 meters! 
-  // Mobile GPS can drift by 30-50 meters on cold starts. 20m was way too strict.
-  const GEOFENCE_RADIUS_METERS = 60; 
 
   const uniqueAreas = useMemo(() => {
     const fromMasterTerritories = Array.isArray(masterTerritories) ? masterTerritories.map(a => a.name) : [];
@@ -2009,27 +2003,46 @@ export default function TerritoryTab({
     }
 
     const processLocation = async (lat, lng) => {
-      let closestShop = null;
-      let minDistance = Infinity;
+      let closestVerifiedShop = null;
+      let minVerifiedDistance = Infinity;
 
-      let availableOptions = activeTargets.map(s => {
-        const hasGps = s.latitude && s.longitude;
-        let dist = hasGps ? getDistance(lat, lng, Number(s.latitude), Number(s.longitude)) : undefined;
+      // 🚨 FLAWLESS LOGIC 1: Calculate distances for ALL active targets
+      let processedShops = activeTargets.map(s => {
+        const hasGps = Boolean(s.latitude && s.longitude && s.latitude !== "null" && s.longitude !== "null");
+        let dist = hasGps ? getDistance(lat, lng, Number(s.latitude), Number(s.longitude)) : 999999;
         
-        if (hasGps && dist < minDistance) {
-          minDistance = dist;
-          closestShop = s;
+        // Track the absolutely closest VERIFIED shop
+        if (s.isVerified && hasGps && dist < minVerifiedDistance) {
+          minVerifiedDistance = dist;
+          closestVerifiedShop = s;
         }
 
         return { ...s, isNewAnchor: !hasGps, distance: dist };
       });
       
-      // 🚨 FIX 3: Removed Auto-Select logic.
-      // The dropdown will intentionally be blank so the salesman MUST choose the correct shop!
+// 🚨 FLAWLESS LOGIC 2: Stop hiding shops! 
+
+      let availableOptions = processedShops;
+      // 🚨 FLAWLESS LOGIC 3: Auto-Select the closest verified shop
+      let autoSelectId = "";
+      if (closestVerifiedShop && minVerifiedDistance <= GEOFENCE_RADIUS_METERS) {
+        autoSelectId = closestVerifiedShop.id.toString();
+      }
+
+      // 🚨 FLAWLESS LOGIC 4: Sort Dropdown for perfect UX
       availableOptions.sort((a, b) => {
-         const distA = a.distance !== undefined ? a.distance : 999999;
-         const distB = b.distance !== undefined ? b.distance : 999999;
-         return distA - distB;
+         // Put auto-selected shop at the absolute top
+         if (autoSelectId) {
+           if (a.id.toString() === autoSelectId) return -1;
+           if (b.id.toString() === autoSelectId) return 1;
+         }
+         // Group Verified shops first, then Unverified
+         if (a.isVerified && !b.isVerified) return -1;
+         if (!a.isVerified && b.isVerified) return 1;
+         // Sort Verified shops by distance
+         if (a.isVerified && b.isVerified) return a.distance - b.distance;
+         // Sort Unverified shops alphabetically
+         return a.name.localeCompare(b.name);
       });
 
       let streetAddress = "Address location not found";
@@ -2081,9 +2094,9 @@ export default function TerritoryTab({
 
         ctx.fillStyle = '#FFB020';
         ctx.font = '10px sans-serif';
-        let originalText = "Original DB GPS : NO";
-        if (closestShop && closestShop.latitude && closestShop.longitude) {
-          originalText = `Original DB GPS : ${Number(closestShop.latitude).toFixed(6)}, ${Number(closestShop.longitude).toFixed(6)}`;
+        let originalText = "Original DB GPS : UNVERIFIED";
+        if (closestVerifiedShop && closestVerifiedShop.latitude) {
+          originalText = `Original DB GPS : ${Number(closestVerifiedShop.latitude).toFixed(6)}, ${Number(closestVerifiedShop.longitude).toFixed(6)}`;
         }
         ctx.fillText(originalText, 10, height - 24);
 
@@ -2104,7 +2117,6 @@ export default function TerritoryTab({
         
         setLocalPhoto(standardPhoto);
         setLocalPhotoCrushed(crushedPhoto);
-
         if (setPhotoUri) setPhotoUri(standardPhoto);
         
         URL.revokeObjectURL(img.src);
@@ -2113,13 +2125,17 @@ export default function TerritoryTab({
         setLocation({ lat, lng });
         setNearbyShops(availableOptions);
         
-        // 🚨 FIX 4: Explicitly set selectedShopId to empty string!
-        setSelectedShopId('');
+        // 🚨 FLAWLESS LOGIC: Instantly auto-selects if a match is found!
+        setSelectedShopId(autoSelectId);
         
         setIsLocating(false);
         setStep('form');
         
-        toast.success("Location verified and photo captured!");
+        if (autoSelectId) {
+          toast.success("Location verified & Shop Auto-Selected!");
+        } else {
+          toast.success("Location logged! Please search and select the unverified shop.");
+        }
       };
       
       img.src = URL.createObjectURL(file);
@@ -2141,6 +2157,7 @@ export default function TerritoryTab({
       }
     }, 10000);
 
+    // Get a FRESH, LIVE GPS coordinate every single time
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         if (isResolved) return;
@@ -2166,20 +2183,21 @@ export default function TerritoryTab({
 
   const handleSubmitVisit = async (e) => {
     e.preventDefault();
-    if (!selectedShopId) return alert("Please select a medical shop.");
+    if (!selectedShopId) return toast.error("Please select a medical shop from the dropdown.");
 
     const selectedShop = nearbyShops.find(s => s.id.toString() === selectedShopId.toString());
+    if (!selectedShop) return toast.error("Invalid shop selection.");
 
-    // 🚨 FIX 5: CROWDED MARKET FIX
-    // We completely removed the logic that blocked them from logging a shop 
-    // just because they were standing near a different verified shop.
+    // 🚨 FLAWLESS LOGIC 5: Submission Validation
+    // We ONLY enforce distance rules on VERIFIED shops.
+    // UNVERIFIED shops are always allowed so they can set the DB baseline!
     if (selectedShop.isVerified) {
-      if (selectedShop.distance !== undefined && selectedShop.distance > GEOFENCE_RADIUS_METERS) {
+      if (selectedShop.distance > GEOFENCE_RADIUS_METERS) {
         toast.error(
-          `Location Mismatch! 🚨 You are ${selectedShop.distance.toFixed(0)} meters away from ${selectedShop.name}. Please move closer! (Max ${GEOFENCE_RADIUS_METERS}m)`, 
-          { duration: 6000, style: { minWidth: '300px' } }
+          `GPS Mismatch! 🚨 You are ${selectedShop.distance.toFixed(0)}m away from ${selectedShop.name}. Max allowed is ${GEOFENCE_RADIUS_METERS}m.`, 
+          { duration: 6000 }
         );
-        return; // Blocks submission
+        return; 
       }
     }
 
@@ -2262,9 +2280,7 @@ export default function TerritoryTab({
             </p>
             <div className="flex items-center flex-wrap gap-2.5">
               {selectedArea ? (
-                <span className="inline-flex items-center gap-1.5 text-[12px] 
-                font-semibold text-[#0b2900] bg-[#97C22A]/10 border
-                 border-[#97C22A]/20 rounded-2xl px-3 py-1">
+                <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#0b2900] bg-[#97C22A]/10 border border-[#97C22A]/20 rounded-2xl px-3 py-1">
                   {selectedArea}
                 </span>
               ) : (
@@ -2416,7 +2432,7 @@ export default function TerritoryTab({
             <div className="w-14 h-14 rounded-2xl bg-[#97C22A]/10 flex items-center justify-center mb-3 border border-[#97C22A]/20 relative">
               {isLocating && <div className="absolute inset-0 border-2 border-[#97C22A] rounded-3xl animate-ping opacity-30" />}
               <svg className="w-7 h-7 text-[#5C7A1A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
               </svg>
             </div>
             <p className="text-[12px] font-semibold text-[#97C22A] mb-1.5">Security check 🛡️</p>
@@ -2431,7 +2447,7 @@ export default function TerritoryTab({
                   onClick={() => fileInputRef.current?.click()} 
                   disabled={isLocating} 
                   className={`w-full px-5 py-4 rounded-2xl text-[14px] font-semibold flex items-center justify-center gap-3 transition-all shadow-sm text-left ${
-                    isLocating ? 'bg-slate-800 text[#b8ed3b] cursor-not-allowed' : 'bg-[#0a0f1c] text-white active:scale-[0.98]'
+                    isLocating ? 'bg-slate-800 text-[#b8ed3b] cursor-not-allowed' : 'bg-[#0a0f1c] text-white active:scale-[0.98]'
                   }`}
                 >
                   <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2505,7 +2521,7 @@ export default function TerritoryTab({
                             const s = nearbyShops.find(x => x.id.toString() === selectedShopId.toString());
                             if (s) {
                               const placeStr = (s.placeName || s.place) ? ` (${s.placeName || s.place})` : '';
-                              const distStr = s.distance !== undefined ? ` - ${(s.distance).toFixed(0)}m` : '';
+                             const distStr = s.isVerified && s.distance !== undefined && s.distance < 999999 ? ` - ${(s.distance).toFixed(0)}m` : '';
                               return `${s.isNewAnchor ? 'First Visit - ' : ''}${s.name}${placeStr}${distStr}`;
                             }
                             return 'Select a shop...';
@@ -2561,9 +2577,9 @@ export default function TerritoryTab({
                                 }`}
                               >
                                 <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
-                                  {shop.isNewAnchor && (
+                                  {!shop.isVerified && (
                                     <span className="shrink-0 text-[#fc2666] text-[10px] font-bold px-1.5 py-0.5 rounded-md border border-[#fc2666]/30 bg-[#fc2666]/10">
-                                      NEW
+                                      UNVERIFIED
                                     </span>
                                   )}
                                   
@@ -2579,7 +2595,7 @@ export default function TerritoryTab({
                                   </div>
                                 </div>
                                 
-                                {shop.distance !== undefined && shop.distance < 999999 && (
+                                {shop.isVerified && shop.distance !== undefined && shop.distance < 999999 && (
                                   <span className={`text-[12px] font-medium shrink-0 ${isSelected ? 'text-[#5C7A1A]' : 'text-slate-400'}`}>
                                     {shop.distance.toFixed(0)}m
                                   </span>
