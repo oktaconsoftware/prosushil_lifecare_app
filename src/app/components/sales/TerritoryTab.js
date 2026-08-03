@@ -1920,7 +1920,7 @@ export default function TerritoryTab({
   const dropdownRef = useRef(null);
   
   // 🚨 FIX 1: Increased to 60 meters to account for mobile GPS cold starts
-  const GEOFENCE_RADIUS_METERS = 60; 
+  const GEOFENCE_RADIUS_METERS = 20; 
 
   const uniqueAreas = useMemo(() => {
     const fromMasterTerritories = Array.isArray(masterTerritories) ? masterTerritories.map(a => a.name) : [];
