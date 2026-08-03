@@ -1011,14 +1011,15 @@ export default function TerritorySetupTab() {
     });
   }, [activePlace]);
 
-  const openAddModal = useCallback((type) => {
+const openAddModal = useCallback((type) => {
     setModalMode('add'); setModalType(type);
     setFormData({ 
       id: null, 
       name: '', 
       address: '', 
       parentId: type === 'place' ? activeArea?.id : type === 'medical' ? activePlace?.id : null, 
-      areaId: type === 'medical' ? activeArea?.id : null,
+      // 🚨 FIX: Now passing activeArea.id for 'place' so backend knows exactly where to put it
+      areaId: (type === 'place' || type === 'medical') ? activeArea?.id : null,
       removeGps: false 
     });
   }, [activeArea, activePlace]);
@@ -1030,7 +1031,8 @@ export default function TerritorySetupTab() {
       name: item.name, 
       address: item.address || '', 
       removeGps: false,
-      areaId: type === 'medical' ? activeArea?.id : null,
+      // 🚨 FIX: Pass areaId safely here too
+      areaId: (type === 'place' || type === 'medical') ? activeArea?.id : null,
       parentId: type === 'medical' ? activePlace?.id : (type === 'place' ? activeArea?.id : null)
     });
   }, [activeArea, activePlace]);
