@@ -235,9 +235,7 @@ export async function POST(request) {
     
     const newVisitId = insertRes[0].id;
 
-    // ─────────────────────────────────────────────────────────
-    // ACTION 2: 20KM SHIELD & BASELINE VS CURRENT LOGIC
-    // ─────────────────────────────────────────────────────────
+
     if (latitude && longitude) {
       
       const shopData = await db.select({
@@ -250,16 +248,17 @@ export async function POST(request) {
       .where(eq(medicalShops.id, cleanTargetId))
       .limit(1);
 
-if (shop.length > 0) {
-        const shop = shopData[0];
+      if (shopData.length > 0) {
+        const shop = shopData[0]; // 🚨 DEFINED HERE!
 
-        if (shop.savedLat && shop.savedLng) {
+        // 🚨 FIX 1: We only block them if the shop is ALREADY VERIFIED!
+        if (shop.savedLat && shop.savedLng && shop.isVerified) {
           const distanceToShop = getDistance(latitude, longitude, Number(shop.savedLat), Number(shop.savedLng));
           
-          // 🚨 TIGHTENED TO 50 METERS
-          if (distanceToShop > 50) { 
+          // 🚨 FIX 2: Increased to 60 meters to match your frontend rules perfectly
+          if (distanceToShop > 60) { 
             return NextResponse.json({ 
-              error: `🚨 MISMATCH: GPS verification failed at server level. You are ${distanceToShop}m away.` 
+              error: `🚨 SERVER BLOCK: You are ${distanceToShop}m away from the verified shop location. (Max 60m)` 
             }, { status: 403 });
           }
         }
@@ -275,7 +274,7 @@ if (shop.length > 0) {
             .where(eq(medicalShops.id, cleanTargetId));
             
         } else {
-          // 🔓 NOT VERIFIED YET: OVERWRITE ALL
+          // 🔓 NOT VERIFIED YET: OVERWRITE ALL (Fixes bad GPS!)
           await db.update(medicalShops)
             .set({ 
               latitude: String(latitude),
