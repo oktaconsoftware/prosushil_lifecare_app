@@ -1919,8 +1919,7 @@ export default function TerritoryTab({
   const fileInputRef = useRef(null);
   const dropdownRef = useRef(null);
   
-  // 🚨 FIX 1: Increased to 60 meters to account for mobile GPS cold starts
-  const GEOFENCE_RADIUS_METERS = 20; 
+const GEOFENCE_RADIUS_METERS = 50;
 
   const uniqueAreas = useMemo(() => {
     const fromMasterTerritories = Array.isArray(masterTerritories) ? masterTerritories.map(a => a.name) : [];
@@ -2045,16 +2044,10 @@ export default function TerritoryTab({
       }
 
       availableOptions.sort((a, b) => {
-         if (autoSelectId) {
-           if (a.id.toString() === autoSelectId) return -1;
-           if (b.id.toString() === autoSelectId) return 1;
-         }
-         if (a.isNewAnchor && !b.isNewAnchor) return -1;
-         if (!a.isNewAnchor && b.isNewAnchor) return 1;
-         if (!a.isNewAnchor && !b.isNewAnchor) return a.distance - b.distance;
-         return 0;
+         const distA = a.distance !== undefined ? a.distance : 999999;
+         const distB = b.distance !== undefined ? b.distance : 999999;
+         return distA - distB;
       });
-
       if (availableOptions.length === 0) {
         toast.error(`You are not within ${GEOFENCE_RADIUS_METERS}m of any verified shop. Ensure you are at the correct location.`);
       }
