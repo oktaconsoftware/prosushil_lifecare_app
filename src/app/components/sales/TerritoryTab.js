@@ -1841,7 +1841,6 @@
 
 
 
-
 'use client';
 import { useState, useRef, useMemo, useEffect } from 'react';
 import toast from 'react-hot-toast';
@@ -1878,7 +1877,10 @@ export default function TerritoryTab({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(true);
-  const [cachedLocation, setCachedLocation] = useState(null);
+  
+  // 🚨 FIX 1: We completely removed cachedLocation state! 
+  // We want a fresh GPS signal every single time to prevent the "1290 meters away" bug.
+  
   const [nearbyShops, setNearbyShops] = useState([]);
   const [selectedShopId, setSelectedShopId] = useState('');
   const [localPhotoCrushed, setLocalPhotoCrushed] = useState(null);
@@ -1919,7 +1921,9 @@ export default function TerritoryTab({
   const fileInputRef = useRef(null);
   const dropdownRef = useRef(null);
   
-const GEOFENCE_RADIUS_METERS = 50;
+  // 🚨 FIX 2: Increased radius to 60 meters! 
+  // Mobile GPS can drift by 30-50 meters on cold starts. 20m was way too strict.
+  const GEOFENCE_RADIUS_METERS = 60; 
 
   const uniqueAreas = useMemo(() => {
     const fromMasterTerritories = Array.isArray(masterTerritories) ? masterTerritories.map(a => a.name) : [];
@@ -1943,19 +1947,6 @@ const GEOFENCE_RADIUS_METERS = 50;
     setIsMounted(true);
     const saved = localStorage.getItem('assignedSalesArea');
     if (saved) setSelectedArea(saved);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && navigator.geolocation) {
-      const watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          setCachedLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        },
-        (err) => console.warn("Background GPS waiting..."),
-        { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
-      );
-      return () => navigator.geolocation.clearWatch(watchId);
-    }
   }, []);
 
   useEffect(() => {
@@ -2021,8 +2012,6 @@ const GEOFENCE_RADIUS_METERS = 50;
       let closestShop = null;
       let minDistance = Infinity;
 
-      // 🚨 FIX 2: We no longer `.filter()` out the shops! 
-      // ALL shops in the selected Area will now populate so the user can search for them.
       let availableOptions = activeTargets.map(s => {
         const hasGps = s.latitude && s.longitude;
         let dist = hasGps ? getDistance(lat, lng, Number(s.latitude), Number(s.longitude)) : undefined;
@@ -2035,22 +2024,13 @@ const GEOFENCE_RADIUS_METERS = 50;
         return { ...s, isNewAnchor: !hasGps, distance: dist };
       });
       
-      let autoSelectId = "";
-      if (closestShop && minDistance <= GEOFENCE_RADIUS_METERS) {
-        const shopInFilteredList = availableOptions.find(s => s.id === closestShop.id);
-        if (shopInFilteredList) {
-          autoSelectId = closestShop.id.toString();
-        }
-      }
-
+      // 🚨 FIX 3: Removed Auto-Select logic.
+      // The dropdown will intentionally be blank so the salesman MUST choose the correct shop!
       availableOptions.sort((a, b) => {
          const distA = a.distance !== undefined ? a.distance : 999999;
          const distB = b.distance !== undefined ? b.distance : 999999;
          return distA - distB;
       });
-      if (availableOptions.length === 0) {
-        toast.error(`You are not within ${GEOFENCE_RADIUS_METERS}m of any verified shop. Ensure you are at the correct location.`);
-      }
 
       let streetAddress = "Address location not found";
       try {
@@ -2132,7 +2112,10 @@ const GEOFENCE_RADIUS_METERS = 50;
         
         setLocation({ lat, lng });
         setNearbyShops(availableOptions);
-        setSelectedShopId(autoSelectId);
+        
+        // 🚨 FIX 4: Explicitly set selectedShopId to empty string!
+        setSelectedShopId('');
+        
         setIsLocating(false);
         setStep('form');
         
@@ -2141,11 +2124,6 @@ const GEOFENCE_RADIUS_METERS = 50;
       
       img.src = URL.createObjectURL(file);
     };
-
-    if (cachedLocation) {
-      processLocation(cachedLocation.lat, cachedLocation.lng);
-      return;
-    }
 
     if (!navigator.geolocation) {
       toast.error('Geolocation is not supported by your browser.');
@@ -2192,24 +2170,13 @@ const GEOFENCE_RADIUS_METERS = 50;
 
     const selectedShop = nearbyShops.find(s => s.id.toString() === selectedShopId.toString());
 
-    // 🚨 FIX 3: SMART EXPLICIT ERROR MESSAGES ON SUBMISSION
+    // 🚨 FIX 5: CROWDED MARKET FIX
+    // We completely removed the logic that blocked them from logging a shop 
+    // just because they were standing near a different verified shop.
     if (selectedShop.isVerified) {
-      // If they selected a verified shop, ensure they are actually within 60 meters of it!
-      if (selectedShop.distance > GEOFENCE_RADIUS_METERS) {
+      if (selectedShop.distance !== undefined && selectedShop.distance > GEOFENCE_RADIUS_METERS) {
         toast.error(
           `Location Mismatch! 🚨 You are ${selectedShop.distance.toFixed(0)} meters away from ${selectedShop.name}. Please move closer! (Max ${GEOFENCE_RADIUS_METERS}m)`, 
-          { duration: 6000, style: { minWidth: '300px' } }
-        );
-        return; // Blocks submission
-      }
-    } else {
-      // If they pick an unverified shop, but they are physically standing on top of a DIFFERENT verified shop...
-      const closeVerifiedShops = nearbyShops.filter(s => 
-        s.isVerified && s.distance !== undefined && s.distance <= GEOFENCE_RADIUS_METERS
-      );
-      if (closeVerifiedShops.length > 0) {
-        toast.error(
-          `Location Mismatch! 🚨 You are physically standing at "${closeVerifiedShops[0].name}". You cannot log a visit for an unverified shop here.`, 
           { duration: 6000, style: { minWidth: '300px' } }
         );
         return; // Blocks submission
@@ -2449,7 +2416,7 @@ const GEOFENCE_RADIUS_METERS = 50;
             <div className="w-14 h-14 rounded-2xl bg-[#97C22A]/10 flex items-center justify-center mb-3 border border-[#97C22A]/20 relative">
               {isLocating && <div className="absolute inset-0 border-2 border-[#97C22A] rounded-3xl animate-ping opacity-30" />}
               <svg className="w-7 h-7 text-[#5C7A1A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
               </svg>
             </div>
             <p className="text-[12px] font-semibold text-[#97C22A] mb-1.5">Security check 🛡️</p>

@@ -250,7 +250,7 @@ export async function POST(request) {
       .where(eq(medicalShops.id, cleanTargetId))
       .limit(1);
 
-      if (shopData.length > 0) {
+if (shop.length > 0) {
         const shop = shopData[0];
 
         if (shop.savedLat && shop.savedLng) {
