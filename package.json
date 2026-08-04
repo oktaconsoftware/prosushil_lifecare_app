@@ -11,6 +11,7 @@
     "db:seed": "node --env-file=.env.local src/db/seed.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1102.0",
     "@capacitor/android": "^8.4.1",
     "@capacitor/camera": "^8.2.0",
     "@capacitor/core": "^8.4.1",

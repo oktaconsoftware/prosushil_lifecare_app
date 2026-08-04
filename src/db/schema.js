@@ -29,11 +29,8 @@ export const visits = pgTable('visits', {
   orderAmount: numeric('order_amount').notNull().default('0'),
   collectionAmount: numeric('collection_amount').notNull().default('0'),
   remark: text('remark'),
-  
-  // 🚨 ADDED: Capture the agent's exact physical location!
   latitude: varchar('latitude', { length: 100 }), 
   longitude: varchar('longitude', { length: 100 }),
-  
   createdAt: timestamp('created_at').defaultNow(),
   status: varchar('status', { length: 50 }).notNull().default('Pending Review'),
   paymentMethod: varchar('payment_method', { length: 50 })
