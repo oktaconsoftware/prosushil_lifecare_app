@@ -474,11 +474,61 @@ async function hashPassword(password) {
 }
 
 // GET: Fetch all territories (Optimized for massive data)
+// export async function GET() {
+//   try {
+//     const allAreas = await db.select({ id: areas.id, name: areas.name }).from(areas);
+//     const allPlaces = await db.select({ id: places.id, name: places.name, areaId: places.areaId }).from(places);
+    
+//     const allMedicals = await db.select({
+//       id: medicalShops.id,
+//       name: medicalShops.name,
+//       address: medicalShops.address,
+//       placeId: medicalShops.placeId,
+//       isVerified: medicalShops.isVerified,
+//       hasPhoto: sql`CASE WHEN ${medicalShops.photoUrl} IS NOT NULL THEN 1 ELSE 0 END`
+//     }).from(medicalShops);
+
+//     const placesByArea = {};
+//     const medicalsByPlace = {};
+
+//     for (const med of allMedicals) {
+//       if (!medicalsByPlace[med.placeId]) {
+//         medicalsByPlace[med.placeId] = [];
+//       }
+//       med.hasPhoto = med.hasPhoto === 1;
+//       medicalsByPlace[med.placeId].push(med);
+//     }
+
+//     for (const place of allPlaces) {
+//       if (!placesByArea[place.areaId]) {
+//         placesByArea[place.areaId] = [];
+//       }
+//       placesByArea[place.areaId].push({
+//         id: place.id,
+//         name: place.name,
+//         medicals: medicalsByPlace[place.id] || []
+//       });
+//     }
+
+//     const territories = allAreas.map(area => ({
+//       id: area.id,
+//       name: area.name,
+//       places: placesByArea[area.id] || []
+//     }));
+
+//     return NextResponse.json(territories);
+//   } catch (error) {
+//     console.error("Fetch Error:", error);
+//     return NextResponse.json({ error: 'Database fetch failed' }, { status: 500 });
+//   }
+// }
+
 export async function GET() {
   try {
     const allAreas = await db.select({ id: areas.id, name: areas.name }).from(areas);
     const allPlaces = await db.select({ id: places.id, name: places.name, areaId: places.areaId }).from(places);
     
+    // ✅ BRILLIANT EGRESS FIX: You only fetch the exact text you need, skipping the heavy photoUrl!
     const allMedicals = await db.select({
       id: medicalShops.id,
       name: medicalShops.name,
@@ -516,7 +566,11 @@ export async function GET() {
       places: placesByArea[area.id] || []
     }));
 
-    return NextResponse.json(territories);
+    // 🚨 EGRESS FIX: Allow the browser to hold onto this data so it doesn't spam Supabase
+    return NextResponse.json(territories, {
+      headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' }
+    });
+    
   } catch (error) {
     console.error("Fetch Error:", error);
     return NextResponse.json({ error: 'Database fetch failed' }, { status: 500 });
