@@ -1842,6 +1842,7 @@
 'use client';
 import { useState, useRef, useMemo, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import Image from 'next/image';
 
 // Highly accurate Haversine distance formula
 function getDistance(lat1, lon1, lat2, lon2) {
@@ -2431,9 +2432,13 @@ export default function TerritoryTab({
           <div className="bg-white rounded-2xl p-4 flex flex-col items-center text-center shadow-sm border border-slate-100 mt-2">
             <div className="w-14 h-14 rounded-2xl bg-[#97C22A]/10 flex items-center justify-center mb-3 border border-[#97C22A]/20 relative">
               {isLocating && <div className="absolute inset-0 border-2 border-[#97C22A] rounded-3xl animate-ping opacity-30" />}
-              <svg className="w-7 h-7 text-[#5C7A1A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
-              </svg>
+           <Image 
+  src="/camera.png" 
+  alt="Camera Icon" 
+  width={28} 
+  height={28} 
+  className="w-7 h-7 object-contain" 
+/>
             </div>
             <p className="text-[12px] font-semibold text-[#97C22A] mb-1.5">Security check 🛡️</p>
             <h2 className="text-[18px] font-bold text-slate-900 mb-1.5">Field check-in</h2>
