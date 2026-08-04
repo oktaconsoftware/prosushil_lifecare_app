@@ -623,19 +623,26 @@ const S3 = new S3Client({
 });
 
 async function uploadToR2(base64String, filename) {
-  if (!base64String || !base64String.startsWith('data:image')) return null;
+  // Check if it's actually an image
+  if (!base64String || !base64String.startsWith('data:image')) {
+    console.error("🚨 Upload Blocked: The data sent from the phone is not a valid base64 image.");
+    return null;
+  }
   
-  // 🚨 THE MAGIC SWITCH: Local Development Bypass
+  // 🛠️ THE LOCAL TESTING BYPASS
+  // When running 'npm run dev', this skips Cloudflare and returns the raw Base64 string
   if (process.env.NODE_ENV === 'development') {
-    console.log("🛠️ LOCAL MODE DETECTED: Bypassing R2 and saving Base64 directly.");
+    console.log("🛠️ LOCAL MODE: Bypassing R2. Saving Base64 directly to local database.");
     return base64String; 
   }
 
   try {
-    // 1. Strip the "data:image/jpeg;base64," prefix
+    // 1. Strip the prefix
     const base64Data = base64String.replace(/^data:image\/\w+;base64,/, "");
-    // 2. Convert to a Buffer
+    // 2. Convert to Buffer
     const buffer = Buffer.from(base64Data, 'base64');
+
+    console.log(`⏳ Uploading ${filename} to Cloudflare R2...`);
 
     // 3. Upload to Cloudflare R2
     await S3.send(new PutObjectCommand({
@@ -647,10 +654,13 @@ async function uploadToR2(base64String, filename) {
 
     // 4. Return the Cloudflare Public URL
     const publicUrl = `${process.env.R2_PUBLIC_URL}/${filename}`;
+    console.log("✅ SUCCESS! Uploaded to:", publicUrl);
+    
     return publicUrl;
 
   } catch (err) {
-    console.error("Cloudflare R2 Upload Error:", err);
+    console.error("🚨 CLOUDFLARE R2 UPLOAD FAILED! Reason:");
+    console.error(err.message);
     return null; 
   }
 }
@@ -766,27 +776,24 @@ export async function POST(request) {
 
     const cleanOrderAmt = parseFloat(orderAmount) || 0;
     const cleanCollectionAmt = parseFloat(collectionAmount) || 0;
-
-    // ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
     // CLOUDFLARE R2 UPLOAD INTERCEPTOR
     // ─────────────────────────────────────────────────────────
-    const incomingBaseline = photoUrl || null;
+    // We only care about the crushed (smallest) photo to save space!
     const incomingCrushed = photoUrlCrushed || photoUrl || null;
     
-    let finalBaselineUrl = null;
+    let finalBaselineUrl = null; 
     let finalCrushedUrl = null;
     const timestamp = Date.now();
 
-    if (incomingBaseline && incomingBaseline.length > 1000) {
-      const filename = `baseline_${cleanTargetId}_${timestamp}.jpg`;
-      finalBaselineUrl = await uploadToR2(incomingBaseline, filename);
-    }
-    
+    // 🚨 Only upload the tiny, compressed image!
     if (incomingCrushed && incomingCrushed.length > 1000) {
       const filename = `visit_${cleanTargetId}_${timestamp}.jpg`;
       finalCrushedUrl = await uploadToR2(incomingCrushed, filename);
+      
+      // Assign the same URL to both database columns so nothing breaks
+      finalBaselineUrl = finalCrushedUrl; 
     }
-
     // ─────────────────────────────────────────────────────────
     // ACTION 1: DRIZZLE INSERT (Log the Visit History)
     // ─────────────────────────────────────────────────────────
