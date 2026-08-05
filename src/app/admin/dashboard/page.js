@@ -55,7 +55,7 @@ export default function AdminDashboard() {
 
   const handleLogout = () => router.push('/');
 
-  const fetchTeamData = async () => {
+const fetchTeamData = async () => {
     setIsLoadingTeam(true);
     try {
       const res  = await fetch('/api/admin/agents');
@@ -65,6 +65,10 @@ export default function AdminDashboard() {
     finally { setIsLoadingTeam(false); }
   };
 
+  // 🚨 THE FIX: Add this useEffect to actually run the function on page load!
+  useEffect(() => {
+    fetchTeamData();
+  }, []);
 
 
   const resetMsg = () => setSubmitMessage({ type: '', text: '' });
