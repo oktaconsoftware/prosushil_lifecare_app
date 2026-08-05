@@ -1995,7 +1995,7 @@ export default function TerritoryTab({
     verifyGeofence(file);
   };
 
-  const verifyGeofence = (file) => {
+const verifyGeofence = (file) => {
     if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
       toast.error("GPS requires a secure HTTPS connection.");
       setIsLocating(false);
@@ -2007,12 +2007,10 @@ export default function TerritoryTab({
       let closestVerifiedShop = null;
       let minVerifiedDistance = Infinity;
 
-      // 🚨 FLAWLESS LOGIC 1: Calculate distances for ALL active targets
       let processedShops = activeTargets.map(s => {
         const hasGps = Boolean(s.latitude && s.longitude && s.latitude !== "null" && s.longitude !== "null");
         let dist = hasGps ? getDistance(lat, lng, Number(s.latitude), Number(s.longitude)) : 999999;
         
-        // Track the absolutely closest VERIFIED shop
         if (s.isVerified && hasGps && dist < minVerifiedDistance) {
           minVerifiedDistance = dist;
           closestVerifiedShop = s;
@@ -2021,28 +2019,20 @@ export default function TerritoryTab({
         return { ...s, isNewAnchor: !hasGps, distance: dist };
       });
       
-// 🚨 FLAWLESS LOGIC 2: Stop hiding shops! 
-
       let availableOptions = processedShops;
-      // 🚨 FLAWLESS LOGIC 3: Auto-Select the closest verified shop
       let autoSelectId = "";
       if (closestVerifiedShop && minVerifiedDistance <= GEOFENCE_RADIUS_METERS) {
         autoSelectId = closestVerifiedShop.id.toString();
       }
 
-      // 🚨 FLAWLESS LOGIC 4: Sort Dropdown for perfect UX
       availableOptions.sort((a, b) => {
-         // Put auto-selected shop at the absolute top
          if (autoSelectId) {
            if (a.id.toString() === autoSelectId) return -1;
            if (b.id.toString() === autoSelectId) return 1;
          }
-         // Group Verified shops first, then Unverified
          if (a.isVerified && !b.isVerified) return -1;
          if (!a.isVerified && b.isVerified) return 1;
-         // Sort Verified shops by distance
          if (a.isVerified && b.isVerified) return a.distance - b.distance;
-         // Sort Unverified shops alphabetically
          return a.name.localeCompare(b.name);
       });
 
@@ -2059,12 +2049,13 @@ export default function TerritoryTab({
         console.warn("Could not fetch street address", err);
       }
 
-      const img = new Image();
-      img.onload = () => {
+      // 🚨 FIX: Use document.createElement('img') to avoid Next.js Image component collision!
+      const imgObj = document.createElement('img');
+      imgObj.onload = () => {
         const MAX_WIDTH = 500;
         const MAX_HEIGHT = 500;
-        let width = img.width;
-        let height = img.height;
+        let width = imgObj.width;
+        let height = imgObj.height;
 
         if (width > height) {
           if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
@@ -2079,7 +2070,7 @@ export default function TerritoryTab({
         
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, width, height);
-        ctx.drawImage(img, 0, 0, width, height);
+        ctx.drawImage(imgObj, 0, 0, width, height);
 
         ctx.fillStyle = 'rgba(10, 15, 26, 0.85)';
         ctx.fillRect(0, height - 70, width, 70);
@@ -2120,13 +2111,11 @@ export default function TerritoryTab({
         setLocalPhotoCrushed(crushedPhoto);
         if (setPhotoUri) setPhotoUri(standardPhoto);
         
-        URL.revokeObjectURL(img.src);
+        URL.revokeObjectURL(imgObj.src);
         if (fileInputRef.current) fileInputRef.current.value = '';
         
         setLocation({ lat, lng });
         setNearbyShops(availableOptions);
-        
-        // 🚨 FLAWLESS LOGIC: Instantly auto-selects if a match is found!
         setSelectedShopId(autoSelectId);
         
         setIsLocating(false);
@@ -2139,7 +2128,7 @@ export default function TerritoryTab({
         }
       };
       
-      img.src = URL.createObjectURL(file);
+      imgObj.src = URL.createObjectURL(file);
     };
 
     if (!navigator.geolocation) {
@@ -2158,7 +2147,6 @@ export default function TerritoryTab({
       }
     }, 10000);
 
-    // Get a FRESH, LIVE GPS coordinate every single time
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         if (isResolved) return;
@@ -2180,7 +2168,7 @@ export default function TerritoryTab({
       },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     );
-  }; 
+  };
 
   const handleSubmitVisit = async (e) => {
     e.preventDefault();
