@@ -2569,7 +2569,7 @@ const verifyGeofence = (file) => {
                                     : 'hover:bg-slate-50'
                                 }`}
                               >
-                                <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
+                                {/* <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
                                   {!shop.isVerified && (
                                     <span className="shrink-0 text-[#fc2666] text-[10px] font-bold px-1.5 py-0.5 rounded-md border border-[#fc2666]/30 bg-[#fc2666]/10">
                                       UNVERIFIED
@@ -2586,13 +2586,35 @@ const verifyGeofence = (file) => {
                                       </span>
                                     )}
                                   </div>
-                                </div>
-                                
-                                {shop.isVerified && shop.distance !== undefined && shop.distance < 999999 && (
+                                </div> */}
+
+                                <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
+                                <div className="truncate flex-1 min-w-0 text-left flex items-center gap-2">
+                                  
+                                  {/* 1. The Color-Coded Place Name Badge FIRST */}
+                                  {(shop.placeName || shop.place) && (
+                                    <span className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-xl border ${
+                                      shop.isVerified 
+                                        ? 'bg-[#97C22A]/10 text-[#5C7A1A] border-[#97C22A]/20' // 🟢 Light Green for Verified
+                                        : 'bg-red-50 text-red-500 border-red-100'              // 🔴 Light Red for Unverified
+                                    }`}>
+                                      {shop.placeName || shop.place}
+                                    </span>
+                                  )}
+
+                                  {/* 2. The Shop Name SECOND */}
+                                  <span className={`text-[14px] font-semibold truncate ${isSelected ? 'text-[#5C7A1A]' : 'text-slate-700'}`}>
+                                    {shop.name} {shop.isVerified && shop.distance !== undefined && shop.distance < 999999 && (
                                   <span className={`text-[12px] font-medium shrink-0 ${isSelected ? 'text-[#5C7A1A]' : 'text-slate-400'}`}>
-                                    {shop.distance.toFixed(0)}m
+                                     ( {shop.distance.toFixed(0)} meters )
                                   </span>
                                 )}
+                                  </span>
+                                  
+                                </div>
+                              </div>
+                                                              
+                                
                               </button>
                             );
                           })
