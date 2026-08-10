@@ -72,10 +72,45 @@ export default function SalesDashboard() {
     fetchInitialData();
   }, [fetchInitialData]);
 
+// 🚨 1. THE NUCLEAR LOGOUT FUNCTION (Keep this exactly the same)
   const handleLogout = () => {
-    localStorage.removeItem('employeeId');
-    router.push('/');
+    localStorage.clear();
+    sessionStorage.clear();
+    document.cookie = "employeeId=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    document.cookie = "userRole=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    window.location.href = '/'; 
   };
+
+  // 🚨 2. STRICT 8-HOUR SHIFT TIMER
+  useEffect(() => {
+    // 8 hours in milliseconds (8 hours * 60 mins * 60 secs * 1000)
+    const SHIFT_LIMIT = 8 * 60 * 60 * 1000; 
+    
+    // Fetch the exact time they logged in from local storage
+    const loginTime = localStorage.getItem('loginTimestamp');
+    
+    if (!loginTime) {
+      // If for some reason the timestamp is missing, log them out for safety
+      handleLogout();
+      return;
+    }
+
+    // Calculate how much time they have been logged in
+    const timeElapsed = Date.now() - parseInt(loginTime, 10);
+    const timeLeft = SHIFT_LIMIT - timeElapsed;
+
+    if (timeLeft <= 0) {
+      // If their 8 hours are already up, kick them out instantly
+      handleLogout();
+    } else {
+      // Otherwise, set a strict timer for the EXACT time remaining.
+      // Unlike the old timer, moving the mouse will NOT reset this!
+      const timeoutId = setTimeout(handleLogout, timeLeft);
+      
+      // Cleanup if they navigate away
+      return () => clearTimeout(timeoutId);
+    }
+  }, []);
 
   return (
     <div className="flex h-[100dvh] w-full top-0 overflow-hidden font-sans" style={{ background: '#f1f5f9' }}>

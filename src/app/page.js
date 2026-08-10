@@ -523,7 +523,7 @@
 
 
 'use client';
-import { useState } from 'react';
+import { useState , useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
@@ -533,6 +533,19 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // 🚨 THE "CLEAN SLATE" WIPE
+  useEffect(() => {
+   // Keep localStorage for your frontend components to use
+      localStorage.setItem('employeeId', username); 
+      localStorage.setItem('userRole', data.role);
+      // 🚨 NEW: Save the exact millisecond they logged in
+      localStorage.setItem('loginTimestamp', Date.now().toString()); 
+      
+      // 🚨 UPDATED: Set Cookies to expire in exactly 8 hours (8 * 60 * 60 = 28800)
+      document.cookie = `employeeId=${username}; path=/; max-age=28800; SameSite=Strict`;
+      document.cookie = `userRole=${data.role}; path=/; max-age=28800; SameSite=Strict`;
+  }, [])
 
   const handleLogin = async (e) => {
     e.preventDefault();
