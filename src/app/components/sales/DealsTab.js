@@ -293,41 +293,305 @@
 //     </div>
 //   );
 // }
+
+
+// 'use client';
+// import { useState, useEffect } from 'react';
+
+// export default function DealsTab() {
+//   const [selectedArea, setSelectedArea] = useState('');
+//   const [isMounted, setIsMounted] = useState(false);
+//   const [routeData, setRouteData] = useState([]);
+//   const [isLoading, setIsLoading] = useState(false);
+
+//   const todayDate = new Date().toLocaleDateString('en-IN', {
+//     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
+//   });
+
+//   // 1. Listen for Area Selection
+//   useEffect(() => {
+//     setIsMounted(true);
+//     const checkSelectedArea = () => {
+//       const savedArea = localStorage.getItem('assignedSalesArea');
+//       if (savedArea && savedArea !== selectedArea) {
+//         setSelectedArea(savedArea);
+//       }
+//     };
+//     checkSelectedArea();
+//     const interval = setInterval(checkSelectedArea, 500);
+//     return () => clearInterval(interval);
+//   }, [selectedArea]);
+
+//   // 🚨 2. FETCH LIVE DATA FROM OUR NEW API
+//   useEffect(() => {
+//     if (!selectedArea) return;
+    
+//     const fetchDeals = async () => {
+//       setIsLoading(true);
+//       try {
+//         const res = await fetch(`/api/sales/deals?area=${encodeURIComponent(selectedArea)}`);
+//         if (res.ok) {
+//           const data = await res.json();
+//           setRouteData(data);
+//         }
+//       } catch (err) {
+//         console.error("Failed to load deals", err);
+//       } finally {
+//         setIsLoading(false);
+//       }
+//     };
+
+//     fetchDeals();
+//   }, [selectedArea]);
+
+//   // 3. Process the Data
+//   const completedDeals = routeData.filter((shop) => shop.status === 'COMPLETED');
+//   const pendingShops = routeData.filter((shop) => shop.status !== 'COMPLETED');
+
+//   const completedCount = completedDeals.length;
+//   const totalCount = routeData.length;
+  
+//   const totalPipeline = completedDeals.reduce((sum, shop) => sum + (shop.orderAmount || 0), 0);
+//   const totalCollection = completedDeals.reduce((sum, shop) => sum + (shop.collectionAmount || 0), 0);
+
+//   // Group Payments Dynamically
+//   const paymentBreakdown = completedDeals.reduce((acc, shop) => {
+//     const amt = shop.collectionAmount || 0;
+//     if (amt > 0) {
+//       const method = shop.paymentMethod || 'Unknown';
+//       if (!acc[method]) acc[method] = 0;
+//       acc[method] += amt;
+//     }
+//     return acc;
+//   }, {});
+
+//   if (!isMounted) return null;
+
+//   return (
+//     <div className="flex-1 overflow-y-auto bg-[#F4F6F8]" style={{ WebkitOverflowScrolling: 'touch' }}>
+
+//       {/* ── STICKY HEADER ── */}
+//       <div className="sticky top-0 z-30 bg-white/90 backdrop-blur-md px-5 py-3.5 flex items-center justify-between border-b border-slate-200/60 shadow-sm">
+//         <div>
+//           <p className="text-[11px] font-bold tracking-widest uppercase text-slate-400 mb-0.5">{todayDate}</p>
+//           <p className="text-[16px] font-extrabold text-slate-800 leading-none truncate max-w-[200px]">
+//             {selectedArea || 'No Area Selected'}
+//           </p>
+//         </div>
+//         <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 bg-[#97C22A]/10 border border-[#97C22A]/20 shrink-0">
+//           <div className="w-1.5 h-1.5 rounded-full animate-pulse bg-[#97C22A]" />
+//           <span className="text-[10px] font-bold text-[#5c7a1a] uppercase tracking-wider">Live</span>
+//         </div>
+//       </div>
+
+//       <div className="w-full px-4 pt-5 pb-28 space-y-4 max-w-lg mx-auto">
+
+//         {/* ── HERO DASHBOARD CARD ── */}
+//         <div className="bg-[#0A0F1A] rounded-3xl p-6 relative overflow-hidden shadow-xl">
+//           <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-[#97C22A] blur-[70px] opacity-20 pointer-events-none" />
+        
+//           <div className="relative z-10">
+//             <div className="flex justify-between items-end mb-6">
+//               <div>
+//                 <p className="text-[11px] font-bold tracking-widest uppercase text-slate-400 mb-1.5">Today's Sales</p>
+//                 <p className="text-3xl font-black text-white leading-none tracking-tight">
+//                   ₹{totalPipeline.toLocaleString('en-IN')}
+//                 </p>
+//               </div>
+//               <div className="text-right">
+//                 <p className="text-[11px] font-bold tracking-widest uppercase text-[#97C22A] mb-1.5">Collected</p>
+//                 <p className="text-xl font-bold text-[#97C22A] leading-none">
+//                   ₹{totalCollection.toLocaleString('en-IN')}
+//                 </p>
+//               </div>
+//             </div>
+
+//             <div className="flex items-center justify-between bg-white/5 rounded-2xl p-3.5 border border-white/10">
+//               <div className="text-center flex-1">
+//                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Visited</p>
+//                 <p className="text-[14px] font-bold text-white leading-none">
+//                   {completedCount} <span className="text-slate-500 text-[11px]">/ {totalCount}</span>
+//                 </p>
+//               </div>
+//               <div className="w-px h-6 bg-white/10" />
+//               <div className="text-center flex-1">
+//                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Avg Order</p>
+//                 <p className="text-[14px] font-bold text-white leading-none">
+//                   ₹{completedCount > 0 ? Math.round(totalPipeline / completedCount).toLocaleString('en-IN') : 0}
+//                 </p>
+//               </div>
+//             </div>
+
+//             {/* Dynamic Payment Method Row */}
+//             {Object.keys(paymentBreakdown).length > 0 && (
+//               <div className="mt-5">
+//                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2.5">Collection Methods</p>
+//                 <div className="flex overflow-x-auto gap-2.5 pb-1 custom-scrollbar hide-scroll-indicator">
+//                   {Object.entries(paymentBreakdown).map(([method, amount]) => (
+//                     <div key={method} className="bg-white/10 border border-white/10 rounded-xl px-3.5 py-2 shrink-0 flex flex-col justify-center">
+//                       <p className="text-[10px] font-semibold text-slate-300 mb-0.5">{method}</p>
+//                       <p className="text-[13px] font-bold text-white tracking-tight">₹{amount.toLocaleString('en-IN')}</p>
+//                     </div>
+//                   ))}
+//                 </div>
+//               </div>
+//             )}
+//           </div>
+//         </div>
+
+//         {/* ── SHOP LIST ── */}
+//         <div>
+//           <div className="flex items-center justify-between px-2 mb-3">
+//             <h3 className="text-[13px] font-bold tracking-widest uppercase text-slate-500">Route List</h3>
+//             <span className="text-[12px] font-bold text-slate-400 bg-slate-200 px-2 py-0.5 rounded-lg">{totalCount} Shops</span>
+//           </div>
+
+//           {isLoading ? (
+//              <div className="bg-white rounded-3xl py-12 flex flex-col items-center text-center border border-slate-200 shadow-sm">
+//                 <div className="w-8 h-8 border-4 border-slate-200 border-t-[#97c22a] rounded-full animate-spin mb-3"></div>
+//                 <p className="text-[13px] font-bold text-slate-800">Syncing with Database...</p>
+//              </div>
+//           ) : totalCount === 0 ? (
+//             <div className="bg-white rounded-3xl py-12 flex flex-col items-center text-center px-6 border border-slate-200 shadow-sm">
+//               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-4 border border-slate-200">
+//                 <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+//                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+//                 </svg>
+//               </div>
+//               <p className="text-[15px] font-bold text-slate-800 mb-1">No shops assigned</p>
+//               <p className="text-[13px] font-medium text-slate-500 leading-relaxed max-w-[250px]">
+//                 Please select a working area in the Territory Tab to see your shops.
+//               </p>
+//             </div>
+//           ) : (
+//             <div className="space-y-3">
+//               {completedDeals.map((shop, idx) => (
+//                 <DealRow key={`completed-${shop.id || idx}`} shop={shop} isCompleted={true} />
+//               ))}
+//               {pendingShops.map((shop, idx) => (
+//                 <DealRow key={`pending-${shop.id || idx}`} shop={shop} isCompleted={false} />
+//               ))}
+//             </div>
+//           )}
+//         </div>
+
+//       </div>
+//     </div>
+//   );
+// }
+
+// // ── MOBILE-OPTIMIZED DEAL ROW COMPONENT ──
+// function DealRow({ shop, isCompleted }) {
+//   return (
+//     <div className={`bg-white rounded-3xl p-4 shadow-sm border transition-all ${
+//       isCompleted ? 'border-[#97C22A]/30' : 'border-slate-200/70'
+//     }`}>
+      
+//       <div className="flex justify-between items-start mb-3.5">
+//         <div className="flex items-center gap-3">
+//           <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 border ${
+//             isCompleted ? 'bg-[#97C22A]/10 border-[#97C22A]/20' : 'bg-slate-50 border-slate-200'
+//           }`}>
+//             {isCompleted ? (
+//               <svg className="w-5 h-5 text-[#73961b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+//               </svg>
+//             ) : (
+//               <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+//               </svg>
+//             )}
+//           </div>
+//           <div>
+//             <h4 className={`text-[15px] font-bold leading-tight ${isCompleted ? 'text-slate-900' : 'text-slate-600'}`}>
+//               {shop.name}
+//             </h4>
+//             {isCompleted ? (
+//               <p className="text-[11px] font-semibold text-slate-400 mt-0.5">Visited at {shop.time}</p>
+//             ) : (
+//               <p className="text-[11px] font-medium text-slate-400 mt-0.5 truncate max-w-[180px]">
+//                 {shop.address || 'Pending Visit'}
+//               </p>
+//             )}
+//           </div>
+//         </div>
+        
+//         {isCompleted ? (
+//           <span className="bg-[#97C22A] text-[#0a0f1c] text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg shrink-0 shadow-sm">
+//             Visited
+//           </span>
+//         ) : (
+//           <span className="bg-slate-100 text-slate-500 border border-slate-200 text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-lg shrink-0">
+//             Pending
+//           </span>
+//         )}
+//       </div>
+
+//       {isCompleted && (
+//         <div className="bg-[#F8FAFC] rounded-2xl p-3 border border-slate-100 flex items-center justify-between">
+//           <div>
+//             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Sales Generated</p>
+//             <p className="text-[15px] font-bold text-slate-800 leading-none">
+//               ₹{shop.orderAmount.toLocaleString('en-IN')}
+//             </p>
+//           </div>
+          
+//           <div className="w-px h-8 bg-slate-200 mx-3" />
+          
+//           <div className="text-right">
+//             <p className="text-[9px] font-bold text-[#5c7a1a] uppercase tracking-widest mb-1 flex items-center justify-end gap-1">
+//               Collected <span className="lowercase font-semibold bg-[#97c22a]/20 px-1 py-0.5 rounded text-[8px] ml-1">{shop.paymentMethod}</span>
+//             </p>
+//             <p className="text-[15px] font-bold text-[#73961b] leading-none">
+//               ₹{shop.collectionAmount.toLocaleString('en-IN')}
+//             </p>
+//           </div>
+//         </div>
+//       )}
+
+//     </div>
+//   );
+// }
+
+
+
+
 'use client';
 import { useState, useEffect } from 'react';
 
+// Force the default date to Indian Standard Time (IST)
+const getTodayIST = () => {
+  const d = new Date();
+  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' });
+  return formatter.format(d); // Returns YYYY-MM-DD
+};
+
 export default function DealsTab() {
-  const [selectedArea, setSelectedArea] = useState('');
   const [isMounted, setIsMounted] = useState(false);
   const [routeData, setRouteData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // 🚨 NEW: State for Date and Agent ID
+  const [date, setDate] = useState(getTodayIST());
+  const [agentId, setAgentId] = useState('');
 
-  const todayDate = new Date().toLocaleDateString('en-IN', {
-    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
-  });
-
-  // 1. Listen for Area Selection
+  // 1. Get the Agent ID on mount
   useEffect(() => {
     setIsMounted(true);
-    const checkSelectedArea = () => {
-      const savedArea = localStorage.getItem('assignedSalesArea');
-      if (savedArea && savedArea !== selectedArea) {
-        setSelectedArea(savedArea);
-      }
-    };
-    checkSelectedArea();
-    const interval = setInterval(checkSelectedArea, 500);
-    return () => clearInterval(interval);
-  }, [selectedArea]);
+    const savedAgentId = localStorage.getItem('employeeId');
+    if (savedAgentId) setAgentId(savedAgentId);
+  }, []);
 
-  // 🚨 2. FETCH LIVE DATA FROM OUR NEW API
+  // 🚨 2. FETCH LIVE DATA BY DATE AND AGENT
   useEffect(() => {
-    if (!selectedArea) return;
+    if (!agentId || !date) return;
     
     const fetchDeals = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch(`/api/sales/deals?area=${encodeURIComponent(selectedArea)}`);
+        // Fetch specific to the agent and the selected date!
+        const res = await fetch(`/api/sales/deals?agentId=${agentId}&date=${date}&t=${Date.now()}`);
         if (res.ok) {
           const data = await res.json();
           setRouteData(data);
@@ -340,14 +604,11 @@ export default function DealsTab() {
     };
 
     fetchDeals();
-  }, [selectedArea]);
+  }, [agentId, date]); // Auto-re-fetches if they change the date!
 
   // 3. Process the Data
-  const completedDeals = routeData.filter((shop) => shop.status === 'COMPLETED');
-  const pendingShops = routeData.filter((shop) => shop.status !== 'COMPLETED');
-
+  const completedDeals = routeData; // Everything fetched is a completed visit
   const completedCount = completedDeals.length;
-  const totalCount = routeData.length;
   
   const totalPipeline = completedDeals.reduce((sum, shop) => sum + (shop.orderAmount || 0), 0);
   const totalCollection = completedDeals.reduce((sum, shop) => sum + (shop.collectionAmount || 0), 0);
@@ -368,17 +629,25 @@ export default function DealsTab() {
   return (
     <div className="flex-1 overflow-y-auto bg-[#F4F6F8]" style={{ WebkitOverflowScrolling: 'touch' }}>
 
-      {/* ── STICKY HEADER ── */}
+      {/* ── STICKY HEADER WITH DATE PICKER ── */}
       <div className="sticky top-0 z-30 bg-white/90 backdrop-blur-md px-5 py-3.5 flex items-center justify-between border-b border-slate-200/60 shadow-sm">
         <div>
-          <p className="text-[11px] font-bold tracking-widest uppercase text-slate-400 mb-0.5">{todayDate}</p>
-          <p className="text-[16px] font-extrabold text-slate-800 leading-none truncate max-w-[200px]">
-            {selectedArea || 'No Area Selected'}
+          {/* 🚨 NATIVE DATE PICKER */}
+          <input 
+            type="date" 
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="text-[11px] font-bold tracking-widest uppercase text-slate-500 bg-transparent outline-none cursor-pointer border-b border-slate-200 hover:text-slate-700 transition-colors"
+          />
+          <p className="text-[16px] font-extrabold text-slate-800 leading-none truncate max-w-[200px] mt-1">
+            Daily Ledger
           </p>
         </div>
         <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 bg-[#97C22A]/10 border border-[#97C22A]/20 shrink-0">
           <div className="w-1.5 h-1.5 rounded-full animate-pulse bg-[#97C22A]" />
-          <span className="text-[10px] font-bold text-[#5c7a1a] uppercase tracking-wider">Live</span>
+          <span className="text-[10px] font-bold text-[#5c7a1a] uppercase tracking-wider">
+            {date === getTodayIST() ? 'Live' : 'Archived'}
+          </span>
         </div>
       </div>
 
@@ -391,7 +660,7 @@ export default function DealsTab() {
           <div className="relative z-10">
             <div className="flex justify-between items-end mb-6">
               <div>
-                <p className="text-[11px] font-bold tracking-widest uppercase text-slate-400 mb-1.5">Today's Sales</p>
+                <p className="text-[11px] font-bold tracking-widest uppercase text-slate-400 mb-1.5">Total Sales</p>
                 <p className="text-3xl font-black text-white leading-none tracking-tight">
                   ₹{totalPipeline.toLocaleString('en-IN')}
                 </p>
@@ -408,7 +677,7 @@ export default function DealsTab() {
               <div className="text-center flex-1">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Visited</p>
                 <p className="text-[14px] font-bold text-white leading-none">
-                  {completedCount} <span className="text-slate-500 text-[11px]">/ {totalCount}</span>
+                  {completedCount} Shops
                 </p>
               </div>
               <div className="w-px h-6 bg-white/10" />
@@ -440,35 +709,31 @@ export default function DealsTab() {
         {/* ── SHOP LIST ── */}
         <div>
           <div className="flex items-center justify-between px-2 mb-3">
-            <h3 className="text-[13px] font-bold tracking-widest uppercase text-slate-500">Route List</h3>
-            <span className="text-[12px] font-bold text-slate-400 bg-slate-200 px-2 py-0.5 rounded-lg">{totalCount} Shops</span>
+            <h3 className="text-[13px] font-bold tracking-widest uppercase text-slate-500">Chronological Ledger</h3>
+            <span className="text-[12px] font-bold text-slate-400 bg-slate-200 px-2 py-0.5 rounded-lg">{completedCount} Visits</span>
           </div>
 
           {isLoading ? (
              <div className="bg-white rounded-3xl py-12 flex flex-col items-center text-center border border-slate-200 shadow-sm">
                 <div className="w-8 h-8 border-4 border-slate-200 border-t-[#97c22a] rounded-full animate-spin mb-3"></div>
-                <p className="text-[13px] font-bold text-slate-800">Syncing with Database...</p>
+                <p className="text-[13px] font-bold text-slate-800">Fetching records...</p>
              </div>
-          ) : totalCount === 0 ? (
+          ) : completedCount === 0 ? (
             <div className="bg-white rounded-3xl py-12 flex flex-col items-center text-center px-6 border border-slate-200 shadow-sm">
               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-4 border border-slate-200">
                 <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <p className="text-[15px] font-bold text-slate-800 mb-1">No shops assigned</p>
+              <p className="text-[15px] font-bold text-slate-800 mb-1">No deals found</p>
               <p className="text-[13px] font-medium text-slate-500 leading-relaxed max-w-[250px]">
-                Please select a working area in the Territory Tab to see your shops.
+                You did not log any visits or sales on this date.
               </p>
             </div>
           ) : (
             <div className="space-y-3">
               {completedDeals.map((shop, idx) => (
                 <DealRow key={`completed-${shop.id || idx}`} shop={shop} isCompleted={true} />
-              ))}
-              {pendingShops.map((shop, idx) => (
-                <DealRow key={`pending-${shop.id || idx}`} shop={shop} isCompleted={false} />
               ))}
             </div>
           )}
@@ -491,62 +756,42 @@ function DealRow({ shop, isCompleted }) {
           <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 border ${
             isCompleted ? 'bg-[#97C22A]/10 border-[#97C22A]/20' : 'bg-slate-50 border-slate-200'
           }`}>
-            {isCompleted ? (
-              <svg className="w-5 h-5 text-[#73961b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            )}
+            <svg className="w-5 h-5 text-[#73961b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+            </svg>
           </div>
           <div>
-            <h4 className={`text-[15px] font-bold leading-tight ${isCompleted ? 'text-slate-900' : 'text-slate-600'}`}>
+            <h4 className="text-[15px] font-bold leading-tight text-slate-900">
               {shop.name}
             </h4>
-            {isCompleted ? (
-              <p className="text-[11px] font-semibold text-slate-400 mt-0.5">Visited at {shop.time}</p>
-            ) : (
-              <p className="text-[11px] font-medium text-slate-400 mt-0.5 truncate max-w-[180px]">
-                {shop.address || 'Pending Visit'}
-              </p>
-            )}
+            <p className="text-[11px] font-semibold text-slate-400 mt-0.5">Visited at {shop.time}</p>
           </div>
         </div>
         
-        {isCompleted ? (
-          <span className="bg-[#97C22A] text-[#0a0f1c] text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg shrink-0 shadow-sm">
-            Visited
-          </span>
-        ) : (
-          <span className="bg-slate-100 text-slate-500 border border-slate-200 text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-lg shrink-0">
-            Pending
-          </span>
-        )}
+        <span className="bg-[#97C22A] text-[#0a0f1c] text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg shrink-0 shadow-sm">
+          Visited
+        </span>
       </div>
 
-      {isCompleted && (
-        <div className="bg-[#F8FAFC] rounded-2xl p-3 border border-slate-100 flex items-center justify-between">
-          <div>
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Sales Generated</p>
-            <p className="text-[15px] font-bold text-slate-800 leading-none">
-              ₹{shop.orderAmount.toLocaleString('en-IN')}
-            </p>
-          </div>
-          
-          <div className="w-px h-8 bg-slate-200 mx-3" />
-          
-          <div className="text-right">
-            <p className="text-[9px] font-bold text-[#5c7a1a] uppercase tracking-widest mb-1 flex items-center justify-end gap-1">
-              Collected <span className="lowercase font-semibold bg-[#97c22a]/20 px-1 py-0.5 rounded text-[8px] ml-1">{shop.paymentMethod}</span>
-            </p>
-            <p className="text-[15px] font-bold text-[#73961b] leading-none">
-              ₹{shop.collectionAmount.toLocaleString('en-IN')}
-            </p>
-          </div>
+      <div className="bg-[#F8FAFC] rounded-2xl p-3 border border-slate-100 flex items-center justify-between">
+        <div>
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Sales Generated</p>
+          <p className="text-[15px] font-bold text-slate-800 leading-none">
+            ₹{shop.orderAmount.toLocaleString('en-IN')}
+          </p>
         </div>
-      )}
+        
+        <div className="w-px h-8 bg-slate-200 mx-3" />
+        
+        <div className="text-right">
+          <p className="text-[9px] font-bold text-[#5c7a1a] uppercase tracking-widest mb-1 flex items-center justify-end gap-1">
+            Collected <span className="lowercase font-semibold bg-[#97c22a]/20 px-1 py-0.5 rounded text-[8px] ml-1">{shop.paymentMethod}</span>
+          </p>
+          <p className="text-[15px] font-bold text-[#73961b] leading-none">
+            ₹{shop.collectionAmount.toLocaleString('en-IN')}
+          </p>
+        </div>
+      </div>
 
     </div>
   );
