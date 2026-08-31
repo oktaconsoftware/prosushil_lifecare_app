@@ -1889,7 +1889,7 @@ export default function TerritoryTab({
   const dropdownRef = useRef(null);
 
   // 🚨 STANDARD RADIUS FOR INDIAN MARKETS
-  const GEOFENCE_RADIUS_METERS = 60; 
+  const GEOFENCE_RADIUS_METERS = 500; 
 
   const [formData, setFormData] = useState({
     orderAmount: '',
