@@ -934,7 +934,7 @@ export default function TerritoryTab({
   const dropdownRef = useRef(null);
 
   // 🚨 STANDARD RADIUS FOR INDIAN MARKETS
-  const GEOFENCE_RADIUS_METERS = 500; 
+  const GEOFENCE_RADIUS_METERS = 60; 
 
   const [formData, setFormData] = useState({
     orderAmount: '',
@@ -1738,7 +1738,14 @@ const verifyGeofence = (file) => {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg> 
                   GPS Verified
                 </p>
-               <button 
+                {/* <button 
+                  onClick={() => setStep('camera')} 
+                  className="text-[12px] font-semibold text-slate-400 mt-1 underline underline-offset-2 active:text-slate-600 transition-colors"
+                >
+                  Retake photo
+                </button> */}
+
+                <button 
                   type="button"
                   onClick={() => {
                     // 🚨 Wipes all memory so it behaves like a fresh page load
