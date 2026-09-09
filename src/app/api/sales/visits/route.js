@@ -1,11 +1,13 @@
 
+
+
 // export const dynamic = 'force-dynamic'; 
 // export const revalidate = 60; 
 
 // import { NextResponse } from 'next/server';
 // import { db } from '../../../../db';
 // import { medicalShops, places, areas, visits } from '../../../../db/schema';
-// import { eq, desc } from 'drizzle-orm'; 
+// import { eq, desc, and, gte } from 'drizzle-orm';
 // import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 // const S3 = new S3Client({
 //   region: "auto",
@@ -77,16 +79,35 @@
 
 //     if (!agentId) return NextResponse.json({ error: 'Missing agent ID' }, { status: 400 });
 
-//     const agentVisits = await db.select().from(visits).where(eq(visits.agentId, agentId)).orderBy(desc(visits.createdAt)); 
+//     // 🚨 EGRESS FIX 1: Calculate the timestamp for 24 hours ago
+//     const yesterday = new Date();
+//     yesterday.setHours(yesterday.getHours() - 24);
+
+//     // 🚨 EGRESS FIX 2: Fetch ONLY the last 24 hours of visits, and ONLY needed columns
+//     const agentVisits = await db.select({
+//       medicalShopId: visits.medicalShopId,
+//       createdAt: visits.createdAt,
+//       orderAmount: visits.orderAmount,
+//       paymentMethod: visits.paymentMethod
+//       // Notice we exclude photoUrl and remark to save massive bandwidth
+//     })
+//     .from(visits)
+//     .where(
+//       and(
+//         eq(visits.agentId, agentId),
+//         gte(visits.createdAt, yesterday) // Restrict to recent visits only
+//       )
+//     )
+//     .orderBy(desc(visits.createdAt)); 
+
 //     const masterAreas = await db.select({ id: areas.id, name: areas.name }).from(areas);
 
+//     // 🚨 EGRESS FIX 3: Drop 'photoUrl' and unused columns from the massive Shops payload
 //     const allTargets = await db.select({
 //       id: medicalShops.id,
 //       name: medicalShops.name,
-//       address: medicalShops.address,
 //       latitude: medicalShops.latitude,
 //       longitude: medicalShops.longitude,
-//       photoUrl: medicalShops.photoUrl,
 //       isVerified: medicalShops.isVerified,
 //       placeName: places.name,
 //       areaName: areas.name
@@ -103,7 +124,7 @@
       
 //       let status = 'PENDING';
 //       let lastVisitedLabel = 'Never Visited';
-//       let todayCollection= 0;
+//       let todayCollection = 0;
 //       let todayOrder = 0;
 
 //       if (latestVisit && latestVisit.createdAt) {
@@ -114,7 +135,7 @@
 //             status = 'COMPLETED';
 //             const timeString = vDate.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
 //             lastVisitedLabel = `Visited today at ${timeString}`;
-//             todayCollection= 0; 
+//             todayCollection = 0; 
 //             todayOrder = Number(latestVisit.orderAmount) || 0;
 //           } else {
 //             const dateString = vDate.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' });
@@ -137,7 +158,6 @@
 //       };
 //     });
 
-//     // 🚨 EGRESS FIX: Allows the browser to cache this data for 60 seconds
 //     return NextResponse.json({ targets: formattedTargets, masterAreas: masterAreas }, {
 //       headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' }
 //     });
@@ -169,7 +189,42 @@
 //     if (isNaN(cleanTargetId)) return NextResponse.json({ error: 'Invalid Target ID.' }, { status: 400 });
 
 //     const cleanOrderAmt = parseFloat(orderAmount) || 0;
+    
 //     const cleanCollectionAmt = parseFloat(collectionAmount) || 0;
+
+//     // ─────────────────────────────────────────────────────────
+//     // 🚨 ACTION 0: DUPLICATE PREVENTION (1 ENTRY PER DAY)
+//     // ─────────────────────────────────────────────────────────
+//     const lastVisit = await db.select({ createdAt: visits.createdAt })
+//       .from(visits)
+//       .where(
+//         and(
+//           eq(visits.agentId, String(agentId)),
+//           eq(visits.medicalShopId, cleanTargetId)
+//         )
+//       )
+//       .orderBy(desc(visits.createdAt))
+//       .limit(1);
+
+//     if (lastVisit.length > 0 && lastVisit[0].createdAt) {
+//       const visitDate = new Date(lastVisit[0].createdAt);
+//       const today = new Date();
+      
+//       // Check in Indian Standard Time (IST)
+//       const visitDateIST = new Date(visitDate.toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+//       const todayIST = new Date(today.toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+
+//       if (
+//         visitDateIST.getFullYear() === todayIST.getFullYear() &&
+//         visitDateIST.getMonth() === todayIST.getMonth() &&
+//         visitDateIST.getDate() === todayIST.getDate()
+//       ) {
+//         return NextResponse.json({ 
+//           error: '🚨 Duplicate Blocked: You have already logged this medical shop today!' 
+//         }, { status: 409 });
+//       }
+//     }
+
 // // ─────────────────────────────────────────────────────────
 //     // CLOUDFLARE R2 UPLOAD INTERCEPTOR
 //     // ─────────────────────────────────────────────────────────
@@ -231,15 +286,39 @@
 //           }
 //         }
 
+//         // const isVerified = shop.isVerified === true;
+
+//         // if (isVerified) {
+//         //   // SHOP IS LOCKED: ONLY UPDATE LATEST PHOTO
+//         //   await db.update(medicalShops)
+//         //     .set({ 
+//         //       photoUrl2: finalCrushedUrl 
+//         //     })
+//         //     .where(eq(medicalShops.id, cleanTargetId));
+            
+//         // } else {
+//         //   // NOT VERIFIED YET: OVERWRITE ALL (Fixes bad GPS!)
+//         //   await db.update(medicalShops)
+//         //     .set({ 
+//         //       latitude: String(latitude),
+//         //       longitude: String(longitude),
+//         //       photoUrl: finalBaselineUrl,  
+//         //       photoUrl2: finalCrushedUrl ,
+//         //     })
+//         //     .where(eq(medicalShops.id, cleanTargetId));
+//         // }
+
 //         const isVerified = shop.isVerified === true;
 
 //         if (isVerified) {
-//           // SHOP IS LOCKED: ONLY UPDATE LATEST PHOTO
-//           await db.update(medicalShops)
-//             .set({ 
-//               photoUrl2: finalCrushedUrl 
-//             })
-//             .where(eq(medicalShops.id, cleanTargetId));
+//           // SHOP IS VERIFIED: ONLY UPDATE LATEST PHOTO (photoUrl2) IF UPLOAD WAS SUCCESSFUL
+//           if (finalCrushedUrl) {
+//             await db.update(medicalShops)
+//               .set({ 
+//                 photoUrl2: finalCrushedUrl 
+//               })
+//               .where(eq(medicalShops.id, cleanTargetId));
+//           }
             
 //         } else {
 //           // NOT VERIFIED YET: OVERWRITE ALL (Fixes bad GPS!)
@@ -247,8 +326,9 @@
 //             .set({ 
 //               latitude: String(latitude),
 //               longitude: String(longitude),
-//               photoUrl: finalBaselineUrl,  
-//               photoUrl2: finalCrushedUrl ,
+//               // Use finalCrushedUrl if available, otherwise keep it whatever it was
+//               photoUrl: finalBaselineUrl || null,  
+//               photoUrl2: finalCrushedUrl || null,
 //             })
 //             .where(eq(medicalShops.id, cleanTargetId));
 //         }
@@ -269,15 +349,16 @@
 // }
 
 
-
 export const dynamic = 'force-dynamic'; 
 export const revalidate = 60; 
 
 import { NextResponse } from 'next/server';
 import { db } from '../../../../db';
 import { medicalShops, places, areas, visits } from '../../../../db/schema';
-import { eq, desc, and, gte } from 'drizzle-orm';
+// 🚨 CRITICAL: Added 'sql' to securely check the Timezone in the database
+import { eq, desc, and, gte, sql } from 'drizzle-orm';
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+
 const S3 = new S3Client({
   region: "auto",
   endpoint: `https://${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
@@ -288,28 +369,22 @@ const S3 = new S3Client({
 });
 
 async function uploadToR2(base64String, filename) {
-  // Check if it's actually an image
   if (!base64String || !base64String.startsWith('data:image')) {
     console.error("🚨 Upload Blocked: The data sent from the phone is not a valid base64 image.");
     return null;
   }
   
-  // 🛠️ THE LOCAL TESTING BYPASS
-  // When running 'npm run dev', this skips Cloudflare and returns the raw Base64 string
   if (process.env.NODE_ENV === 'development') {
     console.log("🛠️ LOCAL MODE: Bypassing R2. Saving Base64 directly to local database.");
     return base64String; 
   }
 
   try {
-    // 1. Strip the prefix
     const base64Data = base64String.replace(/^data:image\/\w+;base64,/, "");
-    // 2. Convert to Buffer
     const buffer = Buffer.from(base64Data, 'base64');
-
+    
     console.log(`⏳ Uploading ${filename} to Cloudflare R2...`);
 
-    // 3. Upload to Cloudflare R2
     await S3.send(new PutObjectCommand({
       Bucket: process.env.R2_BUCKET_NAME,
       Key: filename,
@@ -317,15 +392,12 @@ async function uploadToR2(base64String, filename) {
       ContentType: 'image/jpeg',
     }));
 
-    // 4. Return the Cloudflare Public URL
     const publicUrl = `${process.env.R2_PUBLIC_URL}/${filename}`;
     console.log("✅ SUCCESS! Uploaded to:", publicUrl);
     
     return publicUrl;
-
   } catch (err) {
-    console.error("🚨 CLOUDFLARE R2 UPLOAD FAILED! Reason:");
-    console.error(err.message);
+    console.error("🚨 CLOUDFLARE R2 UPLOAD FAILED! Reason:", err.message);
     return null; 
   }
 }
@@ -348,30 +420,26 @@ export async function GET(request) {
 
     if (!agentId) return NextResponse.json({ error: 'Missing agent ID' }, { status: 400 });
 
-    // 🚨 EGRESS FIX 1: Calculate the timestamp for 24 hours ago
     const yesterday = new Date();
     yesterday.setHours(yesterday.getHours() - 24);
 
-    // 🚨 EGRESS FIX 2: Fetch ONLY the last 24 hours of visits, and ONLY needed columns
     const agentVisits = await db.select({
       medicalShopId: visits.medicalShopId,
       createdAt: visits.createdAt,
       orderAmount: visits.orderAmount,
       paymentMethod: visits.paymentMethod
-      // Notice we exclude photoUrl and remark to save massive bandwidth
     })
     .from(visits)
     .where(
       and(
         eq(visits.agentId, agentId),
-        gte(visits.createdAt, yesterday) // Restrict to recent visits only
+        gte(visits.createdAt, yesterday)
       )
     )
     .orderBy(desc(visits.createdAt)); 
 
     const masterAreas = await db.select({ id: areas.id, name: areas.name }).from(areas);
 
-    // 🚨 EGRESS FIX 3: Drop 'photoUrl' and unused columns from the massive Shops payload
     const allTargets = await db.select({
       id: medicalShops.id,
       name: medicalShops.name,
@@ -458,60 +526,43 @@ export async function POST(request) {
     if (isNaN(cleanTargetId)) return NextResponse.json({ error: 'Invalid Target ID.' }, { status: 400 });
 
     const cleanOrderAmt = parseFloat(orderAmount) || 0;
-    
     const cleanCollectionAmt = parseFloat(collectionAmount) || 0;
 
     // ─────────────────────────────────────────────────────────
-    // 🚨 ACTION 0: DUPLICATE PREVENTION (1 ENTRY PER DAY)
+    // 🚨 ACTION 0: BULLETPROOF DUPLICATE PREVENTION (1 ENTRY PER DAY)
     // ─────────────────────────────────────────────────────────
-    const lastVisit = await db.select({ createdAt: visits.createdAt })
+    // Using SQL to ensure checking is strictly tied to IST time
+    const duplicateCheck = await db.select({ id: visits.id })
       .from(visits)
       .where(
         and(
           eq(visits.agentId, String(agentId)),
-          eq(visits.medicalShopId, cleanTargetId)
+          eq(visits.medicalShopId, cleanTargetId),
+          sql`DATE(${visits.createdAt} AT TIME ZONE 'Asia/Kolkata') = DATE(NOW() AT TIME ZONE 'Asia/Kolkata')`
         )
       )
-      .orderBy(desc(visits.createdAt))
       .limit(1);
 
-    if (lastVisit.length > 0 && lastVisit[0].createdAt) {
-      const visitDate = new Date(lastVisit[0].createdAt);
-      const today = new Date();
-      
-      // Check in Indian Standard Time (IST)
-      const visitDateIST = new Date(visitDate.toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
-      const todayIST = new Date(today.toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
-
-      if (
-        visitDateIST.getFullYear() === todayIST.getFullYear() &&
-        visitDateIST.getMonth() === todayIST.getMonth() &&
-        visitDateIST.getDate() === todayIST.getDate()
-      ) {
-        return NextResponse.json({ 
-          error: '🚨 Duplicate Blocked: You have already logged this medical shop today!' 
-        }, { status: 409 });
-      }
+    if (duplicateCheck.length > 0) {
+      return NextResponse.json({ 
+        error: '🚨 Duplicate Blocked: You have already logged this medical shop today!' 
+      }, { status: 409 });
     }
 
-// ─────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────
     // CLOUDFLARE R2 UPLOAD INTERCEPTOR
     // ─────────────────────────────────────────────────────────
-    // We only care about the crushed (smallest) photo to save space!
     const incomingCrushed = photoUrlCrushed || photoUrl || null;
-    
     let finalBaselineUrl = null; 
     let finalCrushedUrl = null;
     const timestamp = Date.now();
 
-    // 🚨 Only upload the tiny, compressed image!
     if (incomingCrushed && incomingCrushed.length > 1000) {
       const filename = `visit_${cleanTargetId}_${timestamp}.jpg`;
       finalCrushedUrl = await uploadToR2(incomingCrushed, filename);
-      
-      // Assign the same URL to both database columns so nothing breaks
       finalBaselineUrl = finalCrushedUrl; 
     }
+
     // ─────────────────────────────────────────────────────────
     // ACTION 1: DRIZZLE INSERT (Log the Visit History)
     // ─────────────────────────────────────────────────────────
@@ -544,43 +595,21 @@ export async function POST(request) {
       if (shopData.length > 0) {
         const shop = shopData[0];
 
-        // We only block them if the shop is ALREADY VERIFIED!
+        // 🚨 500 METER RADIUS BLOCK
         if (shop.savedLat && shop.savedLng && shop.isVerified) {
           const distanceToShop = getDistance(latitude, longitude, Number(shop.savedLat), Number(shop.savedLng));
           
-          if (distanceToShop > 60) { 
+          if (distanceToShop > 500) { 
             return NextResponse.json({ 
-              error: `🚨 SERVER BLOCK: You are ${distanceToShop}m away from the verified shop location. (Max 60m)` 
+              error: `🚨 SERVER BLOCK: You are ${distanceToShop}m away from the verified shop location. (Max 500m)` 
             }, { status: 403 });
           }
         }
 
-        // const isVerified = shop.isVerified === true;
-
-        // if (isVerified) {
-        //   // SHOP IS LOCKED: ONLY UPDATE LATEST PHOTO
-        //   await db.update(medicalShops)
-        //     .set({ 
-        //       photoUrl2: finalCrushedUrl 
-        //     })
-        //     .where(eq(medicalShops.id, cleanTargetId));
-            
-        // } else {
-        //   // NOT VERIFIED YET: OVERWRITE ALL (Fixes bad GPS!)
-        //   await db.update(medicalShops)
-        //     .set({ 
-        //       latitude: String(latitude),
-        //       longitude: String(longitude),
-        //       photoUrl: finalBaselineUrl,  
-        //       photoUrl2: finalCrushedUrl ,
-        //     })
-        //     .where(eq(medicalShops.id, cleanTargetId));
-        // }
-
         const isVerified = shop.isVerified === true;
 
         if (isVerified) {
-          // SHOP IS VERIFIED: ONLY UPDATE LATEST PHOTO (photoUrl2) IF UPLOAD WAS SUCCESSFUL
+          // SHOP IS VERIFIED: ONLY UPDATE LATEST PHOTO (photoUrl2)
           if (finalCrushedUrl) {
             await db.update(medicalShops)
               .set({ 
@@ -588,15 +617,14 @@ export async function POST(request) {
               })
               .where(eq(medicalShops.id, cleanTargetId));
           }
-            
         } else {
-          // NOT VERIFIED YET: OVERWRITE ALL (Fixes bad GPS!)
+          // NOT VERIFIED YET: SAVE GPS AND PROTECT ORIGINAL MASTER PHOTO
           await db.update(medicalShops)
             .set({ 
               latitude: String(latitude),
               longitude: String(longitude),
-              // Use finalCrushedUrl if available, otherwise keep it whatever it was
-              photoUrl: finalBaselineUrl || null,  
+              // Use saved master photo if it exists, otherwise use current
+              photoUrl: shop.savedPhotoUrl ? shop.savedPhotoUrl : (finalBaselineUrl || null),  
               photoUrl2: finalCrushedUrl || null,
             })
             .where(eq(medicalShops.id, cleanTargetId));
