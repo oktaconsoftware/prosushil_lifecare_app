@@ -2269,21 +2269,13 @@ export default function TerritoryTab({
     imgObj.src = photoSourceData;
   };
 
-  // ─────────────────────────────────────────────────────────────────
-  // 🚨 NATIVE CAPACITOR FLOW (Fixes Android WebView Crash & Lost State)
+// ─────────────────────────────────────────────────────────────────
+  // 🚨 NATIVE CAPACITOR FLOW 
   // ─────────────────────────────────────────────────────────────────
   const executeNativeCheckIn = async () => {
     setIsLocating(true);
     try {
-      // 1. Ask for GPS Permissions securely
-      let perm = await Geolocation.checkPermissions();
-      if (perm.location !== 'granted') {
-        perm = await Geolocation.requestPermissions();
-        if (perm.location !== 'granted') throw new Error("Location Denied");
-      }
-
-      // 2. Open Native Android Camera 
-      // (This pauses the webview safely without killing it!)
+      // 1. Open Native Android Camera (Auto-requests Camera permissions)
       const image = await Camera.getPhoto({
         quality: 70,
         allowEditing: false,
@@ -2291,23 +2283,26 @@ export default function TerritoryTab({
         source: CameraSource.Camera
       });
 
-      // 3. Get accurate Native GPS coordinates
+      // 2. Get accurate Native GPS coordinates (Auto-requests Location permissions)
       const pos = await Geolocation.getCurrentPosition({
         enableHighAccuracy: true,
         timeout: 20000,
         maximumAge: 60000
       });
 
-      // 4. Send to the processor
+      // 3. Send to the processor
       processWatermarkAndShop(image.dataUrl, pos.coords.latitude, pos.coords.longitude);
 
     } catch (err) {
       console.error("Native Capacitor Error:", err);
-      if (err.message && !err.message.includes('User cancelled')) {
-        toast.error("Hardware access failed. Check Camera/GPS permissions.");
-      }
       setIsLocating(false);
       setStep('camera');
+      
+      // Ignore if the user just pressed the back button to close the camera
+      if (err.message && err.message.includes('User cancelled')) return;
+      
+      // 🚨 THIS WILL TELL US EXACTLY WHAT IS WRONG!
+      alert(`System Error: ${err.message || JSON.stringify(err)}`);
     }
   };
 
