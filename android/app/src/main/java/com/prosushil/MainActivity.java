@@ -1,4 +1,4 @@
-package com.prosushil_lifecare.app;
+package com.prosushil;
 
 import com.getcapacitor.BridgeActivity;
 
