@@ -528,7 +528,7 @@ export async function POST(request) {
     const cleanOrderAmt = parseFloat(orderAmount) || 0;
     const cleanCollectionAmt = parseFloat(collectionAmount) || 0;
 
-    // ─────────────────────────────────────────────────────────
+ // ─────────────────────────────────────────────────────────
     // 🚨 ACTION 0: BULLETPROOF DUPLICATE PREVENTION (1 ENTRY PER DAY)
     // ─────────────────────────────────────────────────────────
     // Using SQL to ensure checking is strictly tied to IST time
@@ -538,7 +538,8 @@ export async function POST(request) {
         and(
           eq(visits.agentId, String(agentId)),
           eq(visits.medicalShopId, cleanTargetId),
-          sql`DATE(${visits.createdAt} AT TIME ZONE 'Asia/Kolkata') = DATE(NOW() AT TIME ZONE 'Asia/Kolkata')`
+          // 🚨 CRITICAL FIX: Tell Postgres the timestamp is UTC first, THEN shift to Kolkata time!
+          sql`DATE(${visits.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') = DATE(NOW() AT TIME ZONE 'Asia/Kolkata')`
         )
       )
       .limit(1);
@@ -548,7 +549,6 @@ export async function POST(request) {
         error: '🚨 Duplicate Blocked: You have already logged this medical shop today!' 
       }, { status: 409 });
     }
-
     // ─────────────────────────────────────────────────────────
     // CLOUDFLARE R2 UPLOAD INTERCEPTOR
     // ─────────────────────────────────────────────────────────
