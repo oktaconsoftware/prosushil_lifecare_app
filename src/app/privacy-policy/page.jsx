@@ -334,7 +334,7 @@ export default function PrivacyPolicyPage() {
                 </p>
 
                 <p className="mt-3">
-                  Address: Tekit supermarket, Tambe Mala, Ichalkaranji, Maharashtra 416115
+                  Address: Tekit supermarket, Tambe Mala, Ichalkaranji, Maharashtra 416115 .
                 </p>
               </div>
             </section>
