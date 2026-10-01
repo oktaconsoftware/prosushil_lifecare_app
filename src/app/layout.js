@@ -40,7 +40,22 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="antialiased bg-slate-50">
-        <Toaster/>
+      {/* 🚨 FIX: containerStyle pushes the toast below the status bar and header */}
+        <Toaster
+          position="top-center"
+          containerStyle={{
+            top: 85, // 85px clears both the Android status bar and your top header
+          }}
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#0a0f1c',
+              color: '#fff',
+              fontSize: '13px',
+              borderRadius: '12px',
+            },
+          }}
+        />
         <PwaInit />
         {children}
       </body>
