@@ -27,10 +27,13 @@ export function TopHeader({ mobileNav, handleLogout }) {
       </header>
 
  {/* Mobile App Header (Dark Theme with White Text) */}
-      <header className="md:hidden flex shrink-0 items-center justify-between px-5 h-25 bg-[#0a0f1c]/95 backdrop-blur-lg sticky top-0 z-30 border-b border-white/10 shadow-sm">
+    {/* Mobile App Header (Dark Theme with White Text) */}
+      {/* 🚨 FIX: pt-12 pushes everything safely below the Android battery/time icons */}
+      <header className="md:hidden flex shrink-0 items-center justify-between px-4 pt-12 pb-3 min-h-[80px] bg-[#0a0f1c] sticky top-0 z-50 border-b border-white/10 shadow-md">
         <div className="flex items-center gap-3">
-          {/* Simplified, Transparent Mobile Logo */}
-          <div className="w-40 h-40 flex items-center justify-center p-1 shrink-0">
+          
+          {/* 🚨 FIX: Widened the logo container (w-32) to fit your rectangular Prosushil logo */}
+          <div className="w-32 h-10 flex items-center justify-center shrink-0">
             <img 
               src="/logo.png" 
               alt="Logo" 
@@ -40,24 +43,25 @@ export function TopHeader({ mobileNav, handleLogout }) {
               }}
             />
           </div>
-          <div className="flex flex-col pt-2">
-            <h2 className="text-[14px] font-semibold text-white tracking-tight leading-tight">
-              {titles[mobileNav]?.title}
+          
+          <div className="flex flex-col pt-1">
+            <h2 className="text-[15px] font-bold text-white tracking-tight leading-tight">
+              {titles[mobileNav]?.title || 'Dashboard'}
             </h2>
-            <p className="text-[10px] font-medium text-slate-500">
+            <p className="text-[11px] font-medium text-slate-400 mt-0.5">
               {titles[mobileNav]?.sub}
             </p>
           </div>
         </div>
         
-        {/* Adjusted Logout Button for Dark Theme */}
+        {/* Logout Button */}
         <button 
           onClick={handleLogout} 
-          className="w-10 h-10 rounded-full flex items-center justify-center bg-white/90 border border-white/10 text-slate-800 active:scale-90 active:bg-white/10 hover:text-rose-400 transition-all shadow-sm"
+          className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center bg-white/90 border border-white/10 text-slate-800 active:scale-90 active:bg-white/70 transition-all shadow-sm"
           aria-label="Logout"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          <svg className="w-4 h-4 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
         </button>
       </header>
