@@ -177,14 +177,11 @@
 //   );
 // }
 
-
-
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 
-// Load Leaflet only in the browser.
 const MapWrapper = dynamic(() => import("./MapWrapper"), {
   ssr: false,
   loading: () => (
@@ -197,9 +194,10 @@ const MapWrapper = dynamic(() => import("./MapWrapper"), {
   ),
 });
 
-// Get the local calendar date without converting it to UTC.
-function getLocalYYYYMMDD(input) {
-  const date = input ? new Date(input) : new Date();
+const MAX_RANGE_DAYS = 31;
+
+function getLocalYYYYMMDD() {
+  const date = new Date();
 
   return [
     date.getFullYear(),
@@ -250,45 +248,58 @@ function formatDisplayDate(value) {
   });
 }
 
-export default function EmployeeMapTab() {
-  // Map modes
-  const [mode, setMode] = useState("single");
+function getAgentId(agent) {
+  return agent?.employeeId || agent?.id || "";
+}
 
-  // Existing single employee + date mode
-  const [selectedDate, setSelectedDate] = useState("");
+function getAgentName(agent) {
+  return (
+    agent?.name ||
+    agent?.fullName ||
+    agent?.username ||
+    agent?.first_name ||
+    "Unknown Agent"
+  );
+}
+
+export default function EmployeeMapTab() {
+  // employeeRange: one employee + date range
+  // range: all employees + date range
+  const [mode, setMode] = useState("employeeRange");
+
   const [agents, setAgents] = useState([]);
   const [selectedAgentId, setSelectedAgentId] = useState("");
 
-  // Date range + all employees mode
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const [rangeSubmitted, setRangeSubmitted] = useState(false);
-  const [rangeRequestVersion, setRangeRequestVersion] = useState(0);
 
-  // Map data
+  const [rangeSubmitted, setRangeSubmitted] = useState(false);
+  const [requestVersion, setRequestVersion] = useState(0);
+
   const [visits, setVisits] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+
+  const [isLoadingAgents, setIsLoadingAgents] = useState(true);
   const [isFetchingVisits, setIsFetchingVisits] = useState(false);
+
   const [error, setError] = useState("");
   const [agentError, setAgentError] = useState("");
   const [isTruncated, setIsTruncated] = useState(false);
 
-  // Initialize date inputs using local time.
+  // Set today's local date as the initial date range.
   useEffect(() => {
     const today = getLocalYYYYMMDD();
 
-    setSelectedDate(today);
     setFromDate(today);
     setToDate(today);
   }, []);
 
-  // Load employee list.
-  // No AbortController: the cleanup flag ignores outdated responses.
+  // Load employee dropdown.
+  // Uses a cleanup flag instead of AbortController.
   useEffect(() => {
     let cancelled = false;
 
     async function loadAgents() {
-      setIsLoading(true);
+      setIsLoadingAgents(true);
       setAgentError("");
 
       try {
@@ -310,12 +321,12 @@ export default function EmployeeMapTab() {
       } catch (err) {
         if (!cancelled) {
           setAgentError(
-            err.message || "Unable to load employee list"
+            err?.message || "Unable to load employee list"
           );
         }
       } finally {
         if (!cancelled) {
-          setIsLoading(false);
+          setIsLoadingAgents(false);
         }
       }
     }
@@ -327,46 +338,37 @@ export default function EmployeeMapTab() {
     };
   }, []);
 
-  // Fetch visits for either map mode.
-  // Single: one employee on one date.
-  // Range: all employees between the selected dates.
+  // Fetch visits only after the user clicks the Load button.
   useEffect(() => {
     let cancelled = false;
 
     async function loadVisits() {
-      let requestUrl;
-
-      if (mode === "single") {
-        if (!selectedAgentId || !selectedDate) {
-          setVisits([]);
-          setError("");
-          setIsTruncated(false);
-          setIsFetchingVisits(false);
-          return;
-        }
-
-        const params = new URLSearchParams({
-          agentId: selectedAgentId,
-          date: selectedDate,
-        });
-
-        requestUrl = `/api/admin/employee-map?${params.toString()}`;
-      } else {
-        if (!rangeSubmitted || !fromDate || !toDate) {
-          setVisits([]);
-          setError("");
-          setIsTruncated(false);
-          setIsFetchingVisits(false);
-          return;
-        }
-
-        const params = new URLSearchParams({
-          fromDate,
-          toDate,
-        });
-
-        requestUrl = `/api/admin/employee-map?${params.toString()}`;
+      if (!rangeSubmitted || !fromDate || !toDate) {
+        setVisits([]);
+        setIsTruncated(false);
+        setIsFetchingVisits(false);
+        return;
       }
+
+      if (mode === "employeeRange" && !selectedAgentId) {
+        setVisits([]);
+        setIsTruncated(false);
+        setIsFetchingVisits(false);
+        return;
+      }
+
+      const params = new URLSearchParams({
+        fromDate,
+        toDate,
+      });
+
+      // Important: filter by employee when one is selected.
+      if (mode === "employeeRange") {
+        params.set("agentId", selectedAgentId);
+      }
+
+      const requestUrl =
+        `/api/admin/employee-map?${params.toString()}`;
 
       setIsFetchingVisits(true);
       setError("");
@@ -399,7 +401,7 @@ export default function EmployeeMapTab() {
       } catch (err) {
         if (!cancelled) {
           setError(
-            err.message || "Unable to load visit locations"
+            err?.message || "Unable to load visit locations"
           );
         }
       } finally {
@@ -412,30 +414,36 @@ export default function EmployeeMapTab() {
     loadVisits();
 
     return () => {
-      // Ignore old responses without aborting an active fetch.
       cancelled = true;
     };
   }, [
     mode,
     selectedAgentId,
-    selectedDate,
     fromDate,
     toDate,
     rangeSubmitted,
-    rangeRequestVersion,
+    requestVersion,
   ]);
 
-  // Switch between map modes.
-  function handleModeChange(nextMode) {
-    setMode(nextMode);
+  function clearResults() {
     setVisits([]);
     setError("");
     setIsTruncated(false);
-    setRangeSubmitted(false);
   }
 
-  // Change a date without loading until the user submits again.
-  function handleRangeDateChange(type, value) {
+  function handleModeChange(nextMode) {
+    setMode(nextMode);
+    setRangeSubmitted(false);
+    clearResults();
+  }
+
+  function handleAgentChange(value) {
+    setSelectedAgentId(value);
+    setRangeSubmitted(false);
+    clearResults();
+  }
+
+  function handleDateChange(type, value) {
     if (type === "from") {
       setFromDate(value);
     } else {
@@ -443,24 +451,24 @@ export default function EmployeeMapTab() {
     }
 
     setRangeSubmitted(false);
-    setVisits([]);
-    setError("");
-    setIsTruncated(false);
+    clearResults();
   }
 
-  // Load every employee's visits in the selected date range.
   function handleLoadRange() {
-    setError("");
-    setVisits([]);
-    setIsTruncated(false);
+    clearResults();
+
+    if (mode === "employeeRange" && !selectedAgentId) {
+      setError("Please select an employee.");
+      return;
+    }
 
     if (!fromDate || !toDate) {
-      setError("Please select both the start date and end date.");
+      setError("Please select both From Date and To Date.");
       return;
     }
 
     if (fromDate > toDate) {
-      setError("Start date cannot be after the end date.");
+      setError("From Date cannot be after To Date.");
       return;
     }
 
@@ -470,42 +478,114 @@ export default function EmployeeMapTab() {
     const totalDays =
       Math.floor((endMs - startMs) / 86400000) + 1;
 
-    if (totalDays > 31) {
-      setError("Please select a date range of 31 days or less.");
+    if (totalDays > MAX_RANGE_DAYS) {
+      setError(
+        `Please select a date range of ${MAX_RANGE_DAYS} days or less.`
+      );
       return;
     }
 
     setRangeSubmitted(true);
-    setRangeRequestVersion((previous) => previous + 1);
+    setRequestVersion((previous) => previous + 1);
   }
 
-  // Only use real, valid coordinates as map pins.
   const validPins = visits.filter(hasValidCoordinates);
   const validPinsCount = validPins.length;
 
   const hasSelection =
-    mode === "single"
-      ? Boolean(selectedAgentId && selectedDate)
-      : Boolean(rangeSubmitted && fromDate && toDate);
+    rangeSubmitted &&
+    Boolean(fromDate && toDate) &&
+    (mode === "range" || Boolean(selectedAgentId));
 
   const selectedAgent = agents.find(
     (agent) =>
-      String(agent.employeeId || agent.id) ===
-      String(selectedAgentId)
+      String(getAgentId(agent)) === String(selectedAgentId)
   );
 
-  const selectedAgentName = selectedAgent
-    ? selectedAgent.name ||
-      selectedAgent.fullName ||
-      selectedAgent.username ||
-      selectedAgent.first_name ||
-      "Unknown Agent"
-    : "";
+  const selectedAgentName = getAgentName(selectedAgent);
+
+  function renderAgentSelect() {
+    return (
+      <div>
+        <label
+          htmlFor="map-range-agent"
+          className="mb-2 block text-xs font-bold text-slate-300"
+        >
+          Select Employee
+        </label>
+
+        <select
+          id="map-range-agent"
+          value={selectedAgentId}
+          onChange={(event) =>
+            handleAgentChange(event.target.value)
+          }
+          disabled={isLoadingAgents}
+          className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white outline-none transition focus:border-[#97c22a] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <option
+            value=""
+            className="bg-white text-slate-900"
+          >
+            {isLoadingAgents
+              ? "Loading employees..."
+              : "Select an employee..."}
+          </option>
+
+          {agents.map((agent) => {
+            const id = getAgentId(agent);
+
+            return (
+              <option
+                key={String(id)}
+                value={String(id)}
+                className="bg-white text-slate-900"
+              >
+                {getAgentName(agent)}
+              </option>
+            );
+          })}
+        </select>
+      </div>
+    );
+  }
+
+  function renderDateInput({
+    id,
+    label,
+    value,
+    onChange,
+    min,
+    max,
+  }) {
+    return (
+      <div>
+        <label
+          htmlFor={id}
+          className="mb-2 block text-xs font-bold text-slate-300"
+        >
+          {label}
+        </label>
+
+        <input
+          id={id}
+          type="date"
+          value={value}
+          min={min || undefined}
+          max={max || undefined}
+          onChange={(event) =>
+            onChange(event.target.value)
+          }
+          className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white outline-none transition focus:border-[#97c22a] focus:bg-white/15"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-[#F4F6F8]">
       <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-4 overflow-y-auto overscroll-y-contain p-3 pb-8 sm:gap-5 sm:p-5 md:p-8">
-        {/* HEADER & MODE CONTROLS */}
+        {/* HEADER AND FILTERS */}
         <section className="relative shrink-0 overflow-hidden rounded-2xl bg-[#0a0f1a] p-5 shadow-xl md:rounded-3xl md:p-8">
           <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 translate-x-1/4 -translate-y-1/2 rounded-full bg-[#97c22a]/20 blur-[50px] md:h-52 md:w-52" />
 
@@ -520,8 +600,7 @@ export default function EmployeeMapTab() {
               </h1>
 
               <p className="mt-1 text-sm text-slate-400">
-                Track individual employee visits or view visits from all
-                employees across a date range.
+                Select an employee and a date range to view visit locations.
               </p>
             </div>
 
@@ -529,17 +608,19 @@ export default function EmployeeMapTab() {
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
                 type="button"
-                onClick={() => handleModeChange("single")}
-                aria-pressed={mode === "single"}
+                onClick={() => handleModeChange("employeeRange")}
+                aria-pressed={mode === "employeeRange"}
                 className={`rounded-xl border px-4 py-3 text-left text-sm font-bold transition ${
-                  mode === "single"
+                  mode === "employeeRange"
                     ? "border-[#97c22a] bg-[#97c22a] text-[#10150b]"
                     : "border-white/15 bg-white/5 text-white hover:bg-white/10"
                 }`}
               >
-                <span className="block">Single Date + Employee</span>
+                <span className="block">
+                  Single Employee + Date Range
+                </span>
                 <span className="mt-1 block text-xs font-medium opacity-75">
-                  View one employee on one day
+                  Show visits for one employee
                 </span>
               </button>
 
@@ -553,144 +634,56 @@ export default function EmployeeMapTab() {
                     : "border-white/15 bg-white/5 text-white hover:bg-white/10"
                 }`}
               >
-                <span className="block">Date Range + All Employees</span>
+                <span className="block">
+                  All Employees + Date Range
+                </span>
                 <span className="mt-1 block text-xs font-medium opacity-75">
-                  View all employee visit pins
+                  Show visits for every employee
                 </span>
               </button>
             </div>
 
-            {/* MODE 1: SINGLE EMPLOYEE + DATE */}
-            {mode === "single" && (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label
-                    htmlFor="map-single-date"
-                    className="mb-2 block text-xs font-bold text-slate-300"
-                  >
-                    Select Date
-                  </label>
+            {/* FILTER CONTROLS */}
+            <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {mode === "employeeRange" && renderAgentSelect()}
 
-                  <input
-                    id="map-single-date"
-                    type="date"
-                    value={selectedDate}
-                    onChange={(event) =>
-                      setSelectedDate(event.target.value)
-                    }
-                    className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white outline-none transition focus:border-[#97c22a] focus:bg-white/15"
-                  />
-                </div>
+              {renderDateInput({
+                id: "map-from-date",
+                label: "From Date",
+                value: fromDate,
+                max: toDate,
+                onChange: (value) =>
+                  handleDateChange("from", value),
+              })}
 
-                <div>
-                  <label
-                    htmlFor="map-single-agent"
-                    className="mb-2 block text-xs font-bold text-slate-300"
-                  >
-                    Select Employee
-                  </label>
+              {renderDateInput({
+                id: "map-to-date",
+                label: "To Date",
+                value: toDate,
+                min: fromDate,
+                onChange: (value) =>
+                  handleDateChange("to", value),
+              })}
 
-                  <select
-                    id="map-single-agent"
-                    value={selectedAgentId}
-                    onChange={(event) =>
-                      setSelectedAgentId(event.target.value)
-                    }
-                    disabled={isLoading}
-                    className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white outline-none transition focus:border-[#97c22a] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <option value="" className="bg-white text-slate-900">
-                      {isLoading
-                        ? "Loading employees..."
-                        : "Select an employee..."}
-                    </option>
-
-                    {agents.map((agent) => {
-                      const id = agent.employeeId || agent.id;
-                      const name =
-                        agent.name ||
-                        agent.fullName ||
-                        agent.username ||
-                        agent.first_name ||
-                        "Unknown Agent";
-
-                      return (
-                        <option
-                          key={String(id)}
-                          value={String(id)}
-                          className="bg-white text-slate-900"
-                        >
-                          {name}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-              </div>
-            )}
-
-            {/* MODE 2: DATE RANGE + ALL EMPLOYEES */}
-            {mode === "range" && (
-              <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <div>
-                  <label
-                    htmlFor="map-from-date"
-                    className="mb-2 block text-xs font-bold text-slate-300"
-                  >
-                    From Date
-                  </label>
-
-                  <input
-                    id="map-from-date"
-                    type="date"
-                    value={fromDate}
-                    max={toDate || undefined}
-                    onChange={(event) =>
-                      handleRangeDateChange("from", event.target.value)
-                    }
-                    className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white outline-none transition focus:border-[#97c22a]"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="map-to-date"
-                    className="mb-2 block text-xs font-bold text-slate-300"
-                  >
-                    To Date
-                  </label>
-
-                  <input
-                    id="map-to-date"
-                    type="date"
-                    value={toDate}
-                    min={fromDate || undefined}
-                    onChange={(event) =>
-                      handleRangeDateChange("to", event.target.value)
-                    }
-                    className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white outline-none transition focus:border-[#97c22a]"
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleLoadRange}
-                  disabled={isFetchingVisits || isLoading}
-                  className="min-h-[46px] rounded-xl bg-[#97c22a] px-5 py-3 text-sm font-extrabold text-[#10150b] transition hover:bg-[#a9d936] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isFetchingVisits
-                    ? "Loading Locations..."
+              <button
+                type="button"
+                onClick={handleLoadRange}
+                disabled={isFetchingVisits || isLoadingAgents}
+                className="min-h-[46px] rounded-xl bg-[#97c22a] px-5 py-3 text-sm font-extrabold text-[#10150b] transition hover:bg-[#a9d936] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isFetchingVisits
+                  ? "Loading Locations..."
+                  : mode === "employeeRange"
+                    ? "Load Employee Visits"
                     : "Load All Visits"}
-                </button>
+              </button>
 
-                <p className="text-xs text-slate-400 sm:col-span-2 lg:col-span-3">
-                  Every employee is included. Date ranges are limited to
-                  31 days per request for map performance.
-                </p>
-              </div>
-            )}
+              <p className="text-xs text-slate-400 sm:col-span-2 lg:col-span-4">
+                Select a maximum of 31 days per request. Visits
+                load only after you click the button.
+              </p>
+            </div>
 
-            {/* ERRORS */}
             {agentError && (
               <p
                 role="alert"
@@ -711,9 +704,8 @@ export default function EmployeeMapTab() {
           </div>
         </section>
 
-        {/* MAP CONTAINER */}
+        {/* MAP */}
         <section className="relative flex min-h-[60vh] shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:min-h-[560px] md:flex-1">
-          {/* Map status badge */}
           {hasSelection && (
             <div className="absolute right-3 top-3 z-[400] flex max-w-[calc(100%-24px)] items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur md:right-4 md:top-4 md:px-4">
               <span
@@ -729,26 +721,20 @@ export default function EmployeeMapTab() {
               <span className="truncate text-[11px] font-bold text-slate-700 md:text-xs">
                 {isFetchingVisits
                   ? "Loading visit pins..."
-                  : mode === "range"
-                    ? `${validPinsCount} pins · ${formatDisplayDate(
-                        fromDate
-                      )} – ${formatDisplayDate(toDate)}`
-                    : `${validPinsCount} pins · ${formatDisplayDate(
-                        selectedDate
-                      )}`}
+                  : `${validPinsCount} pins · ${formatDisplayDate(
+                      fromDate
+                    )} – ${formatDisplayDate(toDate)}`}
               </span>
             </div>
           )}
 
-          {/* Truncated results warning */}
           {isTruncated && (
             <div className="absolute bottom-3 left-3 right-3 z-[400] rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-900 shadow md:bottom-4 md:left-4 md:right-auto md:max-w-lg">
-              More than 3,000 visits match this range. Only the first 3,000
-              are displayed. Narrow the date range to see fewer locations.
+              More than 3,000 visits match this range. Only the
+              first 3,000 are displayed. Narrow the date range.
             </div>
           )}
 
-          {/* Empty selection state */}
           {!hasSelection ? (
             <div className="flex min-h-[60vh] flex-1 flex-col items-center justify-center bg-slate-50 px-6 py-12 text-center md:min-h-[560px]">
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-[#97c22a]/20 bg-[#97c22a]/10">
@@ -778,20 +764,16 @@ export default function EmployeeMapTab() {
               </h2>
 
               <p className="mt-2 max-w-sm text-sm text-slate-500">
-                {mode === "single"
-                  ? "Select an employee and a date to display their visit locations."
-                  : "Choose a start date and end date, then click Load All Visits to display every employee's visit pins."}
+                {mode === "employeeRange"
+                  ? "Select an employee, choose From Date and To Date, then click Load Employee Visits."
+                  : "Choose From Date and To Date, then click Load All Visits."}
               </p>
             </div>
           ) : (
             <>
               <div className="min-h-[60vh] flex-1 md:min-h-[560px]">
                 <MapWrapper
-                  key={
-                    mode === "range"
-                      ? `range-${fromDate}-${toDate}-${rangeRequestVersion}`
-                      : `single-${selectedAgentId}-${selectedDate}`
-                  }
+                  key={`${mode}-${selectedAgentId}-${fromDate}-${toDate}-${requestVersion}`}
                   visits={validPins}
                   showAgentDetails={mode === "range"}
                 />
@@ -801,8 +783,8 @@ export default function EmployeeMapTab() {
                 visits.length > 0 &&
                 validPinsCount === 0 && (
                   <div className="border-t border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                    Visits were found, but none contains valid GPS coordinates
-                    that can be plotted on the map.
+                    Visits were found, but none contains valid GPS
+                    coordinates that can be plotted on the map.
                   </div>
                 )}
 
@@ -814,12 +796,20 @@ export default function EmployeeMapTab() {
                   </div>
                 )}
 
-              {mode === "single" && selectedAgentName && (
+              {mode === "employeeRange" && rangeSubmitted && (
                 <div className="border-t border-slate-200 bg-white px-4 py-3 text-xs text-slate-500">
                   Showing visits for{" "}
                   <span className="font-bold text-slate-800">
                     {selectedAgentName}
-                  </span>
+                  </span>{" "}
+                  from{" "}
+                  <span className="font-bold text-slate-800">
+                    {formatDisplayDate(fromDate)}
+                  </span>{" "}
+                  to{" "}
+                  <span className="font-bold text-slate-800">
+                    {formatDisplayDate(toDate)}
+                  </span>.
                 </div>
               )}
 
@@ -833,7 +823,7 @@ export default function EmployeeMapTab() {
                   <span className="font-bold text-slate-800">
                     {formatDisplayDate(toDate)}
                   </span>
-                  . Click any pin to view its employee and visit details.
+                  . Click a pin to view employee and visit details.
                 </div>
               )}
             </>

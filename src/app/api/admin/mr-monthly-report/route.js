@@ -27,19 +27,30 @@ const ADMIN_ROLES = new Set([
   "superadmin",
 ]);
 
+const PRIVATE_HEADERS = {
+  "Cache-Control": "no-store, private",
+  "Content-Type": "application/json; charset=utf-8",
+};
+
 function jsonError(message, status) {
   return Response.json(
     { error: message },
     {
       status,
-      headers: { "Cache-Control": "no-store" },
+      headers: PRIVATE_HEADERS,
     }
   );
 }
 
+function jsonSuccess(data) {
+  return Response.json(data, {
+    headers: PRIVATE_HEADERS,
+  });
+}
+
 function asNumber(value) {
-  const n = Number(value ?? 0);
-  return Number.isFinite(n) ? n : 0;
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) ? number : 0;
 }
 
 function isAdminRole(role) {
@@ -48,18 +59,20 @@ function isAdminRole(role) {
   );
 }
 
+function isActiveUser(user) {
+  return user && user.isActive !== false;
+}
+
 export async function GET(request) {
   try {
     const url = new URL(request.url);
     const action = url.searchParams.get("action");
 
-    // --------------------------------------------------
-    // ACTION 1: GET SALESMAN / AGENT LIST
-    // URL: /api/admin/mr-monthly-report?action=agents
-    // --------------------------------------------------
+    // Optional salesman-list action.
     if (action === "agents") {
       const result = await db
         .select({
+          id: users.id,
           employeeId: users.employeeId,
           name: users.name,
           role: users.role,
@@ -71,39 +84,41 @@ export async function GET(request) {
       const agents = result
         .filter(
           (user) =>
-            user.isActive !== false &&
-            user.employeeId &&
+            isActiveUser(user) &&
+            Boolean(String(user.employeeId || "").trim()) &&
             !isAdminRole(user.role)
         )
         .map((user) => ({
-          employeeId: user.employeeId,
-          name: user.name,
+          id: user.id,
+          employeeId: String(user.employeeId).trim(),
+          name: user.name || "Unnamed employee",
           role: user.role,
         }));
 
-      return Response.json(
-        { agents },
-        {
-          headers: { "Cache-Control": "no-store, private" },
-        }
-      );
+      return jsonSuccess({ agents });
     }
 
-    // --------------------------------------------------
-    // ACTION 2: GET SELECTED AGENT'S MONTHLY REPORT
-    // URL: /api/admin/mr-monthly-report
-    //      ?agentId=EMP001&month=2026-10
-    // --------------------------------------------------
-    const agentId = url.searchParams.get("agentId");
-    const month = url.searchParams.get("month");
+    // Read and validate report filters.
+    const agentId = String(
+      url.searchParams.get("agentId") || ""
+    ).trim();
+
+    const month = String(
+      url.searchParams.get("month") || ""
+    ).trim();
+
+    // Default: only dates containing visits.
+    // Optional: include every calendar date with showAllDays=1.
+    const showAllDays =
+      url.searchParams.get("showAllDays") === "1";
 
     if (!agentId || agentId.length > 255) {
-      return jsonError("Select a valid salesman", 400);
+      return jsonError("Select a valid salesman.", 400);
     }
 
-    if (!month || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
       return jsonError(
-        "Select a valid month in YYYY-MM format",
+        "Select a valid month in YYYY-MM format.",
         400
       );
     }
@@ -111,31 +126,67 @@ export async function GET(request) {
     const [year, monthNumber] = month.split("-").map(Number);
 
     if (year < 2000 || year > 2100) {
-      return jsonError("Invalid report year", 400);
+      return jsonError("Invalid report year.", 400);
     }
 
-    // Confirm the selected employee exists and is active.
-    const matchingAgents = await db
-      .select({
-        employeeId: users.employeeId,
-        name: users.name,
-        role: users.role,
-        isActive: users.isActive,
-      })
+    // Resolve the salesman by employee code or database ID.
+    const employeeColumns = {
+      id: users.id,
+      employeeId: users.employeeId,
+      name: users.name,
+      role: users.role,
+      isActive: users.isActive,
+    };
+
+    const byEmployeeCode = await db
+      .select(employeeColumns)
       .from(users)
       .where(eq(users.employeeId, agentId))
       .limit(1);
 
-    const selectedAgent = matchingAgents[0];
+    let selectedAgent = byEmployeeCode[0] || null;
 
-    if (
-      !selectedAgent ||
-      selectedAgent.isActive === false ||
-      isAdminRole(selectedAgent.role)
-    ) {
-      return jsonError("Salesman not found", 404);
+    if (!selectedAgent) {
+      const byDatabaseId = await db
+        .select(employeeColumns)
+        .from(users)
+        .where(eq(users.id, agentId))
+        .limit(1);
+
+      selectedAgent = byDatabaseId[0] || null;
     }
 
+    if (!selectedAgent) {
+      return jsonError(
+        "Salesman not found. Verify the selected employee.",
+        404
+      );
+    }
+
+    if (!isActiveUser(selectedAgent)) {
+      return jsonError("This salesman is inactive.", 400);
+    }
+
+    if (isAdminRole(selectedAgent.role)) {
+      return jsonError(
+        "Select a salesman account, not an administrator.",
+        400
+      );
+    }
+
+    // visits.agentId references users.employeeId.
+    const reportAgentId = String(
+      selectedAgent.employeeId || ""
+    ).trim();
+
+    if (!reportAgentId) {
+      return jsonError(
+        "This user does not have an employee ID configured.",
+        400
+      );
+    }
+
+    // Selected month range: inclusive start, exclusive next month.
     const startDate = new Date(
       Date.UTC(year, monthNumber - 1, 1)
     );
@@ -152,8 +203,8 @@ export async function GET(request) {
       to_char(${visits.createdAt}, 'YYYY-MM-DD')
     `;
 
-    // A deal means a visit with order_amount > 0.
-    // visits.agent_id is assumed to store users.employee_id.
+    // Fetch and aggregate only matching visits.
+    // No empty calendar rows are generated by this SQL query.
     const result = await db
       .select({
         date: dayExpression,
@@ -161,13 +212,19 @@ export async function GET(request) {
         agentId: visits.agentId,
         agentName: users.name,
 
+        medicalShopId: medicalShops.id,
+        medicalName: medicalShops.name,
+        medicalAddress: medicalShops.address,
+
         areaId: areas.id,
         areaName: areas.name,
 
         placeId: places.id,
         placeName: places.name,
 
-        visitCount: sql`count(*)::int`,
+        visitCount: sql`
+          count(*)::int
+        `,
 
         dealCount: sql`
           count(*) FILTER (
@@ -202,7 +259,7 @@ export async function GET(request) {
       )
       .where(
         and(
-          eq(visits.agentId, agentId),
+          eq(visits.agentId, reportAgentId),
           gte(visits.createdAt, startDate),
           lt(visits.createdAt, nextMonth)
         )
@@ -211,6 +268,9 @@ export async function GET(request) {
         dayExpression,
         visits.agentId,
         users.name,
+        medicalShops.id,
+        medicalShops.name,
+        medicalShops.address,
         areas.id,
         areas.name,
         places.id,
@@ -218,21 +278,28 @@ export async function GET(request) {
       )
       .orderBy(
         asc(dayExpression),
+        asc(medicalShops.name),
         asc(areas.name),
         asc(places.name)
       );
 
-    // Group database results by calendar date.
+    // Group actual visit records by date and medical shop.
     const rowsByDate = new Map();
+    const medicalMap = new Map();
 
     for (const row of result) {
-      if (!rowsByDate.has(row.date)) {
-        rowsByDate.set(row.date, []);
-      }
+      const date = String(row.date);
 
-      rowsByDate.get(row.date).push({
-        agentId: row.agentId,
-        agentName: row.agentName || selectedAgent.name,
+      const dailyRow = {
+        agentId: row.agentId || reportAgentId,
+        agentName:
+          row.agentName ||
+          selectedAgent.name ||
+          "Unknown employee",
+
+        medicalShopId: row.medicalShopId,
+        medicalName: row.medicalName || "Unnamed medical",
+        medicalAddress: row.medicalAddress || "—",
 
         areaId: row.areaId,
         areaName: row.areaName || "Unassigned area",
@@ -244,81 +311,146 @@ export async function GET(request) {
         dealCount: asNumber(row.dealCount),
         orderTotal: asNumber(row.orderTotal),
         collectionTotal: asNumber(row.collectionTotal),
-      });
+      };
+
+      if (!rowsByDate.has(date)) {
+        rowsByDate.set(date, []);
+      }
+
+      rowsByDate.get(date).push(dailyRow);
+
+      const medicalKey = String(row.medicalShopId);
+
+      if (!medicalMap.has(medicalKey)) {
+        medicalMap.set(medicalKey, {
+          medicalShopId: row.medicalShopId,
+          medicalName: row.medicalName || "Unnamed medical",
+          medicalAddress: row.medicalAddress || "—",
+
+          areaId: row.areaId,
+          areaName: row.areaName || "Unassigned area",
+
+          placeId: row.placeId,
+          placeName: row.placeName || "Unassigned place",
+
+          visitCount: 0,
+          dealCount: 0,
+          orderTotal: 0,
+          collectionTotal: 0,
+          lastVisitDate: date,
+        });
+      }
+
+      const medical = medicalMap.get(medicalKey);
+
+      medical.visitCount += dailyRow.visitCount;
+      medical.dealCount += dailyRow.dealCount;
+      medical.orderTotal += dailyRow.orderTotal;
+      medical.collectionTotal += dailyRow.collectionTotal;
+
+      if (date > medical.lastVisitDate) {
+        medical.lastVisitDate = date;
+      }
     }
 
-    // Return every day, even if the agent made zero visits.
-    const days = Array.from(
-      { length: daysInMonth },
-      (_, index) => {
-        const date = [
-          String(year).padStart(4, "0"),
-          String(monthNumber).padStart(2, "0"),
-          String(index + 1).padStart(2, "0"),
-        ].join("-");
-
-        const rows = rowsByDate.get(date) || [];
-
-        return {
-          date,
-          visitCount: rows.reduce(
-            (sum, row) => sum + row.visitCount,
-            0
-          ),
-          dealCount: rows.reduce(
-            (sum, row) => sum + row.dealCount,
-            0
-          ),
-          orderTotal: rows.reduce(
-            (sum, row) => sum + row.orderTotal,
-            0
-          ),
-          collectionTotal: rows.reduce(
-            (sum, row) => sum + row.collectionTotal,
-            0
-          ),
-          rows,
-        };
-      }
+    // Medical-wise monthly summary.
+    const medicalSummary = Array.from(
+      medicalMap.values()
+    ).sort(
+      (a, b) =>
+        b.visitCount - a.visitCount ||
+        String(a.medicalName).localeCompare(
+          String(b.medicalName),
+          "en-IN"
+        )
     );
 
-    const summary = {
-      totalVisits: days.reduce(
-        (sum, day) => sum + day.visitCount,
-        0
-      ),
-      totalDeals: days.reduce(
-        (sum, day) => sum + day.dealCount,
-        0
-      ),
-      totalOrderAmount: days.reduce(
-        (sum, day) => sum + day.orderTotal,
-        0
-      ),
-      totalCollectionAmount: days.reduce(
-        (sum, day) => sum + day.collectionTotal,
-        0
-      ),
-    };
+    // Build calendar dates only if explicitly requested.
+    // Otherwise, include only dates with actual visits.
+    let datesToInclude;
 
-    return Response.json(
-      {
-        month,
-        agent: {
-          employeeId: selectedAgent.employeeId,
-          name: selectedAgent.name,
-          role: selectedAgent.role,
-        },
-        summary,
-        days,
+    if (showAllDays) {
+      datesToInclude = Array.from(
+        { length: daysInMonth },
+        (_, index) =>
+          [
+            String(year).padStart(4, "0"),
+            String(monthNumber).padStart(2, "0"),
+            String(index + 1).padStart(2, "0"),
+          ].join("-")
+      );
+    } else {
+      datesToInclude = Array.from(
+        rowsByDate.keys()
+      ).sort();
+    }
+
+    const days = datesToInclude.map((date) => {
+      const rows = rowsByDate.get(date) || [];
+
+      return {
+        date,
+        visitCount: rows.reduce(
+          (sum, row) => sum + row.visitCount,
+          0
+        ),
+        dealCount: rows.reduce(
+          (sum, row) => sum + row.dealCount,
+          0
+        ),
+        orderTotal: rows.reduce(
+          (sum, row) => sum + row.orderTotal,
+          0
+        ),
+        collectionTotal: rows.reduce(
+          (sum, row) => sum + row.collectionTotal,
+          0
+        ),
+        rows,
+      };
+    });
+
+    // Monthly totals must remain correct regardless of calendar mode.
+    const summary = medicalSummary.reduce(
+      (totals, medical) => {
+        totals.totalVisits += asNumber(medical.visitCount);
+        totals.totalDeals += asNumber(medical.dealCount);
+        totals.totalOrderAmount += asNumber(
+          medical.orderTotal
+        );
+        totals.totalCollectionAmount += asNumber(
+          medical.collectionTotal
+        );
+
+        return totals;
       },
       {
-        headers: { "Cache-Control": "no-store, private" },
+        totalVisits: 0,
+        totalDeals: 0,
+        totalOrderAmount: 0,
+        totalCollectionAmount: 0,
+        totalVisitedMedicals: medicalSummary.length,
       }
     );
-  } catch {
+
+    return jsonSuccess({
+      month,
+      agent: {
+        id: selectedAgent.id,
+        employeeId: reportAgentId,
+        name: selectedAgent.name,
+        role: selectedAgent.role,
+      },
+      summary,
+      medicalSummary,
+      days,
+    });
+  } catch (error) {
+    // Keep database details in server logs, not the API response.
+    console.error("[MR Monthly Report] Failed:", error);
+
     return jsonError(
-      "Unable to generate the monthly report",
+      "Unable to generate the monthly report. Check the server logs for details.",
       500
     );
   }

@@ -63,7 +63,6 @@
 // }
 
 
-
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
@@ -74,6 +73,7 @@ import { users, visits, medicalShops } from "../../../../db/schema";
 import { eq, and, asc, sql } from "drizzle-orm";
 
 const MAX_MAP_VISITS = 3000;
+const MAX_SINGLE_MAP_VISITS = 500;
 const MAX_RANGE_DAYS = 31;
 
 function isValidDate(value) {
@@ -95,7 +95,7 @@ function jsonError(message, status) {
     {
       status,
       headers: {
-        "Cache-Control": "no-store",
+        "Cache-Control": "no-store, private",
       },
     }
   );
@@ -113,51 +113,86 @@ function sanitizeCoordinate(value, min, max) {
     : null;
 }
 
+function sanitizeVisit(visit) {
+  return {
+    ...visit,
+    latitude: sanitizeCoordinate(visit.latitude, -90, 90),
+    longitude: sanitizeCoordinate(visit.longitude, -180, 180),
+    orderAmount: Number(visit.orderAmount || 0),
+    collectionAmount: Number(visit.collectionAmount || 0),
+  };
+}
+
+function validateDateRange(fromDate, toDate) {
+  if (!isValidDate(fromDate) || !isValidDate(toDate)) {
+    return {
+      error:
+        "Provide valid fromDate and toDate in YYYY-MM-DD format",
+    };
+  }
+
+  if (fromDate > toDate) {
+    return {
+      error: "Start date must not be after end date",
+    };
+  }
+
+  const startMs = Date.parse(`${fromDate}T00:00:00.000Z`);
+  const endMs = Date.parse(`${toDate}T00:00:00.000Z`);
+
+  const rangeDays =
+    Math.floor((endMs - startMs) / 86400000) + 1;
+
+  if (rangeDays > MAX_RANGE_DAYS) {
+    return {
+      error: `Date range cannot exceed ${MAX_RANGE_DAYS} days`,
+    };
+  }
+
+  return {};
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
 
-    const agentId = searchParams.get("agentId");
+    const agentId = (searchParams.get("agentId") || "").trim();
     const dateParam = searchParams.get("date");
-
     const fromDate = searchParams.get("fromDate");
     const toDate = searchParams.get("toDate");
 
-    // =====================================================
-    // MODE 1: DATE RANGE — ALL EMPLOYEES
+    // MODE 1:
+    // One employee + date range OR all employees + date range.
     //
-    // /api/admin/employee-map?fromDate=2026-10-01&toDate=2026-10-07
-    // =====================================================
+    // One employee:
+    // ?agentId=EMP001&fromDate=2026-10-01&toDate=2026-10-07
+    //
+    // All employees:
+    // ?fromDate=2026-10-01&toDate=2026-10-07
+
     if (fromDate !== null || toDate !== null) {
-      if (!isValidDate(fromDate) || !isValidDate(toDate)) {
-        return jsonError(
-          "Provide valid fromDate and toDate in YYYY-MM-DD format",
-          400
-        );
+      const validation = validateDateRange(fromDate, toDate);
+
+      if (validation.error) {
+        return jsonError(validation.error, 400);
       }
 
-      if (fromDate > toDate) {
-        return jsonError(
-          "Start date must not be after end date",
-          400
-        );
+      const dateCondition = sql`(
+        DATE(${visits.createdAt} AT TIME ZONE 'Asia/Kolkata')
+          BETWEEN ${fromDate}::date AND ${toDate}::date
+        OR
+        DATE(${visits.createdAt})
+          BETWEEN ${fromDate}::date AND ${toDate}::date
+      )`;
+
+      const conditions = [dateCondition];
+
+      // This condition ensures the employee-range request
+      // returns only the selected employee's visits.
+      if (agentId) {
+        conditions.push(eq(visits.agentId, agentId));
       }
 
-      const startMs = Date.parse(`${fromDate}T00:00:00.000Z`);
-      const endMs = Date.parse(`${toDate}T00:00:00.000Z`);
-
-      const rangeDays =
-        Math.floor((endMs - startMs) / 86400000) + 1;
-
-      if (rangeDays > MAX_RANGE_DAYS) {
-        return jsonError(
-          `Date range cannot exceed ${MAX_RANGE_DAYS} days`,
-          400
-        );
-      }
-
-      // Keep the same India-time/local-date matching approach
-      // as the existing single-day API.
       const rangeVisits = await db
         .select({
           visitId: visits.id,
@@ -184,15 +219,7 @@ export async function GET(request) {
           medicalShops,
           eq(visits.medicalShopId, medicalShops.id)
         )
-        .where(sql`
-          (
-            DATE(${visits.createdAt} AT TIME ZONE 'Asia/Kolkata')
-              BETWEEN ${fromDate}::date AND ${toDate}::date
-            OR
-            DATE(${visits.createdAt})
-              BETWEEN ${fromDate}::date AND ${toDate}::date
-          )
-        `)
+        .where(and(...conditions))
         .orderBy(asc(visits.createdAt))
         .limit(MAX_MAP_VISITS + 1);
 
@@ -201,17 +228,14 @@ export async function GET(request) {
       const safeVisits = rangeVisits
         .slice(0, MAX_MAP_VISITS)
         .map((visit) => ({
-          ...visit,
+          ...sanitizeVisit(visit),
           agentName: visit.agentName || "Unknown Agent",
-          latitude: sanitizeCoordinate(visit.latitude, -90, 90),
-          longitude: sanitizeCoordinate(visit.longitude, -180, 180),
-          orderAmount: Number(visit.orderAmount || 0),
-          collectionAmount: Number(visit.collectionAmount || 0),
         }));
 
       return NextResponse.json(
         {
-          mode: "range",
+          mode: agentId ? "employee-range" : "range",
+          ...(agentId ? { agentId } : {}),
           fromDate,
           toDate,
           totalVisitsReturned: safeVisits.length,
@@ -226,12 +250,12 @@ export async function GET(request) {
       );
     }
 
-    // =====================================================
-    // MODE 2: EMPLOYEE LIST
+    // MODE 2:
+    // Employee dropdown.
     //
     // /api/admin/employee-map
-    // =====================================================
-    if (!agentId) {
+
+    if (!agentId && dateParam === null) {
       const agents = await db
         .select({
           id: users.id,
@@ -252,11 +276,15 @@ export async function GET(request) {
       );
     }
 
-    // =====================================================
-    // MODE 3: ONE EMPLOYEE + ONE DATE
+    // MODE 3:
+    // Existing single employee + single date request.
     //
-    // /api/admin/employee-map?agentId=EMP001&date=2026-10-12
-    // =====================================================
+    // ?agentId=EMP001&date=2026-10-12
+
+    if (!agentId) {
+      return jsonError("Provide an agentId", 400);
+    }
+
     if (!dateParam || !isValidDate(dateParam)) {
       return jsonError(
         "Provide a valid date in YYYY-MM-DD format",
@@ -268,6 +296,7 @@ export async function GET(request) {
       .select({
         visitId: visits.id,
         agentId: visits.agentId,
+
         shopName: medicalShops.name,
         address: medicalShops.address,
 
@@ -287,28 +316,31 @@ export async function GET(request) {
       .where(
         and(
           eq(visits.agentId, agentId),
-          sql`
-            (
-              DATE(${visits.createdAt} AT TIME ZONE 'Asia/Kolkata')
-                = ${dateParam}::date
-              OR
-              DATE(${visits.createdAt}) = ${dateParam}::date
-            )
-          `
+          sql`(
+            DATE(${visits.createdAt} AT TIME ZONE 'Asia/Kolkata')
+              = ${dateParam}::date
+            OR
+            DATE(${visits.createdAt}) = ${dateParam}::date
+          )`
         )
       )
-      .orderBy(asc(visits.createdAt));
+      .orderBy(asc(visits.createdAt))
+      .limit(MAX_SINGLE_MAP_VISITS + 1);
 
-    const safeAgentVisits = agentVisits.map((visit) => ({
-      ...visit,
-      latitude: sanitizeCoordinate(visit.latitude, -90, 90),
-      longitude: sanitizeCoordinate(visit.longitude, -180, 180),
-      orderAmount: Number(visit.orderAmount || 0),
-      collectionAmount: Number(visit.collectionAmount || 0),
-    }));
+    const truncated =
+      agentVisits.length > MAX_SINGLE_MAP_VISITS;
+
+    const safeAgentVisits = agentVisits
+      .slice(0, MAX_SINGLE_MAP_VISITS)
+      .map(sanitizeVisit);
 
     return NextResponse.json(
-      { mode: "single", visits: safeAgentVisits },
+      {
+        mode: "single",
+        visits: safeAgentVisits,
+        totalVisitsReturned: safeAgentVisits.length,
+        truncated,
+      },
       {
         headers: {
           "Cache-Control": "no-store, private",
@@ -316,7 +348,10 @@ export async function GET(request) {
       }
     );
   } catch (error) {
-    console.error("Employee Map API Error:", error?.message);
+    console.error(
+      "Employee Map API Error:",
+      error?.message
+    );
 
     return jsonError("Failed to fetch map data", 500);
   }

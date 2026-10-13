@@ -60,18 +60,18 @@ export default function MonthlyMRReport() {
   const [agents, setAgents] = useState([]);
   const [agentId, setAgentId] = useState("");
   const [month, setMonth] = useState("");
-
+  const [showAllDays, setShowAllDays] = useState(false);
   const [report, setReport] = useState(null);
+
   const [loadingAgents, setLoadingAgents] = useState(true);
   const [loadingReport, setLoadingReport] = useState(false);
 
   const [agentsError, setAgentsError] = useState("");
   const [error, setError] = useState("");
 
-  // Load the salesman list.
-  // Cleanup ignores stale responses without aborting fetch requests.
+  // Load the salesman list once when this component mounts.
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
 
     async function loadAgents() {
       setLoadingAgents(true);
@@ -84,6 +84,7 @@ export default function MonthlyMRReport() {
             method: "GET",
             credentials: "same-origin",
             cache: "no-store",
+            signal: controller.signal,
           }
         );
 
@@ -95,19 +96,17 @@ export default function MonthlyMRReport() {
           );
         }
 
-        if (!cancelled) {
-          setAgents(
-            Array.isArray(data.agents) ? data.agents : []
-          );
-        }
+        setAgents(
+          Array.isArray(data.agents) ? data.agents : []
+        );
       } catch (err) {
-        if (!cancelled) {
+        if (err.name !== "AbortError") {
           setAgentsError(
             err.message || "Unable to load salesmen."
           );
         }
       } finally {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setLoadingAgents(false);
         }
       }
@@ -115,9 +114,7 @@ export default function MonthlyMRReport() {
 
     loadAgents();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, []);
 
   function handleAgentChange(event) {
@@ -132,7 +129,13 @@ export default function MonthlyMRReport() {
     setError("");
   }
 
-  // Fetch only after the user submits the selected agent and month.
+  function handleShowAllDaysChange(event) {
+    setShowAllDays(event.target.checked);
+    setReport(null);
+    setError("");
+  }
+
+  // Fetch only when the user submits the filters.
   async function handleShowReport(event) {
     event.preventDefault();
 
@@ -156,6 +159,10 @@ export default function MonthlyMRReport() {
         month,
       });
 
+      if (showAllDays) {
+        params.set("showAllDays", "1");
+      }
+
       const response = await fetch(
         `/api/admin/mr-monthly-report?${params.toString()}`,
         {
@@ -175,10 +182,11 @@ export default function MonthlyMRReport() {
 
       if (
         !data.summary ||
-        !Array.isArray(data.days)
+        !Array.isArray(data.days) ||
+        !Array.isArray(data.medicalSummary)
       ) {
         throw new Error(
-          "Unexpected report response. Check that the API supports agentId and month."
+          "Unexpected report response. Verify the monthly report API."
         );
       }
 
@@ -198,9 +206,28 @@ export default function MonthlyMRReport() {
       String(agentId)
   );
 
+  const visitedMedicals = report?.medicalSummary || [];
+  const dailyDays = report?.days || [];
+
+  const dailyTotals = dailyDays.reduce(
+    (totals, day) => {
+      totals.visits += Number(day.visitCount || 0);
+      totals.deals += Number(day.dealCount || 0);
+      totals.orders += Number(day.orderTotal || 0);
+      totals.collections += Number(day.collectionTotal || 0);
+      return totals;
+    },
+    {
+      visits: 0,
+      deals: 0,
+      orders: 0,
+      collections: 0,
+    }
+  );
+
   return (
-    <section className="mx-auto w-full min-w-0 max-w-7xl space-y-5 px-3 py-4 pb-8 sm:space-y-6 sm:px-5 sm:py-6 md:px-8 md:py-8">
-      {/* Page heading */}
+    <section className="mx-auto w-full min-w-0 max-w-8xl space-y-5 px-2 py-4 pb-8 sm:space-y-6 ">
+      {/* Heading */}
       <div>
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
           Performance Analytics
@@ -211,8 +238,8 @@ export default function MonthlyMRReport() {
         </h1>
 
         <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-          Select a salesman first, choose a month, and review daily
-          visits, deals, area-wise activity, order amounts and collections.
+          Review salesman visits, medical shops, deals,
+          order amounts and collections for a selected month.
         </p>
       </div>
 
@@ -227,7 +254,7 @@ export default function MonthlyMRReport() {
           </h2>
 
           <p className="mt-1 text-sm text-gray-500">
-            Choose the salesman before selecting the reporting month.
+            Select a salesman and month before generating the report.
           </p>
         </div>
 
@@ -336,6 +363,30 @@ export default function MonthlyMRReport() {
             </button>
           </div>
         </div>
+
+        {/* Calendar option */}
+        <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={showAllDays}
+              onChange={handleShowAllDaysChange}
+              className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+
+            <span>
+              <span className="block text-sm font-semibold text-gray-800">
+                Show all calendar days
+              </span>
+
+              <span className="mt-1 block text-xs leading-5 text-gray-500">
+                Disabled by default. When enabled, the report includes
+                dates without visits and displays “No visits recorded.”
+                Select Show Report again after changing this option.
+              </span>
+            </span>
+          </label>
+        </div>
       </form>
 
       {/* Error */}
@@ -350,7 +401,10 @@ export default function MonthlyMRReport() {
 
       {/* Loading */}
       {loadingReport && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500 shadow-sm">
+        <div
+          role="status"
+          className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500 shadow-sm"
+        >
           Generating monthly report...
         </div>
       )}
@@ -358,6 +412,7 @@ export default function MonthlyMRReport() {
       {/* Report */}
       {report && !loadingReport && (
         <div className="space-y-5 sm:space-y-6">
+          {/* Selected salesman */}
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">
@@ -374,18 +429,28 @@ export default function MonthlyMRReport() {
             </div>
 
             <span className="mt-2 w-fit rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 sm:mt-0">
-              {report.days.length} calendar days
+              {visitedMedicals.length} visited medical
+              {visitedMedicals.length === 1 ? "" : "s"}
             </span>
           </div>
 
           {/* Summary cards */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 sm:gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5 sm:gap-4">
             <SummaryCard
               title="Total Visits"
               value={Number(
                 report.summary.totalVisits || 0
               ).toLocaleString("en-IN")}
               subtitle="Visits in the selected month"
+            />
+
+            <SummaryCard
+              title="Visited Medicals"
+              value={Number(
+                report.summary.totalVisitedMedicals ??
+                  visitedMedicals.length
+              ).toLocaleString("en-IN")}
+              subtitle="Unique medical shops visited"
             />
 
             <SummaryCard
@@ -413,144 +478,328 @@ export default function MonthlyMRReport() {
             />
           </div>
 
+          {/* Medical-wise summary */}
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="border-b border-gray-200 p-4 sm:p-5">
+              <h2 className="text-base font-semibold text-gray-900 sm:text-lg">
+                Visited Medicals &amp; Medical-wise Visit Count
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-500">
+                Only shops visited by this salesman during{" "}
+                {report.month || month} are shown.
+              </p>
+            </div>
+
+            {visitedMedicals.length === 0 ? (
+              <div className="px-5 py-10 text-center text-sm text-gray-500">
+                No medical shops were visited by this salesman
+                during the selected month.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1000px] text-left text-sm">
+                  <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+                    <tr>
+                      <th className="whitespace-nowrap px-4 py-3.5">
+                        Medical Shop
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3.5">
+                        Address
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3.5">
+                        Area
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3.5">
+                        Place
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3.5 text-right">
+                        Visit Count
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3.5 text-right">
+                        Deals
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3.5 text-right">
+                        Order Amount
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3.5 text-right">
+                        Collections
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3.5">
+                        Last Visit
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-gray-100">
+                    {visitedMedicals.map((medical, index) => (
+                      <tr
+                        key={`${medical.medicalShopId ?? "medical"}-${index}`}
+                        className="transition hover:bg-gray-50"
+                      >
+                        <td className="max-w-[240px] break-words px-4 py-4 font-semibold text-gray-900">
+                          {medical.medicalName || "Unnamed medical"}
+                        </td>
+
+                        <td className="max-w-[220px] break-words px-4 py-4 text-gray-600">
+                          {medical.medicalAddress || "—"}
+                        </td>
+
+                        <td className="px-4 py-4 text-gray-600">
+                          {medical.areaName || "Unassigned area"}
+                        </td>
+
+                        <td className="px-4 py-4 text-gray-600">
+                          {medical.placeName || "Unassigned place"}
+                        </td>
+
+                        <td className="px-4 py-4 text-right">
+                          <span className="inline-flex min-w-10 items-center justify-center rounded-lg bg-blue-50 px-2.5 py-1.5 font-bold text-blue-700">
+                            {Number(medical.visitCount || 0)}
+                          </span>
+                        </td>
+
+                        <td className="px-4 py-4 text-right font-semibold text-green-700">
+                          {Number(medical.dealCount || 0)}
+                        </td>
+
+                        <td className="whitespace-nowrap px-4 py-4 text-right text-gray-700">
+                          {formatMoney(medical.orderTotal)}
+                        </td>
+
+                        <td className="whitespace-nowrap px-4 py-4 text-right text-gray-700">
+                          {formatMoney(medical.collectionTotal)}
+                        </td>
+
+                        <td className="whitespace-nowrap px-4 py-4 text-gray-600">
+                          {formatDate(medical.lastVisitDate)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+
+                  <tfoot className="border-t-2 border-gray-200 bg-gray-50">
+                    <tr>
+                      <td
+                        colSpan={4}
+                        className="px-4 py-4 font-bold text-gray-900"
+                      >
+                        Totals for visited medicals
+                      </td>
+
+                      <td className="px-4 py-4 text-right font-bold">
+                        {visitedMedicals.reduce(
+                          (sum, item) =>
+                            sum + Number(item.visitCount || 0),
+                          0
+                        )}
+                      </td>
+
+                      <td className="px-4 py-4 text-right font-bold text-green-700">
+                        {visitedMedicals.reduce(
+                          (sum, item) =>
+                            sum + Number(item.dealCount || 0),
+                          0
+                        )}
+                      </td>
+
+                      <td className="whitespace-nowrap px-4 py-4 text-right font-bold">
+                        {formatMoney(
+                          visitedMedicals.reduce(
+                            (sum, item) =>
+                              sum + Number(item.orderTotal || 0),
+                            0
+                          )
+                        )}
+                      </td>
+
+                      <td className="whitespace-nowrap px-4 py-4 text-right font-bold">
+                        {formatMoney(
+                          visitedMedicals.reduce(
+                            (sum, item) =>
+                              sum + Number(item.collectionTotal || 0),
+                            0
+                          )
+                        )}
+                      </td>
+
+                      <td className="px-4 py-4">—</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </div>
+
           {/* Daily details */}
           <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
             <div className="border-b border-gray-200 p-4 sm:p-5">
               <h2 className="text-base font-semibold text-gray-900 sm:text-lg">
-                Daily Visit & Deal Details
+                Daily Visit &amp; Medical Details
               </h2>
 
               <p className="mt-1 text-sm text-gray-500">
-                Daily results are grouped by area and place.
-                Dates without visits are also shown.
+                {showAllDays
+                  ? "All calendar dates are shown, including days without visits."
+                  : "Only dates with actual medical shop visits are shown."}
               </p>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[850px] text-left text-sm">
-                <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-                  <tr>
-                    <th className="whitespace-nowrap px-4 py-3.5">
-                      Date
-                    </th>
-                    <th className="whitespace-nowrap px-4 py-3.5">
-                      Area
-                    </th>
-                    <th className="whitespace-nowrap px-4 py-3.5">
-                      Place
-                    </th>
-                    <th className="whitespace-nowrap px-4 py-3.5 text-right">
-                      Visits
-                    </th>
-                    <th className="whitespace-nowrap px-4 py-3.5 text-right">
-                      Deals
-                    </th>
-                    <th className="whitespace-nowrap px-4 py-3.5 text-right">
-                      Order Amount
-                    </th>
-                    <th className="whitespace-nowrap px-4 py-3.5 text-right">
-                      Collections
-                    </th>
-                  </tr>
-                </thead>
+            {dailyDays.length === 0 ? (
+              <div className="px-5 py-10 text-center text-sm text-gray-500">
+                No visits were recorded for this salesman during
+                the selected month.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1100px] text-left text-sm">
+                  <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+                    <tr>
+                      <th className="whitespace-nowrap px-4 py-3.5">
+                        Date
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3.5">
+                        Medical Shop
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3.5">
+                        Address
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3.5">
+                        Area
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3.5">
+                        Place
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3.5 text-right">
+                        Visits
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3.5 text-right">
+                        Deals
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3.5 text-right">
+                        Order Amount
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3.5 text-right">
+                        Collections
+                      </th>
+                    </tr>
+                  </thead>
 
-                <tbody className="divide-y divide-gray-100">
-                  {report.days.map((day) => {
-                    const rows = Array.isArray(day.rows)
-                      ? day.rows
-                      : [];
+                  <tbody className="divide-y divide-gray-100">
+                    {dailyDays.map((day) => {
+                      const rows = Array.isArray(day.rows)
+                        ? day.rows
+                        : [];
 
-                    if (rows.length === 0) {
-                      return (
-                        <tr key={day.date}>
+                      if (rows.length === 0) {
+                        return (
+                          <tr
+                            key={day.date}
+                            className="bg-gray-50/70"
+                          >
+                            <td className="whitespace-nowrap px-4 py-4 font-medium text-gray-700">
+                              {formatDate(day.date)}
+                            </td>
+
+                            <td
+                              colSpan={8}
+                              className="px-4 py-4 italic text-gray-400"
+                            >
+                              No visits recorded
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return rows.map((row, index) => (
+                        <tr
+                          key={`${day.date}-${row.medicalShopId ?? "medical"}-${index}`}
+                          className="transition hover:bg-gray-50"
+                        >
                           <td className="whitespace-nowrap px-4 py-4 font-medium text-gray-700">
                             {formatDate(day.date)}
                           </td>
 
-                          <td
-                            colSpan={6}
-                            className="px-4 py-4 text-gray-400"
-                          >
-                            No visits recorded
+                          <td className="max-w-[240px] break-words px-4 py-4 font-semibold text-gray-900">
+                            {row.medicalName || "Unnamed medical"}
+                          </td>
+
+                          <td className="max-w-[220px] break-words px-4 py-4 text-gray-600">
+                            {row.medicalAddress || "—"}
+                          </td>
+
+                          <td className="px-4 py-4 text-gray-600">
+                            {row.areaName || "Unassigned area"}
+                          </td>
+
+                          <td className="px-4 py-4 text-gray-600">
+                            {row.placeName || "Unassigned place"}
+                          </td>
+
+                          <td className="px-4 py-4 text-right font-semibold text-gray-900">
+                            {Number(row.visitCount || 0)}
+                          </td>
+
+                          <td className="px-4 py-4 text-right font-semibold text-green-700">
+                            {Number(row.dealCount || 0)}
+                          </td>
+
+                          <td className="whitespace-nowrap px-4 py-4 text-right text-gray-700">
+                            {formatMoney(row.orderTotal)}
+                          </td>
+
+                          <td className="whitespace-nowrap px-4 py-4 text-right text-gray-700">
+                            {formatMoney(row.collectionTotal)}
                           </td>
                         </tr>
-                      );
-                    }
+                      ));
+                    })}
+                  </tbody>
 
-                    return rows.map((row, index) => (
-                      <tr
-                        key={`${day.date}-${row.areaId ?? "area"}-${row.placeId ?? "place"}-${index}`}
-                        className="transition hover:bg-gray-50"
+                  <tfoot className="border-t-2 border-gray-200 bg-gray-50">
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="px-4 py-4 font-bold text-gray-900"
                       >
-                        <td className="whitespace-nowrap px-4 py-4 font-medium text-gray-700">
-                          {formatDate(day.date)}
-                        </td>
+                        Monthly Total
+                      </td>
 
-                        <td className="whitespace-nowrap px-4 py-4 text-gray-600">
-                          {row.areaName || "Unassigned area"}
-                        </td>
+                      <td className="px-4 py-4 text-right font-bold">
+                        {Number(
+                          report.summary.totalVisits ?? dailyTotals.visits
+                        )}
+                      </td>
 
-                        <td className="whitespace-nowrap px-4 py-4 text-gray-600">
-                          {row.placeName || "Unassigned place"}
-                        </td>
+                      <td className="px-4 py-4 text-right font-bold text-green-700">
+                        {Number(
+                          report.summary.totalDeals ?? dailyTotals.deals
+                        )}
+                      </td>
 
-                        <td className="px-4 py-4 text-right font-semibold text-gray-900">
-                          {Number(row.visitCount || 0)}
-                        </td>
+                      <td className="whitespace-nowrap px-4 py-4 text-right font-bold">
+                        {formatMoney(
+                          report.summary.totalOrderAmount ??
+                            dailyTotals.orders
+                        )}
+                      </td>
 
-                        <td className="px-4 py-4 text-right font-semibold text-green-700">
-                          {Number(row.dealCount || 0)}
-                        </td>
-
-                        <td className="whitespace-nowrap px-4 py-4 text-right text-gray-700">
-                          {formatMoney(row.orderTotal)}
-                        </td>
-
-                        <td className="whitespace-nowrap px-4 py-4 text-right text-gray-700">
-                          {formatMoney(row.collectionTotal)}
-                        </td>
-                      </tr>
-                    ));
-                  })}
-                </tbody>
-
-                <tfoot className="border-t-2 border-gray-200 bg-gray-50">
-                  <tr>
-                    <td
-                      colSpan={3}
-                      className="px-4 py-4 font-bold text-gray-900"
-                    >
-                      Monthly Total
-                    </td>
-
-                    <td className="px-4 py-4 text-right font-bold">
-                      {Number(report.summary.totalVisits || 0)}
-                    </td>
-
-                    <td className="px-4 py-4 text-right font-bold text-green-700">
-                      {Number(report.summary.totalDeals || 0)}
-                    </td>
-
-                    <td className="whitespace-nowrap px-4 py-4 text-right font-bold">
-                      {formatMoney(
-                        report.summary.totalOrderAmount
-                      )}
-                    </td>
-
-                    <td className="whitespace-nowrap px-4 py-4 text-right font-bold">
-                      {formatMoney(
-                        report.summary.totalCollectionAmount
-                      )}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                      <td className="whitespace-nowrap px-4 py-4 text-right font-bold">
+                        {formatMoney(
+                          report.summary.totalCollectionAmount ??
+                            dailyTotals.collections
+                        )}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Empty state */}
+      {/* Initial state */}
       {!report && !loadingReport && !error && (
         <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-5 py-10 text-center sm:px-6 sm:py-12">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
@@ -575,8 +824,8 @@ export default function MonthlyMRReport() {
           </h3>
 
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">
-            Choose the salesman first, select the month, then click
-            Show Report to review daily visit and deal details.
+            Generate a monthly report to view visited medical
+            shops, daily activity, deals, orders and collections.
           </p>
         </div>
       )}
