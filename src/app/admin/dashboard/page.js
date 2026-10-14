@@ -593,7 +593,7 @@
 
 
 "use client";
-
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -608,6 +608,18 @@ import CollectionStatements from "../../components/admin/CollectionStatements";
 /* -------------------------------------------------------
    NAVIGATION
 ------------------------------------------------------- */
+
+const EmployeeVisitChartTab = dynamic(
+  () => import("../../components/admin/employee-visit-chart"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="p-6 text-center text-sm text-slate-500">
+        Loading attendance chart...
+      </div>
+    ),
+  }
+);
 
 const NAV_ITEMS = [
   {
@@ -658,6 +670,12 @@ const NAV_ITEMS = [
     mobileLabel: "Collections",
     icon: "M3 5h18v14H3z M3 10h18m-14 5h4",
   },
+  {
+  id: "attendance",
+  label: "Employee Attendance",
+  mobileLabel: "Attendance",
+  icon: "M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 012 2v14H3V6a2 2 0 012-2z",
+},
 ];
 
 const PAGE_META = {
@@ -693,6 +711,11 @@ const PAGE_META = {
     title: "Collection Statements",
     subtitle: "Review cash collections by salesman and visit date.",
   },
+  attendance: {
+  title: "Employee Attendance",
+  subtitle:
+    "Review monthly employee visit counts, zero-visit days, and Sundays.",
+},
 };
 
 /* -------------------------------------------------------
@@ -1831,6 +1854,11 @@ export default function AdminDashboard() {
               <MonthlyMRReportTab />
             </div>
           )}
+          {adminNav === "attendance" && (
+  <div className="min-h-full">
+    <EmployeeVisitChartTab />
+  </div>
+)}
 
           {adminNav === "collections" && (
             <div className="min-h-full p-3 pb-8 sm:p-5 md:p-8">
